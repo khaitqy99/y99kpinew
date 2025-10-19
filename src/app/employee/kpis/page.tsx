@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,51 +32,11 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { FileCheck, MessageSquare, RefreshCw } from 'lucide-react';
+import { kpis } from '@/data/kpis';
+import { kpiRecords } from '@/data/kpiRecords';
+import { SessionContext } from '@/contexts/SessionContext';
 
-const kpiData = [
-  {
-    id: 'KPI-004',
-    name: 'Hoàn thành báo cáo phân tích đối thủ cạnh tranh',
-    target: '1 báo cáo',
-    actual: '0.75 báo cáo',
-    status: 'in_progress',
-    deadline: '2024-07-30',
-  },
-  {
-    id: 'KPI-005',
-    name: 'Tăng 15% lượng khách hàng tiềm năng',
-    target: '15%',
-    actual: '6%',
-    status: 'in_progress',
-    deadline: '2024-07-15',
-  },
-  {
-    id: 'KPI-006',
-    name: 'Đạt chứng chỉ chuyên môn mới',
-    target: '1 chứng chỉ',
-    actual: '1 chứng chỉ',
-    status: 'pending_approval',
-    deadline: '2024-06-20',
-  },
-  {
-    id: 'KPI-007',
-    name: 'Giảm 5% thời gian xử lý yêu cầu khách hàng',
-    target: 'Giảm 5%',
-    actual: 'Giảm 5.2%',
-    status: 'completed',
-    deadline: '2024-05-31',
-  },
-  {
-    id: 'KPI-008',
-    name: 'Triển khai chiến dịch marketing hè',
-    target: '1 chiến dịch',
-    actual: 'Chưa cập nhật',
-    status: 'not_started',
-    deadline: '2024-08-15',
-  },
-];
-
-type Kpi = (typeof kpiData)[0];
+type Kpi = ReturnType<typeof getEmployeeKpis>[0];
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
   not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
@@ -88,11 +46,29 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
   overdue: { label: 'Quá hạn', variant: 'destructive' },
 };
 
+const getEmployeeKpis = (employeeId: string | undefined) => {
+    if (!employeeId) return [];
+    return kpiRecords
+        .filter(record => record.employeeId === employeeId)
+        .map(record => {
+            const kpi = kpis.find(k => k.id === record.kpiId);
+            return {
+                ...record,
+                name: kpi?.name || 'N/A',
+                targetFormatted: `${kpi?.target}${kpi?.unit}`,
+                actualFormatted: `${record.actual}${kpi?.unit}`,
+            }
+        });
+}
+
 
 export default function EmployeeKpisPage() {
   const { toast } = useToast();
+  const { user } = useContext(SessionContext);
   const [selectedKpi, setSelectedKpi] = useState<Kpi | null>(null);
   const [isUpdateModalOpen, setUpdateModalOpen] = useState(false);
+
+  const kpiData = getEmployeeKpis(user?.id);
 
   const handleUpdateClick = (kpi: Kpi) => {
     setSelectedKpi(kpi);
@@ -140,9 +116,9 @@ export default function EmployeeKpisPage() {
               {kpiData.map((kpi) => (
                 <TableRow key={kpi.id}>
                   <TableCell className="font-medium">{kpi.name}</TableCell>
-                  <TableCell>{kpi.target}</TableCell>
-                  <TableCell>{kpi.actual}</TableCell>
-                  <TableCell>{format(new Date(kpi.deadline), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{kpi.targetFormatted}</TableCell>
+                  <TableCell>{kpi.actual > 0 ? kpi.actualFormatted : 'Chưa cập nhật'}</TableCell>
+                  <TableCell>{format(new Date(kpi.endDate), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>
                     <Badge variant={statusConfig[kpi.status]?.variant || 'default'}>
                       {statusConfig[kpi.status]?.label || 'Không xác định'}
@@ -188,9 +164,7 @@ export default function EmployeeKpisPage() {
               </div>
             </div>
             <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Hủy</Button>
-              </DialogClose>
+                <Button variant="outline" onClick={() => setUpdateModalOpen(false)}>Hủy</Button>
               <Button onClick={handleSaveChanges}>Lưu thay đổi</Button>
             </DialogFooter>
           </DialogContent>

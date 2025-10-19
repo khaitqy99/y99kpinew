@@ -12,28 +12,36 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useRouter } from 'next/navigation';
+import { useContext } from 'react';
+import { SessionContext } from '@/contexts/SessionContext';
+import { employees } from '@/data/employees';
+
+const adminUser = {
+  id: 'admin-01',
+  name: 'Admin User',
+  email: 'admin@kpicentral.com',
+  role: 'admin',
+  department: 'Management',
+  avatar: 'https://picsum.photos/seed/1/40/40'
+};
+
+const employeeUser = employees.find(e => e.email === 'nva@example.com');
+
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useContext(SessionContext);
 
   const handleLogin = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const role = formData.get('role') as string;
     
-    // Store user role in local storage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('userRole', role);
-      if (role === 'admin') {
-        localStorage.setItem('userData', JSON.stringify({ name: 'Admin User', email: 'admin@kpicentral.com' }));
-      } else {
-        localStorage.setItem('userData', JSON.stringify({ name: 'Employee User', email: 'employee@kpicentral.com' }));
-      }
-    }
-
     if (role === 'admin') {
+      login(adminUser);
       router.push('/admin/dashboard');
     } else {
+      login(employeeUser!);
       router.push('/employee/dashboard');
     }
   };
@@ -44,7 +52,7 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Đăng nhập</CardTitle>
           <CardDescription>
-            Nhập thông tin của bạn để truy cập vào tài khoản
+            Chọn vai trò để truy cập vào tài khoản dashboard tương ứng.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -50,41 +50,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { kpis as kpiData } from '@/data/kpis';
 
-const kpiData = [
-  {
-    id: 'KPI-001',
-    name: 'Tăng trưởng doanh thu',
-    department: 'Kinh doanh',
-    target: '15%',
-    frequency: 'Hàng quý',
-    status: 'Đang hoạt động',
-  },
-  {
-    id: 'KPI-002',
-    name: 'Tỷ lệ chuyển đổi',
-    department: 'Marketing',
-    target: '5%',
-    frequency: 'Hàng tháng',
-    status: 'Đang hoạt động',
-  },
-  {
-    id: 'KPI-003',
-    name: 'Chỉ số hài lòng khách hàng (CSAT)',
-    department: 'Chăm sóc khách hàng',
-    target: '95 điểm',
-    frequency: 'Hàng quý',
-    status: 'Tạm dừng',
-  },
-  {
-    id: 'KPI-004',
-    name: 'Thời gian hoàn thành dự án',
-    department: 'Dự án',
-    target: 'Giảm 10%',
-    frequency: 'Hàng năm',
-    status: 'Đang hoạt động',
-  },
-];
+const departments = [...new Set(kpiData.map(kpi => kpi.department))];
+const frequencies = [...new Set(kpiData.map(kpi => kpi.frequency))];
 
 export default function KpiListPage() {
   const [open, setOpen] = useState(false);
@@ -135,10 +104,9 @@ export default function KpiListPage() {
                       <SelectValue placeholder="Chọn phòng ban" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="kinh-doanh">Kinh doanh</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="nhan-su">Nhân sự</SelectItem>
-                      <SelectItem value="ky-thuat">Kỹ thuật</SelectItem>
+                      {departments.map(dep => (
+                        <SelectItem key={dep} value={dep.toLowerCase().replace(' ', '-')}>{dep}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -161,9 +129,9 @@ export default function KpiListPage() {
                       <SelectValue placeholder="Chọn tần suất đo lường" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="hang-thang">Hàng tháng</SelectItem>
-                      <SelectItem value="hang-quy">Hàng quý</SelectItem>
-                      <SelectItem value="hang-nam">Hàng năm</SelectItem>
+                      {frequencies.map(freq => (
+                         <SelectItem key={freq} value={freq.toLowerCase().replace(' ', '-')}>{freq}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -206,11 +174,11 @@ export default function KpiListPage() {
               <TableRow key={kpi.id}>
                 <TableCell className="font-medium">{kpi.name}</TableCell>
                 <TableCell>{kpi.department}</TableCell>
-                <TableCell>{kpi.target}</TableCell>
+                <TableCell>{`${kpi.target}${kpi.unit}`}</TableCell>
                 <TableCell>{kpi.frequency}</TableCell>
                 <TableCell>
-                  <Badge variant={kpi.status === 'Đang hoạt động' ? 'default' : 'secondary'}>
-                    {kpi.status}
+                  <Badge variant={kpi.status === 'active' ? 'default' : 'secondary'}>
+                    {kpi.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
                   </Badge>
                 </TableCell>
                 <TableCell>

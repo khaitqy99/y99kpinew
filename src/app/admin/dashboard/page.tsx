@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Activity,
   ArrowUpRight,
   CheckCircle,
   Clock,
@@ -37,8 +36,11 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { kpiRecords } from '@/data/kpiRecords';
+import { employees } from '@/data/employees';
+import { kpis } from '@/data/kpis';
 
-const kpiData = [
+const kpiChartData = [
   { name: 'Jan', completed: 80 },
   { name: 'Feb', completed: 85 },
   { name: 'Mar', completed: 90 },
@@ -47,28 +49,24 @@ const kpiData = [
   { name: 'Jun', completed: 95 },
 ];
 
-const pendingKpis = [
-  {
-    id: 'KPI-001',
-    title: 'Tăng trưởng doanh thu quý 2',
-    assignee: 'Nguyễn Văn A',
-    status: 'Chờ duyệt',
-  },
-  {
-    id: 'KPI-002',
-    title: 'Tối ưu hóa tỷ lệ chuyển đổi',
-    assignee: 'Trần Thị B',
-    status: 'Chờ duyệt',
-  },
-  {
-    id: 'KPI-003',
-    title: 'Cải thiện chỉ số hài lòng của khách hàng',
-    assignee: 'Lê Văn C',
-    status: 'Chờ duyệt',
-  },
-];
+const pendingKpis = kpiRecords.filter(r => r.status === 'pending_approval').slice(0,3).map(record => {
+    const employee = employees.find(e => e.id === record.employeeId);
+    const kpi = kpis.find(k => k.id === record.kpiId);
+    return {
+        id: record.id,
+        title: kpi?.name || 'N/A',
+        assignee: employee?.name || 'N/A',
+        status: 'Chờ duyệt',
+    }
+});
 
 export default function AdminDashboardPage() {
+  const totalKpis = kpiRecords.length;
+  const pendingCount = kpiRecords.filter(r => r.status === 'pending_approval').length;
+  const employeeCount = employees.length;
+  const completedCount = kpiRecords.filter(r => r.status === 'completed').length;
+  const completionRate = totalKpis > 0 ? (completedCount / totalKpis) * 100 : 0;
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <main className="flex flex-1 flex-col gap-4">
@@ -79,7 +77,7 @@ export default function AdminDashboardPage() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">125</div>
+              <div className="text-2xl font-bold">{totalKpis}</div>
               <p className="text-xs text-muted-foreground">+5 so với tháng trước</p>
             </CardContent>
           </Card>
@@ -91,7 +89,7 @@ export default function AdminDashboardPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">{pendingCount}</div>
               <p className="text-xs text-muted-foreground">
                 +3 so với tuần trước
               </p>
@@ -103,9 +101,9 @@ export default function AdminDashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">89</div>
+              <div className="text-2xl font-bold">{employeeCount}</div>
               <p className="text-xs text-muted-foreground">
-                +10 so với quý trước
+                +1 so với quý trước
               </p>
             </CardContent>
           </Card>
@@ -117,7 +115,7 @@ export default function AdminDashboardPage() {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">92.5%</div>
+              <div className="text-2xl font-bold">{completionRate.toFixed(1)}%</div>
               <p className="text-xs text-muted-foreground">
                 +2.1% so với tháng trước
               </p>
@@ -134,7 +132,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={kpiData}>
+                <BarChart data={kpiChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis unit="%" />

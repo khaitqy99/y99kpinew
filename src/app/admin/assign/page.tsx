@@ -36,34 +36,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-// Mock Data
-const employees = [
-  {
-    id: 'emp-01',
-    name: 'Nguyễn Văn A',
-    email: 'nva@example.com',
-    avatar: 'https://picsum.photos/seed/20/40/40',
-  },
-  {
-    id: 'emp-02',
-    name: 'Trần Thị B',
-    email: 'ttb@example.com',
-    avatar: 'https://picsum.photos/seed/21/40/40',
-  },
-  {
-    id: 'emp-03',
-    name: 'Lê Văn C',
-    email: 'lvc@example.com',
-    avatar: 'https://picsum.photos/seed/22/40/40',
-  },
-];
-
-const kpis = [
-  { id: 'kpi-01', name: 'Tăng trưởng doanh thu' },
-  { id: 'kpi-02', name: 'Tỷ lệ chuyển đổi' },
-  { id: 'kpi-03', name: 'Chỉ số hài lòng khách hàng (CSAT)' },
-];
+import { employees } from '@/data/employees';
+import { kpis } from '@/data/kpis';
+import { kpiRecords } from '@/data/kpiRecords';
 
 const periods = [
   'Quý 3 2024',
@@ -72,50 +47,22 @@ const periods = [
   'Tháng 8 2024',
 ];
 
-const assignedKpis = [
-  {
-    id: 'assign-001',
-    employeeName: 'Nguyễn Văn A',
-    kpiName: 'Tăng trưởng doanh thu',
-    period: 'Quý 3 2024',
-    startDate: '2024-07-01',
-    endDate: '2024-09-30',
-    status: 'in_progress',
-  },
-  {
-    id: 'assign-002',
-    employeeName: 'Trần Thị B',
-    kpiName: 'Tỷ lệ chuyển đổi',
-    period: 'Tháng 7 2024',
-    startDate: '2024-07-01',
-    endDate: '2024-07-31',
-    status: 'not_started',
-  },
-  {
-    id: 'assign-003',
-    employeeName: 'Lê Văn C',
-    kpiName: 'Chỉ số hài lòng khách hàng (CSAT)',
-    period: 'Quý 3 2024',
-    startDate: '2024-07-01',
-    endDate: '2024-09-30',
-    status: 'completed',
-  },
-    {
-    id: 'assign-004',
-    employeeName: 'Nguyễn Văn A',
-    kpiName: 'Tỷ lệ chuyển đổi',
-    period: 'Quý 4 2024',
-    startDate: '2024-10-01',
-    endDate: '2024-12-31',
-    status: 'overdue',
-  },
-];
+const assignedKpis = kpiRecords.map(record => {
+    const employee = employees.find(e => e.id === record.employeeId);
+    const kpi = kpis.find(k => k.id === record.kpiId);
+    return {
+        ...record,
+        employeeName: employee?.name || 'N/A',
+        kpiName: kpi?.name || 'N/A',
+    };
+});
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
   not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
   in_progress: { label: 'Đang thực hiện', variant: 'default' },
   completed: { label: 'Hoàn thành', variant: 'outline' },
   overdue: { label: 'Quá hạn', variant: 'destructive' },
+  pending_approval: { label: 'Chờ duyệt', variant: 'secondary' },
 };
 
 
@@ -275,8 +222,8 @@ export default function AssignKpiPage() {
                     {format(new Date(item.startDate), 'dd/MM/yy')} - {format(new Date(item.endDate), 'dd/MM/yy')}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusConfig[item.status].variant}>
-                      {statusConfig[item.status].label}
+                    <Badge variant={statusConfig[item.status as keyof typeof statusConfig]?.variant || 'default'}>
+                      {statusConfig[item.status as keyof typeof statusConfig]?.label || 'Không xác định'}
                     </Badge>
                   </TableCell>
                 </TableRow>

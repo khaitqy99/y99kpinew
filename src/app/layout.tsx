@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import { Toaster } from "@/components/ui/toaster";
+import { SessionProvider } from "@/contexts/SessionContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,8 +23,10 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
-        <AppShell>{children}</AppShell>
-        <Toaster />
+        <SessionProvider>
+          <AppShell>{children}</AppShell>
+          <Toaster />
+        </SessionProvider>
       </body>
     </html>
   );

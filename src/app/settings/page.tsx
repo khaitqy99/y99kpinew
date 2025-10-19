@@ -1,7 +1,6 @@
-
 'use client';
 
-import React from 'react';
+import React, {useContext} from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -33,20 +32,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import { employees } from '@/data/employees';
+import { kpis } from '@/data/kpis';
 
 
-const mockDepartments = [
-    { id: 'dept-1', name: 'Kinh doanh' },
-    { id: 'dept-2', name: 'Marketing' },
-    { id: 'dept-3', name: 'Kỹ thuật' },
-    { id: 'dept-4', name: 'Nhân sự' },
-];
+const mockDepartments = [...new Set(employees.map(e => e.department))].map((dept, i) => ({ id: `dept-${i+1}`, name: dept }));
+const mockUsers = employees;
 
-const mockUsers = [
-    { id: 'user-1', name: 'Nguyễn Văn A', email: 'nva@example.com', department: 'Kinh doanh' },
-    { id: 'user-2', name: 'Trần Thị B', email: 'ttb@example.com', department: 'Marketing' },
-    { id: 'user-3', name: 'Lê Văn C', email: 'lvc@example.com', department: 'Kỹ thuật' },
-];
+const kpiDepartments = [...new Set(kpis.map(k => k.department))];
+const kpiFrequencies = [...new Set(kpis.map(k => k.frequency))];
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -200,8 +194,8 @@ export default function SettingsPage() {
                             <SelectValue placeholder="Chọn phòng ban" />
                             </SelectTrigger>
                             <SelectContent>
-                            {mockDepartments.map(dept => (
-                                <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                            {kpiDepartments.map(dept => (
+                                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                             ))}
                             </SelectContent>
                         </Select>
@@ -222,9 +216,9 @@ export default function SettingsPage() {
                                     <SelectValue placeholder="Chọn tần suất" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                <SelectItem value="hang-thang">Hàng tháng</SelectItem>
-                                <SelectItem value="hang-quy">Hàng quý</SelectItem>
-                                <SelectItem value="hang-nam">Hàng năm</SelectItem>
+                                {kpiFrequencies.map(freq => (
+                                    <SelectItem key={freq} value={freq}>{freq}</SelectItem>
+                                ))}
                                 </SelectContent>
                             </Select>
                         </div>

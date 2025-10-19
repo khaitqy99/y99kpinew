@@ -29,36 +29,24 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
+import { kpiRecords } from '@/data/kpiRecords';
+import { employees } from '@/data/employees';
+import { kpis } from '@/data/kpis';
 
-const pendingApprovals = [
-  {
-    id: 'approval-001',
-    employeeName: 'Nguyễn Văn A',
-    kpiName: 'Hoàn thành báo cáo phân tích đối thủ cạnh tranh',
-    target: '1 báo cáo',
-    actual: '1 báo cáo',
-    completion: 100,
-    submissionDetails: 'Đã hoàn thành báo cáo chi tiết theo đúng yêu cầu, bao gồm phân tích SWOT và 5-forces của 3 đối thủ chính. Báo cáo đã được đính kèm trong email.',
-  },
-  {
-    id: 'approval-002',
-    employeeName: 'Trần Thị B',
-    kpiName: 'Đạt chứng chỉ chuyên môn mới',
-    target: '1 chứng chỉ',
-    actual: '1 chứng chỉ (Google Analytics IQ)',
-    completion: 100,
-    submissionDetails: 'Đã thi và đạt chứng chỉ Google Analytics Individual Qualification. File PDF của chứng chỉ đã được upload lên hệ thống nội bộ.',
-  },
-    {
-    id: 'approval-003',
-    employeeName: 'Lê Văn C',
-    kpiName: 'Giảm 5% thời gian xử lý yêu cầu khách hàng',
-    target: '5%',
-    actual: '5.2%',
-    completion: 104,
-    submissionDetails: 'Dựa trên số liệu từ hệ thống Zendesk, thời gian xử lý trung bình đã giảm từ 25 phút xuống còn 23.7 phút, tương đương giảm 5.2%. Chi tiết có trong file excel đính kèm.',
-  },
-];
+const pendingApprovals = kpiRecords.filter(r => r.status === 'pending_approval').map(record => {
+    const employee = employees.find(e => e.id === record.employeeId);
+    const kpi = kpis.find(k => k.id === record.kpiId);
+    const completion = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 100;
+    return {
+        ...record,
+        employeeName: employee?.name || 'N/A',
+        kpiName: kpi?.name || 'N/A',
+        targetFormatted: `${kpi?.target}${kpi?.unit}`,
+        actualFormatted: `${record.actual}${kpi?.unit}`,
+        completion: completion > 100 ? 100 : completion,
+    }
+});
+
 
 type Approval = (typeof pendingApprovals)[0];
 
@@ -114,11 +102,11 @@ export default function ApprovalPage() {
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.employeeName}</TableCell>
                   <TableCell>{item.kpiName}</TableCell>
-                  <TableCell>{item.target}</TableCell>
-                  <TableCell>{item.actual}</TableCell>
+                  <TableCell>{item.targetFormatted}</TableCell>
+                  <TableCell>{item.actualFormatted}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                        <Progress value={item.completion > 100 ? 100 : item.completion} className="h-2" />
+                        <Progress value={item.completion} className="h-2" />
                         <span>{item.completion}%</span>
                     </div>
                   </TableCell>

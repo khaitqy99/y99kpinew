@@ -1,18 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useContext } from 'react';
 import {
-  Bell,
   CheckCircle,
   Clock,
   FileCheck,
   MessageSquare,
   RefreshCw,
-  Target,
   XCircle,
 } from 'lucide-react';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -23,66 +20,36 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { kpiRecords } from '@/data/kpiRecords';
+import { kpis } from '@/data/kpis';
+import { notifications as mockNotifications } from '@/data/notifications';
+import { SessionContext } from '@/contexts/SessionContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-const kpiData = [
-  {
-    id: 'KPI-004',
-    title: 'Hoàn thành báo cáo phân tích đối thủ cạnh tranh',
-    progress: 75,
-    status: 'Đang thực hiện',
-    dueDate: '30/06/2024',
-  },
-  {
-    id: 'KPI-005',
-    title: 'Tăng 15% lượng khách hàng tiềm năng',
-    progress: 40,
-    status: 'Đang thực hiện',
-    dueDate: '15/07/2024',
-  },
-  {
-    id: 'KPI-006',
-    title: 'Đạt chứng chỉ chuyên môn mới',
-    progress: 100,
-    status: 'Chờ duyệt',
-    dueDate: '20/06/2024',
-  },
-  {
-    id: 'KPI-007',
-    title: 'Giảm 5% thời gian xử lý yêu cầu khách hàng',
-    progress: 90,
-    status: 'Hoàn thành',
-    dueDate: '31/05/2024',
-  },
-];
-
-const notifications = [
-  {
-    id: 1,
-    user: 'Trưởng phòng Marketing',
-    action: 'đã duyệt KPI của bạn:',
-    target: 'Tăng trưởng doanh thu Q2.',
-    time: '2 giờ trước',
-    avatar: 'https://picsum.photos/seed/10/40/40',
-  },
-  {
-    id: 2,
-    user: 'Hệ thống',
-    action: 'nhắc nhở: KPI',
-    target: '"Hoàn thành báo cáo phân tích đối thủ" sắp đến hạn.',
-    time: '1 ngày trước',
-    avatar: 'https://picsum.photos/seed/11/40/40',
-  },
-  {
-    id: 3,
-    user: 'Lê Văn C',
-    action: 'đã gửi một phản hồi về KPI:',
-    target: '"Tối ưu hóa tỷ lệ chuyển đổi".',
-    time: '3 ngày trước',
-    avatar: 'https://picsum.photos/seed/12/40/40',
-  },
-];
 
 export default function EmployeeDashboardPage() {
+  const { user } = useContext(SessionContext);
+  
+  const employeeKpiRecords = kpiRecords.filter(r => r.employeeId === user?.id);
+
+  const kpiData = employeeKpiRecords.map(record => {
+    const kpi = kpis.find(k => k.id === record.kpiId);
+    const progress = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 0;
+    return {
+        ...record,
+        title: kpi?.name || 'N/A',
+        progress: progress > 100 ? 100 : progress,
+        dueDate: new Date(record.endDate).toLocaleDateString('vi-VN'),
+    }
+  });
+
+  const completedCount = employeeKpiRecords.filter(r => r.status === 'completed').length;
+  const pendingCount = employeeKpiRecords.filter(r => r.status === 'pending_approval').length;
+  const overdueCount = employeeKpiRecords.filter(r => r.status === 'overdue').length;
+  const totalCount = employeeKpiRecords.length;
+  
+  const notifications = mockNotifications.filter(n => n.recipientId === user?.id || n.recipientId === 'all');
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <main className="flex flex-1 flex-col gap-4">
@@ -95,9 +62,9 @@ export default function EmployeeDashboardPage() {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">5</div>
+              <div className="text-2xl font-bold">{completedCount}</div>
               <p className="text-xs text-muted-foreground">
-                trong tổng số 8 KPI được giao
+                trong tổng số {totalCount} KPI được giao
               </p>
             </CardContent>
           </Card>
@@ -109,7 +76,7 @@ export default function EmployeeDashboardPage() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1</div>
+              <div className="text-2xl font-bold">{pendingCount}</div>
               <p className="text-xs text-muted-foreground">
                 KPI đã được nộp
               </p>
@@ -121,7 +88,7 @@ export default function EmployeeDashboardPage() {
               <XCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-destructive">0</div>
+              <div className="text-2xl font-bold text-destructive">{overdueCount}</div>
               <p className="text-xs text-muted-foreground">
                 Hãy tiếp tục phát huy!
               </p>
@@ -148,7 +115,7 @@ export default function EmployeeDashboardPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <Progress value={kpi.progress} className="w-full h-2" />
+                      <Progress value={kpi.progress} className="h-2" />
                       <span className="text-lg font-bold w-16 text-right">
                         {kpi.progress}%
                       </span>
@@ -184,15 +151,15 @@ export default function EmployeeDashboardPage() {
                     <React.Fragment key={notification.id}>
                       <div className="flex items-start gap-4">
                         <Avatar className="h-8 w-8 border">
-                           <AvatarImage src={notification.avatar} alt="Avatar" />
+                           <AvatarImage src={notification.actor.avatar} alt="Avatar" />
                           <AvatarFallback>
-                            {notification.user.charAt(0)}
+                            {notification.actor.name.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="text-sm">
                           <p>
                             <span className="font-semibold">
-                              {notification.user}
+                              {notification.actor.name}
                             </span>{' '}
                             {notification.action}{' '}
                             <span className="font-medium text-primary">
