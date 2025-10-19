@@ -381,20 +381,16 @@ export default function EmployeeDashboardPage() {
                         </div>
                     </div>
                 </div>
-                <DialogFooter className='sm:justify-between items-center'>
-                    <div className='flex gap-2'>
-                        <Button variant="ghost" onClick={handleFeedbackClick}>
-                            <MessageSquare className="mr-2 h-4 w-4" /> Xem Feedback
-                        </Button>
-                    </div>
-                    <div className='flex gap-2'>
-                         <Button variant="outline" onClick={handleUpdateClick} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
-                            <RefreshCw className="mr-2 h-4 w-4" /> Cập nhật
-                        </Button>
-                        <Button onClick={handleSubmitClick} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
-                            <FileCheck className="mr-2 h-4 w-4" /> Nộp KPI
-                        </Button>
-                    </div>
+                <DialogFooter className='sm:justify-end gap-2'>
+                    <Button variant="outline" onClick={handleFeedbackClick}>
+                        <MessageSquare className="mr-2 h-4 w-4" /> Xem Feedback
+                    </Button>
+                    <Button variant="outline" onClick={handleUpdateClick} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Cập nhật
+                    </Button>
+                    <Button onClick={handleSubmitClick} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
+                        <FileCheck className="mr-2 h-4 w-4" /> Nộp KPI
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
