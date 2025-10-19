@@ -19,7 +19,18 @@ export default function LoginPage() {
   const handleLogin = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const role = formData.get('role');
+    const role = formData.get('role') as string;
+    
+    // Store user role in local storage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('userRole', role);
+      if (role === 'admin') {
+        localStorage.setItem('userData', JSON.stringify({ name: 'Admin User', email: 'admin@kpicentral.com' }));
+      } else {
+        localStorage.setItem('userData', JSON.stringify({ name: 'Employee User', email: 'employee@kpicentral.com' }));
+      }
+    }
+
     if (role === 'admin') {
       router.push('/admin/dashboard');
     } else {

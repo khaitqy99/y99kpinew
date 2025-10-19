@@ -13,6 +13,7 @@ import {
   LogOut,
   LifeBuoy,
   Shield,
+  User,
 } from 'lucide-react';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -53,24 +54,51 @@ function ClientOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-
 const userAvatar = PlaceHolderImages.find((p) => p.id === 'user-avatar');
 
-const navItems = [
+const adminNavItems = [
   { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
   { href: '#', icon: Target, label: 'KPI Management' },
-  { href: '/employee/dashboard', icon: Users, label: 'Employee Dashboard' },
   { href: '#', icon: CheckCircle2, label: 'KPI Approval' },
+];
+
+const employeeNavItems = [
+  { href: '/employee/dashboard', icon: LayoutDashboard, label: 'My Dashboard' },
+  { href: '#', icon: Target, label: 'My KPIs' },
+];
+
+const commonNavItems = [
   { href: '#', icon: Bell, label: 'Notifications' },
   { href: '#', icon: Settings, label: 'Settings' },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
+type UserData = {
+  name: string;
+  email: string;
+};
 
-    if (pathname === '/login') {
-        return <>{children}</>;
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [role, setRole] = useState<string | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedRole = localStorage.getItem('userRole');
+      const storedUserData = localStorage.getItem('userData');
+      setRole(storedRole);
+      if (storedUserData) {
+        setUserData(JSON.parse(storedUserData));
+      }
     }
+  }, [pathname]);
+
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
+
+  const navItems = role === 'admin' ? [...adminNavItems, ...commonNavItems] : [...employeeNavItems, ...commonNavItems];
+  const activeItem = navItems.find(item => item.href === pathname);
 
   return (
     <ClientOnly>
@@ -92,11 +120,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {navItems.map((item, index) => (
-                <SidebarMenuItem key={item.href + index}>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
-                    isActive={index === 0}
+                    isActive={item.href === activeItem?.href}
                     tooltip={{
                       children: item.label,
                       className: 'p-2',
@@ -121,12 +149,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       alt="User Avatar"
                       data-ai-hint={userAvatar?.imageHint}
                     />
-                    <AvatarFallback>AU</AvatarFallback>
+                    <AvatarFallback>
+                      {userData?.name?.charAt(0) ?? 'U'}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="duration-200 group-data-[collapsible=icon]:hidden">
-                    <p className="font-medium">Admin User</p>
+                    <p className="font-medium">{userData?.name ?? 'User'}</p>
                     <p className="text-xs text-muted-foreground">
-                      admin@kpicentral.com
+                      {userData?.email ?? 'user@example.com'}
                     </p>
                   </div>
                 </div>
@@ -135,10 +165,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      Admin User
+                      {userData?.name ?? 'User'}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      admin@kpicentral.com
+                      {userData?.email ?? 'user@example.com'}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -166,7 +196,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <header className="flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6 sticky top-0 z-30">
             <SidebarTrigger className="md:hidden" />
             <div className="flex items-center gap-2">
-              <p className="font-semibold hidden sm:block">Admin User</p>
+              <p className="font-semibold hidden sm:block">{userData?.name ?? 'User'}</p>
             </div>
             <Button variant="ghost" size="icon">
               <Bell className="h-5 w-5" />
