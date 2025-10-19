@@ -58,7 +58,7 @@ const KpiDialog: React.FC<{
   kpiToEdit?: Kpi | null;
 }> = ({ open, onOpenChange, kpiToEdit }) => {
   const { toast } = useToast();
-  const { kpis, addKpi, editKpi, getDepartments, getFrequencies } = useContext(DataContext);
+  const { addKpi, editKpi, getDepartments, getFrequencies } = useContext(DataContext);
   
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -130,7 +130,7 @@ const KpiDialog: React.FC<{
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1">
+        <Button size="sm" className="h-8 gap-1">
           <PlusCircle className="h-4 w-4" />
           Tạo KPI mới
         </Button>
@@ -222,16 +222,73 @@ const KpiDialog: React.FC<{
   );
 }
 
+const KpiDetailDialog: React.FC<{
+    kpi: Kpi | null;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}> = ({ kpi, open, onOpenChange }) => {
+    if (!kpi) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>{kpi.name}</DialogTitle>
+                    <DialogDescription>{kpi.description || "Không có mô tả chi tiết."}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <p className="font-medium text-muted-foreground">Phòng ban</p>
+                            <p className='font-semibold'>{kpi.department}</p>
+                        </div>
+                        <div>
+                            <p className="font-medium text-muted-foreground">Mục tiêu</p>
+                            <p className='font-semibold'>{kpi.target}{kpi.unit}</p>
+                        </div>
+                        <div>
+                            <p className="font-medium text-muted-foreground">Tần suất</p>
+                            <p className='font-semibold'>{kpi.frequency}</p>
+                        </div>
+                    </div>
+                     <div className="space-y-1">
+                        <p className="font-medium text-muted-foreground text-sm">Trạng thái</p>
+                        <Badge variant={kpi.status === 'active' ? 'default' : 'secondary'}>
+                            {kpi.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
+                        </Badge>
+                    </div>
+                    {kpi.rewardPenaltyConfig && (
+                        <div className="space-y-1">
+                            <p className="font-medium text-muted-foreground text-sm">Cấu hình Thưởng/Phạt</p>
+                            <p className="text-sm p-3 bg-muted rounded-md">{kpi.rewardPenaltyConfig}</p>
+                        </div>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Đóng</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 
 export default function KpiListPage() {
   const { kpis, deleteKpi } = useContext(DataContext);
-  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [isDetailDialogOpen, setDetailDialogOpen] = useState(false);
   const [kpiToEdit, setKpiToEdit] = useState<Kpi | null>(null);
+  const [kpiToView, setKpiToView] = useState<Kpi | null>(null);
   const { toast } = useToast();
+
+  const handleRowClick = (kpi: Kpi) => {
+    setKpiToView(kpi);
+    setDetailDialogOpen(true);
+  };
 
   const handleEditClick = (kpi: Kpi) => {
     setKpiToEdit(kpi);
-    setDialogOpen(true);
+    setEditDialogOpen(true);
   };
 
   const handleDeleteClick = (kpiId: string) => {
@@ -243,23 +300,24 @@ export default function KpiListPage() {
     });
   };
 
-  const handleOpenDialog = (isOpen: boolean) => {
+  const handleOpenEditDialog = (isOpen: boolean) => {
     if (!isOpen) {
       setKpiToEdit(null);
     }
-    setDialogOpen(isOpen);
+    setEditDialogOpen(isOpen);
   };
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex-1">
+        <div className="space-y-1.5">
           <CardTitle>Quản lý KPI</CardTitle>
           <CardDescription>
             Xem, tạo và quản lý các chỉ số hiệu suất chính.
           </CardDescription>
         </div>
-        <KpiDialog open={isDialogOpen} onOpenChange={handleOpenDialog} kpiToEdit={kpiToEdit} />
+        <KpiDialog open={isEditDialogOpen} onOpenChange={handleOpenEditDialog} kpiToEdit={kpiToEdit} />
       </CardHeader>
       <CardContent>
         <Table>
@@ -277,7 +335,7 @@ export default function KpiListPage() {
           </TableHeader>
           <TableBody>
             {kpis.map((kpi) => (
-              <TableRow key={kpi.id}>
+              <TableRow key={kpi.id} onClick={() => handleRowClick(kpi)} className="cursor-pointer">
                 <TableCell className="font-medium">{kpi.name}</TableCell>
                 <TableCell>{kpi.department}</TableCell>
                 <TableCell>{`${kpi.target}${kpi.unit}`}</TableCell>
@@ -290,15 +348,15 @@ export default function KpiListPage() {
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
+                      <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
                         <MoreHorizontal className="h-4 w-4" />
                         <span className="sr-only">Toggle menu</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleEditClick(kpi)}>Sửa</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDeleteClick(kpi.id)} className="text-destructive">Xóa</DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClick(kpi); }}>Sửa</DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteClick(kpi.id); }} className="text-destructive">Xóa</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -308,5 +366,7 @@ export default function KpiListPage() {
         </Table>
       </CardContent>
     </Card>
+    <KpiDetailDialog kpi={kpiToView} open={isDetailDialogOpen} onOpenChange={setDetailDialogOpen} />
+    </>
   );
 }
