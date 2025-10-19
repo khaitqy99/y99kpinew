@@ -4,16 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Activity,
-  Bell,
   CheckCircle2,
   LayoutDashboard,
   Settings,
   Target,
-  Users,
   LogOut,
   LifeBuoy,
   Shield,
-  User,
   FileText,
   FileCheck,
 } from 'lucide-react';
@@ -41,6 +38,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { NotificationPanel } from './notification-panel';
 
 function ClientOnly({ children }: { children: React.ReactNode }) {
   const [hasMounted, setHasMounted] = useState(false);
@@ -63,17 +61,15 @@ const adminNavItems = [
   { href: '/admin/kpis', icon: FileText, label: 'Quản lý KPI' },
   { href: '/admin/assign', icon: CheckCircle2, label: 'Giao KPI' },
   { href: '/admin/approval', icon: FileCheck, label: 'Duyệt KPI' },
+  { href: '/settings', icon: Settings, label: 'Cài đặt' },
 ];
 
 const employeeNavItems = [
   { href: '/employee/dashboard', icon: LayoutDashboard, label: 'Dashboard của tôi' },
   { href: '/employee/kpis', icon: Target, label: 'KPI của tôi' },
+  { href: '/settings', icon: Settings, label: 'Cài đặt' },
 ];
 
-const commonNavItems = [
-  { href: '#', icon: Bell, label: 'Thông báo' },
-  { href: '#', icon: Settings, label: 'Cài đặt' },
-];
 
 type UserData = {
   name: string;
@@ -100,7 +96,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  const navItems = role === 'admin' ? [...adminNavItems, ...commonNavItems] : [...employeeNavItems, ...commonNavItems];
+  const navItems = role === 'admin' ? adminNavItems : employeeNavItems;
   const activeItem = navItems.find(item => item.href === pathname);
 
   return (
@@ -199,12 +195,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <header className="flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-sm lg:h-[60px] lg:px-6 sticky top-0 z-30">
             <SidebarTrigger className="md:hidden" />
             <div className="flex items-center gap-2">
-              <p className="font-semibold hidden sm:block">{userData?.name ?? 'User'}</p>
+              <p className="font-semibold hidden sm:block">{activeItem?.label ?? 'Dashboard'}</p>
             </div>
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
+            <NotificationPanel />
           </header>
           <main className="flex-1 p-2 md:p-4">{children}</main>
         </SidebarInset>

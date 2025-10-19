@@ -36,6 +36,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 const kpiData = [
   { name: 'Jan', completed: 80 },
@@ -70,7 +71,7 @@ const pendingKpis = [
 export default function AdminDashboardPage() {
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <main className="flex flex-1 flex-col gap-4 md:gap-6">
+      <main className="flex flex-1 flex-col gap-4">
         <div className="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -161,9 +162,9 @@ export default function AdminDashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <Button>Tạo KPI mới</Button>
-              <Button variant="outline">Giao KPI</Button>
-              <Button variant="secondary">Duyệt KPI</Button>
+              <Button asChild><Link href="/admin/kpis">Tạo KPI mới</Link></Button>
+              <Button variant="outline" asChild><Link href="/admin/assign">Giao KPI</Link></Button>
+              <Button variant="secondary" asChild><Link href="/admin/approval">Duyệt KPI</Link></Button>
             </CardContent>
           </Card>
         </div>
@@ -176,10 +177,10 @@ export default function AdminDashboardPage() {
               </CardDescription>
             </div>
             <Button asChild size="sm" className="ml-auto gap-1">
-              <a href="#">
+              <Link href="/admin/approval">
                 Xem tất cả
                 <ArrowUpRight className="h-4 w-4" />
-              </a>
+              </Link>
             </Button>
           </CardHeader>
           <CardContent>
