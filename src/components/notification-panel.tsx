@@ -12,10 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Bell, FileCheck, Gift, AlertTriangle, CalendarCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from './ui/separator';
-import { notifications as mockNotifications } from '@/data/notifications';
 import { SessionContext } from '@/contexts/SessionContext';
-
-type Notification = (typeof mockNotifications)[0];
+import { DataContext } from '@/contexts/DataContext';
 
 const notificationIcons: { [key: string]: React.ReactNode } = {
   assigned: <FileCheck className="h-5 w-5 text-blue-500" />,
@@ -27,22 +25,26 @@ const notificationIcons: { [key: string]: React.ReactNode } = {
 
 export function NotificationPanel() {
   const { user } = useContext(SessionContext);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useContext(DataContext);
   
+  const [isClient, setIsClient] = useState(false);
   useEffect(() => {
-    if (user) {
-      setNotifications(mockNotifications.filter(n => n.recipientId === user.id || n.recipientId === 'all'));
-    }
-  }, [user]);
-  
-  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+    setIsClient(true);
+  }, []);
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
-  };
-  
-  const handleNotificationClick = (id: string) => {
-    setNotifications(notifications.map((n) => n.id === id ? { ...n, read: true } : n));
+  const userNotifications = useMemo(() => {
+    if (!user) return [];
+    return notifications.filter(n => n.recipientId === user.id || n.recipientId === 'all');
+  }, [notifications, user]);
+
+  const unreadCount = useMemo(() => userNotifications.filter((n) => !n.read).length, [userNotifications]);
+
+  if (!isClient) {
+      return (
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-5 w-5" />
+        </Button>
+      )
   }
 
   return (
@@ -69,7 +71,7 @@ export function NotificationPanel() {
                 <Button
                 variant="link"
                 className="p-0 h-auto"
-                onClick={handleMarkAllAsRead}
+                onClick={markAllNotificationsAsRead}
                 disabled={unreadCount === 0}
                 >
                 Đánh dấu tất cả là đã đọc
@@ -80,10 +82,10 @@ export function NotificationPanel() {
         <Separator />
         <div className="flex-1 overflow-y-auto -mx-6 px-6">
           <div className="space-y-1 py-4">
-            {notifications.map((notification) => (
+            {userNotifications.map((notification) => (
               <div
                 key={notification.id}
-                onClick={() => handleNotificationClick(notification.id)}
+                onClick={() => markNotificationAsRead(notification.id)}
                 className={cn(
                   'flex items-start gap-3 rounded-lg p-3 text-sm transition-colors cursor-pointer',
                   notification.read
@@ -105,7 +107,7 @@ export function NotificationPanel() {
                 </div>
               </div>
             ))}
-             {notifications.length === 0 && (
+             {userNotifications.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
                     <Bell className="h-12 w-12 mb-4" />
                     <h3 className="text-lg font-semibold">Không có thông báo mới</h3>

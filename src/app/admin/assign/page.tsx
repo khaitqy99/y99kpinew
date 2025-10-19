@@ -37,9 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { employees as initialEmployees } from '@/data/employees';
-import { kpis as initialKpis } from '@/data/kpis';
-import { kpiRecords as initialKpiRecords } from '@/data/kpiRecords';
+import { DataContext, KpiRecord } from '@/contexts/DataContext';
 
 const periods = [
   'Quý 3 2024',
@@ -47,18 +45,6 @@ const periods = [
   'Tháng 7 2024',
   'Tháng 8 2024',
 ];
-
-const getAssignedKpis = (records: typeof initialKpiRecords) => {
-    return records.map(record => {
-        const employee = initialEmployees.find(e => e.id === record.employeeId);
-        const kpi = initialKpis.find(k => k.id === record.kpiId);
-        return {
-            ...record,
-            employeeName: employee?.name || 'N/A',
-            kpiName: kpi?.name || 'N/A',
-        };
-    }).sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-};
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
   not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
@@ -71,9 +57,7 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
 
 export default function AssignKpiPage() {
   const { toast } = useToast();
-  const [employees] = React.useState(initialEmployees);
-  const [kpis] = React.useState(initialKpis);
-  const [kpiRecords, setKpiRecords] = React.useState(initialKpiRecords);
+  const { employees, kpis, kpiRecords, assignKpi } = React.useContext(DataContext);
 
   const [selectedEmployee, setSelectedEmployee] = React.useState(employees[0]);
   const [selectedKpi, setSelectedKpi] = React.useState(kpis[0]);
@@ -82,6 +66,18 @@ export default function AssignKpiPage() {
     from: new Date(),
     to: new Date(new Date().setDate(new Date().getDate() + 30)),
   });
+  
+  const getAssignedKpis = (records: KpiRecord[]) => {
+    return records.map(record => {
+        const employee = employees.find(e => e.id === record.employeeId);
+        const kpi = kpis.find(k => k.id === record.kpiId);
+        return {
+            ...record,
+            employeeName: employee?.name || 'N/A',
+            kpiName: kpi?.name || 'N/A',
+        };
+    }).sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+  };
 
   const assignedKpis = getAssignedKpis(kpiRecords);
   
@@ -95,21 +91,20 @@ export default function AssignKpiPage() {
         return;
     }
 
-    const newRecord = {
-        id: `rec-${String(kpiRecords.length + 1).padStart(3, '0')}`,
+    const newRecord: Omit<KpiRecord, 'id'> = {
         kpiId: selectedKpi.id,
         employeeId: selectedEmployee.id,
         period: selectedPeriod,
         target: selectedKpi.target,
         actual: 0,
-        status: 'not_started' as const,
+        status: 'not_started',
         startDate: date.from.toISOString(),
         endDate: date.to.toISOString(),
         submissionDetails: '',
         feedback: [],
     };
     
-    setKpiRecords(prev => [newRecord, ...prev]);
+    assignKpi(newRecord);
 
     toast({
         title: 'Thành công!',

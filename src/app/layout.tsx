@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AppShellContent } from "@/components/app-shell-content";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionContext, SessionProvider } from "@/contexts/SessionContext";
+import { DataProvider } from "@/contexts/DataContext";
 import "./globals.css";
 
 function AppLayout({
@@ -23,14 +24,19 @@ function AppLayout({
     }, [isLoading, user, pathname, router]);
 
     if (isLoading) {
-        return null; // Or a global spinner
+        return null;
     }
 
     if (!user) {
-        return <>{children}</>; // This will be the login page
+        // This will be the login page, which doesn't need the AppShell
+        return <>{children}</>; 
     }
     
-    // User is logged in, show the main app shell
+    // User is logged in, show the main app shell, but not on the login page itself
+    if (pathname === '/login') {
+        return null;
+    }
+    
     return <AppShellContent>{children}</AppShellContent>;
 }
 
@@ -50,8 +56,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <SessionProvider>
+          <DataProvider>
             <AppLayout>{children}</AppLayout>
             <Toaster />
+          </DataProvider>
         </SessionProvider>
       </body>
     </html>

@@ -32,29 +32,14 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { FileCheck, MessageSquare, RefreshCw } from 'lucide-react';
-import { kpis as initialKpis } from '@/data/kpis';
-import { kpiRecords as initialKpiRecords } from '@/data/kpiRecords';
 import { SessionContext } from '@/contexts/SessionContext';
+import { DataContext, KpiRecord } from '@/contexts/DataContext';
 
-type KpiRecord = (typeof initialKpiRecords)[0];
-
-const getEmployeeKpis = (employeeId: string | undefined, records: KpiRecord[]) => {
-    if (!employeeId) return [];
-    return records
-        .filter(record => record.employeeId === employeeId)
-        .map(record => {
-            const kpi = initialKpis.find(k => k.id === record.kpiId);
-            return {
-                ...record,
-                name: kpi?.name || 'N/A',
-                targetFormatted: `${kpi?.target}${kpi?.unit}`,
-                actualFormatted: `${record.actual}${kpi?.unit}`,
-            }
-        })
-        .sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-}
-
-type MappedKpi = ReturnType<typeof getEmployeeKpis>[0];
+type MappedKpi = KpiRecord & {
+    name: string;
+    targetFormatted: string;
+    actualFormatted: string;
+};
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
   not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
@@ -67,14 +52,29 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
 export default function EmployeeKpisPage() {
   const { toast } = useToast();
   const { user } = useContext(SessionContext);
-  const [kpiRecords, setKpiRecords] = useState(initialKpiRecords);
+  const { kpiRecords, kpis, updateKpiRecord, updateKpiRecordStatus } = useContext(DataContext);
+  
   const [selectedKpi, setSelectedKpi] = useState<MappedKpi | null>(null);
   const [isUpdateModalOpen, setUpdateModalOpen] = useState(false);
   const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [actualValue, setActualValue] = useState('');
   const [submissionDetails, setSubmissionDetails] = useState('');
 
-  const kpiData = useMemo(() => getEmployeeKpis(user?.id, kpiRecords), [user?.id, kpiRecords]);
+  const kpiData = useMemo(() => {
+    if (!user?.id) return [];
+    return kpiRecords
+        .filter(record => record.employeeId === user.id)
+        .map(record => {
+            const kpi = kpis.find(k => k.id === record.kpiId);
+            return {
+                ...record,
+                name: kpi?.name || 'N/A',
+                targetFormatted: `${kpi?.target}${kpi?.unit}`,
+                actualFormatted: `${record.actual}${kpi?.unit}`,
+            }
+        })
+        .sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+  }, [user?.id, kpiRecords, kpis]);
 
   const handleUpdateClick = (kpi: MappedKpi) => {
     setSelectedKpi(kpi);
@@ -91,16 +91,10 @@ export default function EmployeeKpisPage() {
   const handleSaveChanges = () => {
     if (!selectedKpi) return;
     
-    setKpiRecords(prev => prev.map(rec => {
-      if (rec.id === selectedKpi.id) {
-        return {
-          ...rec,
-          actual: Number(actualValue),
-          submissionDetails: submissionDetails,
-        };
-      }
-      return rec;
-    }));
+    updateKpiRecord(selectedKpi.id, {
+        actual: Number(actualValue),
+        submissionDetails: submissionDetails,
+    });
 
     toast({
       title: 'Cập nhật thành công',
@@ -119,12 +113,7 @@ export default function EmployeeKpisPage() {
         return;
     }
     
-    setKpiRecords(prev => prev.map(rec => {
-        if (rec.id === kpi.id) {
-            return { ...rec, status: 'pending_approval' };
-        }
-        return rec;
-    }));
+    updateKpiRecordStatus(kpi.id, 'pending_approval');
 
     toast({
         title: 'Nộp KPI thành công',

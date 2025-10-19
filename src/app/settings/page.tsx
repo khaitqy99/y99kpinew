@@ -1,6 +1,6 @@
 'use client';
 
-import React, {useState} from 'react';
+import React, {useState, useContext} from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -32,24 +32,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { employees as initialEmployees } from '@/data/employees';
-import { kpis as initialKpis } from '@/data/kpis';
+import { DataContext, Employee, Kpi } from '@/contexts/DataContext';
 
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { 
+      users, addUser, 
+      kpis, addKpi,
+      departments, addDepartment,
+      getFrequencies
+  } = useContext(DataContext);
 
-  // State for Users & Departments
-  const [users, setUsers] = useState(initialEmployees);
-  const allDepartments = [...new Set([...users.map(u => u.department), ...initialKpis.map(k => k.department)])];
-  const [departments, setDepartments] = useState<string[]>(allDepartments);
+
+  // State for Departments
   const [newDeptName, setNewDeptName] = useState('');
+
+  // State for Users
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserDept, setNewUserDept] = useState('');
 
   // State for KPI Creation
-  const [kpis, setKpis] = useState(initialKpis);
   const [kpiName, setKpiName] = useState('');
   const [kpiDescription, setKpiDescription] = useState('');
   const [kpiDepartment, setKpiDepartment] = useState('');
@@ -58,7 +62,7 @@ export default function SettingsPage() {
   const [kpiFrequency, setKpiFrequency] = useState('');
   const [kpiRewardPenalty, setKpiRewardPenalty] = useState('');
   
-  const kpiFrequencies = [...new Set(kpis.map(k => k.frequency))];
+  const kpiFrequencies = getFrequencies();
 
   const handleCreateDepartment = () => {
     if (!newDeptName.trim()) {
@@ -69,7 +73,7 @@ export default function SettingsPage() {
         toast({ variant: 'destructive', title: 'Lỗi', description: 'Phòng ban đã tồn tại.' });
         return;
     }
-    setDepartments(prev => [...prev, newDeptName.trim()]);
+    addDepartment(newDeptName.trim());
     setNewDeptName('');
     toast({
         title: 'Thành công!',
@@ -82,15 +86,14 @@ export default function SettingsPage() {
         toast({ variant: 'destructive', title: 'Lỗi', description: 'Vui lòng điền đầy đủ thông tin nhân viên.' });
         return;
     }
-    const newUser = {
-        id: `emp-${String(users.length + 1).padStart(2, '0')}`,
+    const newUser: Omit<Employee, 'id'> = {
         name: newUserName,
         email: newUserEmail,
-        role: 'employee' as const,
+        role: 'employee',
         department: newUserDept,
         avatar: `https://picsum.photos/seed/${users.length + 10}/40/40`,
     };
-    setUsers(prev => [...prev, newUser]);
+    addUser(newUser);
     setNewUserName('');
     setNewUserEmail('');
     setNewUserDept('');
@@ -105,18 +108,17 @@ export default function SettingsPage() {
         toast({ variant: 'destructive', title: 'Lỗi', description: 'Vui lòng điền đầy đủ các trường bắt buộc.' });
         return;
     }
-    const newKpi = {
-        id: `KPI-${String(kpis.length + 1).padStart(3, '0')}`,
+    const newKpi: Omit<Kpi, 'id'> = {
         name: kpiName,
         description: kpiDescription,
         department: kpiDepartment,
         target: Number(kpiTarget),
         unit: kpiUnit,
         frequency: kpiFrequency,
-        status: 'active' as const,
+        status: 'active',
         rewardPenaltyConfig: kpiRewardPenalty,
     };
-    setKpis(prev => [...prev, newKpi]);
+    addKpi(newKpi);
     // Reset form
     setKpiName('');
     setKpiDescription('');

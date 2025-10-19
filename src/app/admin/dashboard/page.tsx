@@ -1,5 +1,6 @@
 'use client';
 
+import { useContext } from 'react';
 import {
   ArrowUpRight,
   CheckCircle,
@@ -36,9 +37,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { kpiRecords } from '@/data/kpiRecords';
-import { employees } from '@/data/employees';
-import { kpis } from '@/data/kpis';
+import { DataContext } from '@/contexts/DataContext';
 
 const kpiChartData = [
   { name: 'Jan', completed: 80 },
@@ -49,7 +48,11 @@ const kpiChartData = [
   { name: 'Jun', completed: 95 },
 ];
 
-const pendingKpis = kpiRecords.filter(r => r.status === 'pending_approval').slice(0,3).map(record => {
+
+export default function AdminDashboardPage() {
+  const { kpiRecords, employees, kpis } = useContext(DataContext);
+
+  const pendingKpis = kpiRecords.filter(r => r.status === 'pending_approval').slice(0,3).map(record => {
     const employee = employees.find(e => e.id === record.employeeId);
     const kpi = kpis.find(k => k.id === record.kpiId);
     return {
@@ -58,9 +61,9 @@ const pendingKpis = kpiRecords.filter(r => r.status === 'pending_approval').slic
         assignee: employee?.name || 'N/A',
         status: 'Chờ duyệt',
     }
-});
+  });
 
-export default function AdminDashboardPage() {
+
   const totalKpis = kpiRecords.length;
   const pendingCount = kpiRecords.filter(r => r.status === 'pending_approval').length;
   const employeeCount = employees.length;

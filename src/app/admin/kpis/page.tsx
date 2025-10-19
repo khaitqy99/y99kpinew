@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   MoreHorizontal,
   PlusCircle,
@@ -50,16 +50,16 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { kpis as initialKpis } from '@/data/kpis';
-
-type Kpi = (typeof initialKpis)[0];
+import { DataContext, Kpi } from '@/contexts/DataContext';
 
 const KpiDialog: React.FC<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (kpi: Omit<Kpi, 'id' | 'status'>) => void;
   kpiToEdit?: Kpi | null;
-}> = ({ open, onOpenChange, onSave, kpiToEdit }) => {
+}> = ({ open, onOpenChange, kpiToEdit }) => {
+  const { toast } = useToast();
+  const { kpis, addKpi, editKpi, getDepartments, getFrequencies } = useContext(DataContext);
+  
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [department, setDepartment] = useState('');
@@ -67,9 +67,10 @@ const KpiDialog: React.FC<{
   const [unit, setUnit] = useState('');
   const [frequency, setFrequency] = useState('');
   const [rewardPenaltyConfig, setRewardPenaltyConfig] = useState('');
+  const [status, setStatus] = useState<'active' | 'paused'>('active');
 
-  const departments = [...new Set(initialKpis.map(kpi => kpi.department))];
-  const frequencies = [...new Set(initialKpis.map(kpi => kpi.frequency))];
+  const departments = getDepartments();
+  const frequencies = getFrequencies();
 
   React.useEffect(() => {
     if (kpiToEdit && open) {
@@ -80,6 +81,7 @@ const KpiDialog: React.FC<{
       setUnit(kpiToEdit.unit);
       setFrequency(kpiToEdit.frequency);
       setRewardPenaltyConfig(kpiToEdit.rewardPenaltyConfig);
+      setStatus(kpiToEdit.status);
     } else if (!open) {
       // Reset form when dialog closes
       setName('');
@@ -89,11 +91,21 @@ const KpiDialog: React.FC<{
       setUnit('');
       setFrequency('');
       setRewardPenaltyConfig('');
+      setStatus('active');
     }
   }, [kpiToEdit, open]);
 
   const handleSave = () => {
-    const newKpiData = {
+    if (!name || !department || !target || !unit || !frequency) {
+        toast({
+            variant: "destructive",
+            title: "Lỗi",
+            description: "Vui lòng điền đầy đủ các trường bắt buộc."
+        });
+        return;
+    }
+    
+    const kpiData = {
       name,
       description,
       department,
@@ -101,8 +113,18 @@ const KpiDialog: React.FC<{
       unit,
       frequency,
       rewardPenaltyConfig,
+      status,
     };
-    onSave(newKpiData);
+
+    if (kpiToEdit) {
+      editKpi(kpiToEdit.id, kpiData);
+      toast({ title: 'Thành công', description: 'Đã cập nhật KPI.' });
+    } else {
+      const newKpi: Omit<Kpi, 'id'> = kpiData;
+      addKpi(newKpi);
+      toast({ title: 'Thành công', description: 'Đã tạo KPI mới.' });
+    }
+    onOpenChange(false);
   };
 
   return (
@@ -170,6 +192,20 @@ const KpiDialog: React.FC<{
               </SelectContent>
             </Select>
           </div>
+           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="status" className="text-right">
+              Trạng thái
+            </Label>
+            <Select value={status} onValueChange={(value) => setStatus(value as 'active' | 'paused')}>
+              <SelectTrigger id="status" className="col-span-3">
+                <SelectValue placeholder="Chọn trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                 <SelectItem value="active">Đang hoạt động</SelectItem>
+                 <SelectItem value="paused">Tạm dừng</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-4 items-start gap-4">
             <Label htmlFor="reward-penalty" className="text-right pt-2">
               Thưởng/Phạt
@@ -194,29 +230,10 @@ const KpiDialog: React.FC<{
 
 
 export default function KpiListPage() {
-  const [kpis, setKpis] = useState(initialKpis);
+  const { kpis, deleteKpi } = useContext(DataContext);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [kpiToEdit, setKpiToEdit] = useState<Kpi | null>(null);
   const { toast } = useToast();
-
-  const handleSaveKpi = (kpiData: Omit<Kpi, 'id' | 'status'>) => {
-    if (kpiToEdit) {
-      // Edit existing KPI
-      setKpis(prevKpis => prevKpis.map(k => k.id === kpiToEdit.id ? { ...k, ...kpiData, status: k.status } : k));
-      toast({ title: 'Thành công', description: 'Đã cập nhật KPI.' });
-    } else {
-      // Create new KPI
-      const newKpi: Kpi = {
-        id: `KPI-${String(kpis.length + 1).padStart(3, '0')}`,
-        status: 'active',
-        ...kpiData,
-      };
-      setKpis(prevKpis => [...prevKpis, newKpi]);
-      toast({ title: 'Thành công', description: 'Đã tạo KPI mới.' });
-    }
-    setDialogOpen(false);
-    setKpiToEdit(null);
-  };
 
   const handleEditClick = (kpi: Kpi) => {
     setKpiToEdit(kpi);
@@ -224,7 +241,7 @@ export default function KpiListPage() {
   };
 
   const handleDeleteClick = (kpiId: string) => {
-    setKpis(prevKpis => prevKpis.filter(k => k.id !== kpiId));
+    deleteKpi(kpiId);
     toast({
       variant: 'destructive',
       title: 'Đã xóa',
@@ -249,7 +266,7 @@ export default function KpiListPage() {
               Xem, tạo và quản lý các chỉ số hiệu suất chính.
             </CardDescription>
           </div>
-          <KpiDialog open={isDialogOpen} onOpenChange={handleOpenDialog} onSave={handleSaveKpi} kpiToEdit={kpiToEdit} />
+          <KpiDialog open={isDialogOpen} onOpenChange={handleOpenDialog} kpiToEdit={kpiToEdit} />
         </div>
       </CardHeader>
       <CardContent>

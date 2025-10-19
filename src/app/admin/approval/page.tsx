@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -29,40 +29,47 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
-import { kpiRecords as initialKpiRecords } from '@/data/kpiRecords';
-import { employees } from '@/data/employees';
-import { kpis } from '@/data/kpis';
+import { DataContext } from '@/contexts/DataContext';
 
-const getPendingApprovals = (records: typeof initialKpiRecords) => {
-    return records.filter(r => r.status === 'pending_approval').map(record => {
+type MappedApproval = {
+    id: string;
+    employeeName: string;
+    kpiName: string;
+    targetFormatted: string;
+    actualFormatted: string;
+    completion: number;
+    submissionDetails: string;
+};
+
+export default function ApprovalPage() {
+  const { toast } = useToast();
+  const { kpiRecords, employees, kpis, updateKpiRecordStatus } = useContext(DataContext);
+  
+  const [selectedApproval, setSelectedApproval] = useState<MappedApproval | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [feedback, setFeedback] = useState('');
+
+  const getPendingApprovals = () => {
+    return kpiRecords.filter(r => r.status === 'pending_approval').map(record => {
         const employee = employees.find(e => e.id === record.employeeId);
         const kpi = kpis.find(k => k.id === record.kpiId);
         const completion = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 100;
         return {
-            ...record,
+            id: record.id,
             employeeName: employee?.name || 'N/A',
             kpiName: kpi?.name || 'N/A',
             targetFormatted: `${kpi?.target}${kpi?.unit}`,
             actualFormatted: `${record.actual}${kpi?.unit}`,
             completion: completion > 100 ? 100 : completion,
+            submissionDetails: record.submissionDetails,
         }
     });
-}
+  }
 
+  const pendingApprovals = getPendingApprovals();
 
-type Approval = ReturnType<typeof getPendingApprovals>[0];
-
-export default function ApprovalPage() {
-  const { toast } = useToast();
-  const [kpiRecords, setKpiRecords] = useState(initialKpiRecords);
-  const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
-  const [feedback, setFeedback] = useState('');
-
-  const pendingApprovals = getPendingApprovals(kpiRecords);
-
-  const handleActionClick = (approval: Approval, type: 'approve' | 'reject') => {
+  const handleActionClick = (approval: MappedApproval, type: 'approve' | 'reject') => {
     setSelectedApproval(approval);
     setActionType(type);
     setFeedback('');
@@ -71,17 +78,11 @@ export default function ApprovalPage() {
 
   const handleConfirm = () => {
     if (!selectedApproval || !actionType) return;
+    
+    const newStatus = actionType === 'approve' ? 'completed' : 'in_progress';
+    const feedbackComment = { author: 'Admin User', comment: feedback };
 
-    setKpiRecords(prevRecords => 
-        prevRecords.map(record => {
-            if (record.id === selectedApproval.id) {
-                const newStatus = actionType === 'approve' ? 'completed' : 'in_progress';
-                const newFeedback = feedback ? [...record.feedback, { author: 'Admin User', comment: feedback }] : record.feedback;
-                return { ...record, status: newStatus, feedback: newFeedback };
-            }
-            return record;
-        })
-    );
+    updateKpiRecordStatus(selectedApproval.id, newStatus, feedback ? feedbackComment : undefined);
     
     setIsModalOpen(false);
     toast({

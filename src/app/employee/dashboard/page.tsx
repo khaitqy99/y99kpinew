@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import {
   CheckCircle,
   Clock,
@@ -20,35 +20,43 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { kpiRecords } from '@/data/kpiRecords';
-import { kpis } from '@/data/kpis';
-import { notifications as mockNotifications } from '@/data/notifications';
 import { SessionContext } from '@/contexts/SessionContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DataContext } from '@/contexts/DataContext';
 
 
 export default function EmployeeDashboardPage() {
   const { user } = useContext(SessionContext);
+  const { kpiRecords, kpis, notifications } = useContext(DataContext);
   
-  const employeeKpiRecords = kpiRecords.filter(r => r.employeeId === user?.id);
+  const employeeKpiRecords = useMemo(() => 
+    kpiRecords.filter(r => r.employeeId === user?.id), 
+    [kpiRecords, user?.id]
+  );
 
-  const kpiData = employeeKpiRecords.map(record => {
-    const kpi = kpis.find(k => k.id === record.kpiId);
-    const progress = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 0;
-    return {
-        ...record,
-        title: kpi?.name || 'N/A',
-        progress: progress > 100 ? 100 : progress,
-        dueDate: new Date(record.endDate).toLocaleDateString('vi-VN'),
-    }
-  });
+  const kpiData = useMemo(() => 
+    employeeKpiRecords.map(record => {
+      const kpi = kpis.find(k => k.id === record.kpiId);
+      const progress = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 0;
+      return {
+          ...record,
+          title: kpi?.name || 'N/A',
+          progress: progress > 100 ? 100 : progress,
+          dueDate: new Date(record.endDate).toLocaleDateString('vi-VN'),
+      }
+    }),
+    [employeeKpiRecords, kpis]
+  );
 
   const completedCount = employeeKpiRecords.filter(r => r.status === 'completed').length;
   const pendingCount = employeeKpiRecords.filter(r => r.status === 'pending_approval').length;
   const overdueCount = employeeKpiRecords.filter(r => r.status === 'overdue').length;
   const totalCount = employeeKpiRecords.length;
   
-  const notifications = mockNotifications.filter(n => n.recipientId === user?.id || n.recipientId === 'all');
+  const userNotifications = useMemo(() => 
+    notifications.filter(n => n.recipientId === user?.id || n.recipientId === 'all'),
+    [notifications, user?.id]
+  );
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -147,7 +155,7 @@ export default function EmployeeDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {notifications.map((notification, index) => (
+                  {userNotifications.map((notification, index) => (
                     <React.Fragment key={notification.id}>
                       <div className="flex items-start gap-4">
                         <Avatar className="h-8 w-8 border">
@@ -171,7 +179,7 @@ export default function EmployeeDashboardPage() {
                           </p>
                         </div>
                       </div>
-                      {index < notifications.length - 1 && <Separator />}
+                      {index < userNotifications.length - 1 && <Separator />}
                     </React.Fragment>
                   ))}
                 </div>
