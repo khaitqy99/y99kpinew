@@ -33,16 +33,20 @@ export function ThemeProvider({
   enableSystem = true,
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = React.useState<Theme>(() => {
-    if (typeof window === 'undefined') {
-      return defaultTheme;
-    }
+  const [theme, setTheme] = React.useState<Theme>(defaultTheme)
+
+  React.useEffect(() => {
+    let initialTheme: Theme = defaultTheme;
     try {
-      return (localStorage.getItem(storageKey) as Theme) || defaultTheme
+      const storedTheme = localStorage.getItem(storageKey) as Theme;
+      if (storedTheme) {
+        initialTheme = storedTheme;
+      }
     } catch (e) {
-      return defaultTheme
+      // Ignore
     }
-  })
+    setTheme(initialTheme);
+  }, [defaultTheme, storageKey]);
 
   React.useEffect(() => {
     const root = window.document.documentElement
