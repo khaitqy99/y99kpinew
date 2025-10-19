@@ -72,7 +72,7 @@ const KpiDialog: React.FC<{
   const frequencies = [...new Set(initialKpis.map(kpi => kpi.frequency))];
 
   React.useEffect(() => {
-    if (kpiToEdit) {
+    if (kpiToEdit && open) {
       setName(kpiToEdit.name);
       setDescription(kpiToEdit.description);
       setDepartment(kpiToEdit.department);
@@ -80,7 +80,8 @@ const KpiDialog: React.FC<{
       setUnit(kpiToEdit.unit);
       setFrequency(kpiToEdit.frequency);
       setRewardPenaltyConfig(kpiToEdit.rewardPenaltyConfig);
-    } else {
+    } else if (!open) {
+      // Reset form when dialog closes
       setName('');
       setDescription('');
       setDepartment('');
@@ -119,7 +120,7 @@ const KpiDialog: React.FC<{
             Điền thông tin chi tiết để {kpiToEdit ? 'cập nhật' : 'thiết lập'} một KPI.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-6">
+        <div className="grid gap-6 py-6">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="name" className="text-right">
               Tên KPI
@@ -194,14 +195,14 @@ const KpiDialog: React.FC<{
 
 export default function KpiListPage() {
   const [kpis, setKpis] = useState(initialKpis);
-  const [open, setOpen] = useState(false);
+  const [isDialogOpen, setDialogOpen] = useState(false);
   const [kpiToEdit, setKpiToEdit] = useState<Kpi | null>(null);
   const { toast } = useToast();
 
   const handleSaveKpi = (kpiData: Omit<Kpi, 'id' | 'status'>) => {
     if (kpiToEdit) {
       // Edit existing KPI
-      setKpis(prevKpis => prevKpis.map(k => k.id === kpiToEdit.id ? { ...k, ...kpiData } : k));
+      setKpis(prevKpis => prevKpis.map(k => k.id === kpiToEdit.id ? { ...k, ...kpiData, status: k.status } : k));
       toast({ title: 'Thành công', description: 'Đã cập nhật KPI.' });
     } else {
       // Create new KPI
@@ -213,13 +214,13 @@ export default function KpiListPage() {
       setKpis(prevKpis => [...prevKpis, newKpi]);
       toast({ title: 'Thành công', description: 'Đã tạo KPI mới.' });
     }
-    setOpen(false);
+    setDialogOpen(false);
     setKpiToEdit(null);
   };
 
   const handleEditClick = (kpi: Kpi) => {
     setKpiToEdit(kpi);
-    setOpen(true);
+    setDialogOpen(true);
   };
 
   const handleDeleteClick = (kpiId: string) => {
@@ -235,7 +236,7 @@ export default function KpiListPage() {
     if (!isOpen) {
       setKpiToEdit(null);
     }
-    setOpen(isOpen);
+    setDialogOpen(isOpen);
   };
 
   return (
@@ -248,7 +249,7 @@ export default function KpiListPage() {
               Xem, tạo và quản lý các chỉ số hiệu suất chính.
             </CardDescription>
           </div>
-          <KpiDialog open={open} onOpenChange={handleOpenDialog} onSave={handleSaveKpi} kpiToEdit={kpiToEdit} />
+          <KpiDialog open={isDialogOpen} onOpenChange={handleOpenDialog} onSave={handleSaveKpi} kpiToEdit={kpiToEdit} />
         </div>
       </CardHeader>
       <CardContent>
