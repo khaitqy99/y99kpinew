@@ -85,7 +85,7 @@ const notifications = [
 export default function EmployeeDashboardPage() {
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <main className="flex flex-1 flex-col gap-4 md:gap-6">
+      <main className="flex flex-1 flex-col gap-4">
         <div className="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -148,7 +148,7 @@ export default function EmployeeDashboardPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <Progress value={kpi.progress} className="w-full" />
+                      <Progress value={kpi.progress} className="w-full h-2" />
                       <span className="text-lg font-bold w-16 text-right">
                         {kpi.progress}%
                       </span>
