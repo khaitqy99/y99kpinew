@@ -33,11 +33,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { FileCheck, MessageSquare, RefreshCw } from 'lucide-react';
 import { SessionContext } from '@/contexts/SessionContext';
-import { DataContext, KpiRecord, Kpi as KpiType } from '@/contexts/DataContext';
+import { DataContext, KpiRecord as KpiRecordType, Kpi as KpiType } from '@/contexts/DataContext';
 import { Progress } from '@/components/ui/progress';
 
 
-type MappedKpi = KpiRecord & {
+type MappedKpi = KpiRecordType & {
     name: string;
     description: string;
     targetFormatted: string;
@@ -68,7 +68,7 @@ export default function EmployeeKpisPage() {
   const [actualValue, setActualValue] = useState('');
   const [submissionDetails, setSubmissionDetails] = useState('');
 
-  const kpiData = useMemo(() => {
+  const kpiData: MappedKpi[] = useMemo(() => {
     if (!user?.id) return [];
     return kpiRecords
         .filter(record => record.employeeId === user.id)
@@ -107,18 +107,18 @@ export default function EmployeeKpisPage() {
   const handleSaveChanges = () => {
     if (!selectedKpi) return;
     
+    const newActual = Number(actualValue);
     updateKpiRecord(selectedKpi.id, {
-        actual: Number(actualValue),
+        actual: newActual,
         submissionDetails: submissionDetails,
     });
     
-    // Update selectedKpi state to reflect changes immediately in detail view
     setSelectedKpi(prev => prev ? { 
         ...prev, 
-        actual: Number(actualValue), 
+        actual: newActual, 
         submissionDetails: submissionDetails,
-        actualFormatted: `${actualValue}${prev.unit}`,
-        completionPercentage: prev.target > 0 ? Math.round((Number(actualValue) / prev.target) * 100) : 0,
+        actualFormatted: `${newActual}${prev.unit}`,
+        completionPercentage: prev.target > 0 ? Math.round((newActual / prev.target) * 100) : 0,
     } : null);
 
     toast({
@@ -141,6 +141,7 @@ export default function EmployeeKpisPage() {
     
     updateKpiRecordStatus(selectedKpi.id, 'pending_approval');
     setSelectedKpi(prev => prev ? { ...prev, status: 'pending_approval' } : null);
+    setDetailModalOpen(false); // Close dialog on submit
 
     toast({
         title: 'Nộp KPI thành công',
