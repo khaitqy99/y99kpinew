@@ -30,6 +30,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
