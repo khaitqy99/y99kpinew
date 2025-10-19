@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { SessionContext, SessionProvider } from "@/contexts/SessionContext";
 import "./globals.css";
 import React from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 // Metadata cannot be exported from a client component.
 // We can either move it to a server component or define it statically.
@@ -22,16 +23,31 @@ function AppLayout({
   children: React.ReactNode;
 }>) {
     const { user, isLoading } = React.useContext(SessionContext);
+    const pathname = usePathname();
+    const router = useRouter();
+
+    React.useEffect(() => {
+        if (!isLoading && !user && pathname !== '/login') {
+            router.replace('/login');
+        }
+    }, [isLoading, user, pathname, router]);
 
     if (isLoading) {
-        return null; // Render nothing while session is loading
+        return null; // Or a global spinner
     }
     
     if (user) {
+        // If user is logged in, show the main app shell
         return <AppShellContent>{children}</AppShellContent>;
     }
+    
+    // If no user, and we are on the login page, show the login page
+    if (pathname === '/login') {
+        return <>{children}</>;
+    }
 
-    return <>{children}</>;
+    // If no user and not on login page, we are being redirected, so render nothing.
+    return null;
 }
 
 export default function RootLayout({

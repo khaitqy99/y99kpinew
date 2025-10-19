@@ -36,8 +36,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguage] = useState('vi');
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
-
+  
   useEffect(() => {
     let isMounted = true;
 
@@ -45,18 +44,13 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       try {
         const storedUser = sessionStorage.getItem('user');
         if (storedUser) {
-          if (isMounted) {
+           if (isMounted) {
             setUser(JSON.parse(storedUser));
-          }
-        } else if (pathname !== '/login') {
-            router.replace('/login');
+           }
         }
       } catch (error) {
         console.error("Failed to parse user from session storage", error);
         sessionStorage.removeItem('user');
-        if (pathname !== '/login') {
-            router.replace('/login');
-        }
       } finally {
         if (isMounted) {
             setIsLoading(false);
@@ -69,7 +63,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     return () => {
         isMounted = false;
     }
-  }, [pathname, router]);
+  }, []);
 
   const login = (userData: User) => {
     sessionStorage.setItem('user', JSON.stringify(userData));
