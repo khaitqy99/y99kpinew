@@ -254,16 +254,14 @@ export default function KpiListPage() {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Quản lý KPI</CardTitle>
-            <CardDescription>
-              Xem, tạo và quản lý các chỉ số hiệu suất chính.
-            </CardDescription>
-          </div>
-          <KpiDialog open={isDialogOpen} onOpenChange={handleOpenDialog} kpiToEdit={kpiToEdit} />
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div className="flex-1">
+          <CardTitle>Quản lý KPI</CardTitle>
+          <CardDescription>
+            Xem, tạo và quản lý các chỉ số hiệu suất chính.
+          </CardDescription>
         </div>
+        <KpiDialog open={isDialogOpen} onOpenChange={handleOpenDialog} kpiToEdit={kpiToEdit} />
       </CardHeader>
       <CardContent>
         <Table>
