@@ -55,15 +55,22 @@ const employeeNavItems = [
 
 export function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useContext(SessionContext);
+  const { user, logout, isLoading } = useContext(SessionContext);
 
+  // While loading the session, render nothing to avoid layout flashes.
+  if (isLoading) {
+    return null;
+  }
+
+  // If there's no user, it's a public page (like /login).
+  // The logic in SessionContext handles redirection for protected pages.
   if (!user) {
-    // The login page has a different layout, so we render it directly.
-    // The redirect logic is now in SessionProvider/RootLayout.
-    if (pathname === '/login') {
-      return <>{children}</>;
-    }
-    // For any other page, we can render a loading state or null while redirecting.
+    return <>{children}</>;
+  }
+  
+  // If the user is logged in, but we are still on the login page (e.g., during redirect),
+  // render nothing to prevent a flash of the authenticated layout.
+  if (pathname === '/login') {
     return null;
   }
 
