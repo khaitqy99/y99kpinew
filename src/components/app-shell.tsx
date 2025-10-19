@@ -60,7 +60,7 @@ const userAvatar = PlaceHolderImages.find((p) => p.id === 'user-avatar');
 const adminNavItems = [
   { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
   { href: '/admin/kpis', icon: FileText, label: 'Quản lý KPI' },
-  { href: '#', icon: CheckCircle2, label: 'Duyệt KPI' },
+  { href: '/admin/assign', icon: CheckCircle2, label: 'Giao KPI' },
 ];
 
 const employeeNavItems = [
