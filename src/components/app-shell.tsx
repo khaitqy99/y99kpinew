@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Activity,
   Bell,
@@ -65,6 +66,12 @@ const navItems = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+
+    if (pathname === '/login') {
+        return <>{children}</>;
+    }
+
   return (
     <ClientOnly>
       <SidebarProvider>
