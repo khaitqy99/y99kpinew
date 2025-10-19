@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AppShell } from "@/components/app-shell";
+import { AppShellContent } from "@/components/app-shell-content";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionProvider } from "@/contexts/SessionContext";
 import "./globals.css";
@@ -24,7 +24,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased" suppressHydrationWarning={true}>
         <SessionProvider>
-          <AppShell>{children}</AppShell>
+          <AppShellContent>{children}</AppShellContent>
           <Toaster />
         </SessionProvider>
       </body>

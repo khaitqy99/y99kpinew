@@ -53,20 +53,19 @@ const employeeNavItems = [
   { href: '/employee/kpis', icon: Target, label: 'KPI của tôi' },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useContext(SessionContext);
 
   if (!user) {
-    if (pathname !== '/login') {
-      // client-side redirect
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+    // The login page has a different layout, so we render it directly.
+    // The redirect logic is now in SessionProvider/RootLayout.
+    if (pathname === '/login') {
+      return <>{children}</>;
     }
-    return <>{children}</>;
+    // For any other page, we can render a loading state or null while redirecting.
+    return null;
   }
-
 
   const navItems = user.role === 'admin' ? adminNavItems : employeeNavItems;
   const activeItem = navItems.find(item => pathname.startsWith(item.href));
@@ -156,10 +155,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>
-                <Link href="/login">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Đăng xuất</span>
-                </Link>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Đăng xuất</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
