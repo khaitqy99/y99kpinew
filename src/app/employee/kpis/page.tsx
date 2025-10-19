@@ -4,7 +4,6 @@ import React, { useState, useContext, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -35,6 +34,7 @@ import { FileCheck, MessageSquare, RefreshCw } from 'lucide-react';
 import { SessionContext } from '@/contexts/SessionContext';
 import { DataContext, KpiRecord as KpiRecordType, Kpi as KpiType } from '@/contexts/DataContext';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 
 
 type MappedKpi = KpiRecordType & {
@@ -57,7 +57,7 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
 export default function EmployeeKpisPage() {
   const { toast } = useToast();
   const { user } = useContext(SessionContext);
-  const { kpiRecords, kpis, updateKpiRecordActual } = useContext(DataContext);
+  const { kpiRecords, kpis, updateKpiRecordActual, submitKpiRecord } = useContext(DataContext);
   
   const [selectedKpi, setSelectedKpi] = useState<MappedKpi | null>(null);
   
@@ -65,9 +65,13 @@ export default function EmployeeKpisPage() {
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
   const [isUpdateModalOpen, setUpdateModalOpen] = useState(false);
   const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [isSubmitModalOpen, setSubmitModalOpen] = useState(false);
   
   // Form states
   const [actualValue, setActualValue] = useState('');
+  const [submissionDetails, setSubmissionDetails] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
+
 
   const kpiData: MappedKpi[] = useMemo(() => {
     if (!user?.id) return [];
@@ -106,6 +110,14 @@ export default function EmployeeKpisPage() {
     setFeedbackModalOpen(true);
   }
 
+  const handleSubmitClick = () => {
+    if (!selectedKpi) return;
+    setActualValue(String(selectedKpi.actual));
+    setSubmissionDetails('');
+    setAttachment(null);
+    setSubmitModalOpen(true);
+  };
+
   // --- ACTION HANDLERS ---
   const handleUpdateActual = () => {
     if (!selectedKpi) return;
@@ -128,6 +140,35 @@ export default function EmployeeKpisPage() {
     });
     setUpdateModalOpen(false);
   };
+  
+  const handleConfirmSubmit = () => {
+    if (!selectedKpi) return;
+    if (!submissionDetails.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Lỗi',
+        description: 'Vui lòng nhập chi tiết/ghi chú trước khi nộp.',
+      });
+      return;
+    }
+
+    const submissionData = {
+      actual: Number(actualValue),
+      submissionDetails,
+      attachment: attachment ? attachment.name : null,
+    };
+
+    submitKpiRecord(selectedKpi.id, submissionData);
+
+    toast({
+      title: 'Nộp KPI thành công',
+      description: `KPI "${selectedKpi.name}" đã được gửi đi để xét duyệt.`,
+    });
+
+    setSubmitModalOpen(false);
+    setDetailModalOpen(false); // Close detail modal as well
+  };
+
   
   return (
     <>
@@ -248,10 +289,8 @@ export default function EmployeeKpisPage() {
                     <Button variant="outline" onClick={handleUpdateClick} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
                         <RefreshCw className="mr-2 h-4 w-4" /> Cập nhật
                     </Button>
-                    <Button asChild onClick={() => setDetailModalOpen(false)} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
-                        <Link href={`/employee/submit/${selectedKpi.id}`}>
-                           <FileCheck className="mr-2 h-4 w-4" /> Nộp KPI
-                        </Link>
+                    <Button onClick={handleSubmitClick} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
+                       <FileCheck className="mr-2 h-4 w-4" /> Nộp KPI
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -272,7 +311,10 @@ export default function EmployeeKpisPage() {
                 <Label htmlFor="actual-update" className="text-right">
                   Thực tế đạt được
                 </Label>
-                <Input id="actual-update" value={actualValue} onChange={(e) => setActualValue(e.target.value)} className="col-span-3" />
+                 <div className='col-span-3 flex items-center gap-2'>
+                    <Input id="actual-update" value={actualValue} onChange={(e) => setActualValue(e.target.value)} />
+                    <span>{selectedKpi.unit}</span>
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -305,6 +347,50 @@ export default function EmployeeKpisPage() {
             </div>
             <DialogFooter>
               <Button onClick={() => setFeedbackModalOpen(false)}>Đóng</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Submit KPI Modal */}
+      {selectedKpi && (
+        <Dialog open={isSubmitModalOpen} onOpenChange={setSubmitModalOpen}>
+          <DialogContent className="sm:max-w-[625px]">
+            <DialogHeader>
+              <DialogTitle>Nộp Báo cáo KPI: {selectedKpi.name}</DialogTitle>
+              <DialogDescription>{selectedKpi.description}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+                <div className="grid w-full items-center gap-2">
+                    <Label htmlFor="actual-submit-kpi-page">Số liệu cuối cùng</Label>
+                    <div className="flex items-center gap-2">
+                        <Input id="actual-submit-kpi-page" type="number" value={actualValue} onChange={(e) => setActualValue(e.target.value)} className="max-w-xs" />
+                        <span className="text-muted-foreground">{selectedKpi.unit}</span>
+                    </div>
+                </div>
+                <div className="grid w-full gap-2">
+                    <Label htmlFor="comment-submit-kpi-page">Chi tiết/Ghi chú (Bắt buộc)</Label>
+                    <Textarea 
+                        id="comment-submit-kpi-page" 
+                        value={submissionDetails} 
+                        onChange={(e) => setSubmissionDetails(e.target.value)} 
+                        placeholder="Thêm chi tiết, bằng chứng hoàn thành, hoặc giải trình kết quả..." 
+                        rows={5}
+                    />
+                </div>
+                <div className="grid w-full items-center gap-2">
+                    <Label htmlFor="attachment-submit-kpi-page">Tệp đính kèm (Tùy chọn)</Label>
+                    <Input 
+                        id="attachment-submit-kpi-page" 
+                        type="file" 
+                        onChange={(e) => setAttachment(e.target.files ? e.target.files[0] : null)} 
+                        className="max-w-md" 
+                    />
+                </div>
+            </div>
+            <DialogFooter className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSubmitModalOpen(false)}>Hủy</Button>
+              <Button onClick={handleConfirmSubmit}>Xác nhận Nộp</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
