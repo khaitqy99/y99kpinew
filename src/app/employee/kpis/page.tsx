@@ -67,6 +67,8 @@ export default function EmployeeKpisPage() {
   
   const [actualValue, setActualValue] = useState('');
   const [submissionDetails, setSubmissionDetails] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
+
 
   const kpiData: MappedKpi[] = useMemo(() => {
     if (!user?.id) return [];
@@ -97,6 +99,7 @@ export default function EmployeeKpisPage() {
     if (!selectedKpi) return;
     setActualValue(String(selectedKpi.actual));
     setSubmissionDetails(selectedKpi.submissionDetails);
+    setAttachment(null);
     setUpdateModalOpen(true);
   };
   
@@ -111,6 +114,7 @@ export default function EmployeeKpisPage() {
     updateKpiRecord(selectedKpi.id, {
         actual: newActual,
         submissionDetails: submissionDetails,
+        attachment: attachment ? attachment.name : selectedKpi.attachment,
     });
     
     setSelectedKpi(prev => prev ? { 
@@ -119,6 +123,7 @@ export default function EmployeeKpisPage() {
         submissionDetails: submissionDetails,
         actualFormatted: `${newActual}${prev.unit}`,
         completionPercentage: prev.target > 0 ? Math.round((newActual / prev.target) * 100) : 0,
+        attachment: attachment ? attachment.name : prev.attachment,
     } : null);
 
     toast({
@@ -237,6 +242,13 @@ export default function EmployeeKpisPage() {
                              <p className="text-sm p-3 bg-muted rounded-md mt-1">{selectedKpi.submissionDetails}</p>
                         </div>
                     )}
+
+                    {selectedKpi.attachment && (
+                      <div>
+                        <p className="font-medium text-muted-foreground text-sm">Tệp đính kèm</p>
+                        <p className="text-sm p-3 bg-muted rounded-md mt-1">{selectedKpi.attachment}</p>
+                      </div>
+                    )}
                     
                     <div>
                         <p className="font-medium text-muted-foreground text-sm">Phản hồi từ quản lý</p>
@@ -294,6 +306,17 @@ export default function EmployeeKpisPage() {
                   Chi tiết/Ghi chú
                 </Label>
                 <Textarea id="comment" value={submissionDetails} onChange={(e) => setSubmissionDetails(e.target.value)} placeholder="Thêm chi tiết hoặc bằng chứng hoàn thành (VD: link báo cáo, file đính kèm...)" className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="attachment" className="text-right">
+                  Tệp đính kèm
+                </Label>
+                <Input 
+                  id="attachment" 
+                  type="file" 
+                  onChange={(e) => setAttachment(e.target.files ? e.target.files[0] : null)} 
+                  className="col-span-3" 
+                />
               </div>
             </div>
             <DialogFooter>

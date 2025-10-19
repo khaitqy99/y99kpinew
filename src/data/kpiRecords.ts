@@ -11,6 +11,7 @@ export const kpiRecords = [
     endDate: '2024-09-30T00:00:00Z',
     submissionDetails: '',
     feedback: [],
+    attachment: null,
   },
   {
     id: 'rec-002',
@@ -24,6 +25,7 @@ export const kpiRecords = [
     endDate: '2024-07-31T00:00:00Z',
     submissionDetails: '',
     feedback: [],
+    attachment: null,
   },
   {
     id: 'rec-003',
@@ -39,6 +41,7 @@ export const kpiRecords = [
     feedback: [
       { author: 'Admin User', comment: 'Làm tốt lắm!' }
     ],
+    attachment: 'csat-report-q3.pdf',
   },
   {
     id: 'rec-004',
@@ -52,6 +55,7 @@ export const kpiRecords = [
     endDate: '2023-12-31T00:00:00Z',
     submissionDetails: '',
     feedback: [],
+    attachment: null,
   },
   {
     id: 'rec-005',
@@ -65,6 +69,7 @@ export const kpiRecords = [
     period: 'Tháng 6 2024',
     submissionDetails: 'Đã hoàn thành báo cáo chi tiết theo đúng yêu cầu, bao gồm phân tích SWOT và 5-forces của 3 đối thủ chính. Báo cáo đã được đính kèm trong email.',
     feedback: [],
+    attachment: 'competitor-analysis-jun.docx',
   },
   {
     id: 'rec-006',
@@ -78,6 +83,7 @@ export const kpiRecords = [
     period: 'Tháng 6 2024',
     submissionDetails: 'Đã thi và đạt chứng chỉ Google Analytics Individual Qualification. File PDF của chứng chỉ đã được upload lên hệ thống nội bộ.',
     feedback: [],
+    attachment: 'google-analytics-certificate.pdf',
   },
    {
     id: 'rec-007',
@@ -91,6 +97,7 @@ export const kpiRecords = [
     period: 'Tháng 5 2024',
     submissionDetails: 'Dựa trên số liệu từ hệ thống Zendesk, thời gian xử lý trung bình đã giảm từ 25 phút xuống còn 23.7 phút, tương đương giảm 5.2%. Chi tiết có trong file excel đính kèm.',
     feedback: [],
+    attachment: 'zendesk-ticket-report-may.xlsx',
   },
   {
     id: 'rec-008',
@@ -103,6 +110,7 @@ export const kpiRecords = [
     endDate: '2024-07-15T00:00:00Z',
     period: 'Tháng 7 2024',
     submissionDetails: '',
-    feedback: []
+    feedback: [],
+    attachment: null,
   }
 ];

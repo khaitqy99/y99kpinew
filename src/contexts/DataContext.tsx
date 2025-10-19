@@ -31,8 +31,8 @@ type DataContextType = {
   addKpi: (kpi: Omit<Kpi, 'id'>) => void;
   editKpi: (kpiId: string, updatedKpi: Omit<Kpi, 'id'>) => void;
   deleteKpi: (kpiId: string) => void;
-  assignKpi: (record: Omit<KpiRecord, 'id'>) => void;
-  updateKpiRecord: (recordId: string, updates: Partial<Pick<KpiRecord, 'actual' | 'submissionDetails'>>) => void;
+  assignKpi: (record: Omit<KpiRecord, 'id' | 'attachment'>) => void;
+  updateKpiRecord: (recordId: string, updates: Partial<Pick<KpiRecord, 'actual' | 'submissionDetails' | 'attachment'>>) => void;
   updateKpiRecordStatus: (recordId: string, status: KpiStatus, feedback?: Feedback) => void;
   markNotificationAsRead: (notificationId: string) => void;
   markAllNotificationsAsRead: () => void;
@@ -89,15 +89,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setKpis(prevKpis => prevKpis.filter(k => k.id !== kpiId));
   };
 
-  const assignKpi = (recordData: Omit<KpiRecord, 'id'>) => {
+  const assignKpi = (recordData: Omit<KpiRecord, 'id' | 'attachment'>) => {
     const newRecord: KpiRecord = {
         id: `rec-${String(kpiRecords.length + 1).padStart(3, '0')}`,
+        attachment: null,
         ...recordData,
     };
     setKpiRecords(prev => [newRecord, ...prev]);
   };
 
-  const updateKpiRecord = (recordId: string, updates: Partial<Pick<KpiRecord, 'actual' | 'submissionDetails'>>) => {
+  const updateKpiRecord = (recordId: string, updates: Partial<Pick<KpiRecord, 'actual' | 'submissionDetails' | 'attachment'>>) => {
     setKpiRecords(prev => prev.map(rec => {
       if (rec.id === recordId) {
         return { ...rec, ...updates };
