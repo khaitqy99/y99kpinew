@@ -2,7 +2,6 @@
 
 import React, { useState, useContext } from 'react';
 import {
-  MoreHorizontal,
   PlusCircle,
 } from 'lucide-react';
 
@@ -24,13 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -226,7 +219,9 @@ const KpiDetailDialog: React.FC<{
     kpi: Kpi | null;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-}> = ({ kpi, open, onOpenChange }) => {
+    onEdit: () => void;
+    onDelete: () => void;
+}> = ({ kpi, open, onOpenChange, onEdit, onDelete }) => {
     if (!kpi) return null;
 
     return (
@@ -264,8 +259,10 @@ const KpiDetailDialog: React.FC<{
                         </div>
                     )}
                 </div>
-                <DialogFooter>
+                <DialogFooter className="sm:justify-end gap-2">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Đóng</Button>
+                    <Button variant="destructive" onClick={onDelete}>Xóa</Button>
+                    <Button onClick={onEdit}>Sửa</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -287,11 +284,13 @@ export default function KpiListPage() {
   };
 
   const handleEditClick = (kpi: Kpi) => {
+    setDetailDialogOpen(false); // Close detail dialog
     setKpiToEdit(kpi);
     setEditDialogOpen(true);
   };
 
   const handleDeleteClick = (kpiId: string) => {
+    setDetailDialogOpen(false); // Close detail dialog
     deleteKpi(kpiId);
     toast({
       variant: 'destructive',
@@ -346,19 +345,7 @@ export default function KpiListPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClick(kpi); }}>Sửa</DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDeleteClick(kpi.id); }} className="text-destructive">Xóa</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* Actions are now in the detail dialog */}
                 </TableCell>
               </TableRow>
             ))}
@@ -366,7 +353,13 @@ export default function KpiListPage() {
         </Table>
       </CardContent>
     </Card>
-    <KpiDetailDialog kpi={kpiToView} open={isDetailDialogOpen} onOpenChange={setDetailDialogOpen} />
+    <KpiDetailDialog 
+        kpi={kpiToView} 
+        open={isDetailDialogOpen} 
+        onOpenChange={setDetailDialogOpen} 
+        onEdit={() => kpiToView && handleEditClick(kpiToView)}
+        onDelete={() => kpiToView && handleDeleteClick(kpiToView.id)}
+    />
     </>
   );
 }
