@@ -58,7 +58,7 @@ const userAvatar = PlaceHolderImages.find((p) => p.id === 'user-avatar');
 const navItems = [
   { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
   { href: '#', icon: Target, label: 'KPI Management' },
-  { href: '#', icon: Users, label: 'Employee Management' },
+  { href: '/employee/dashboard', icon: Users, label: 'Employee Dashboard' },
   { href: '#', icon: CheckCircle2, label: 'KPI Approval' },
   { href: '#', icon: Bell, label: 'Notifications' },
   { href: '#', icon: Settings, label: 'Settings' },
@@ -89,7 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem key={item.href + index}>
                   <SidebarMenuButton
                     asChild
-                    isActive={index === 0}
+                    isActive={item.href.startsWith('/admin') && index === 0}
                     tooltip={{
                       children: item.label,
                       className: 'p-2',
