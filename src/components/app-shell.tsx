@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
 import {
   Sidebar,
   SidebarContent,
@@ -119,13 +117,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <div className="flex justify-between items-center w-full">
-                  <Label htmlFor="theme-switch">Dark Mode</Label>
-                  <ThemeToggle />
-                </div>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />
