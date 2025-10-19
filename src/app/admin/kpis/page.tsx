@@ -163,8 +163,8 @@ export default function KpiListPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="reward-penalty" className="text-right">
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label htmlFor="reward-penalty" className="text-right pt-2">
                     Thưởng/Phạt
                   </Label>
                   <Textarea
