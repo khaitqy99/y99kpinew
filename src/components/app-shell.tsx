@@ -67,7 +67,7 @@ const adminNavItems = [
 
 const employeeNavItems = [
   { href: '/employee/dashboard', icon: LayoutDashboard, label: 'Dashboard của tôi' },
-  { href: '#', icon: Target, label: 'KPI của tôi' },
+  { href: '/employee/kpis', icon: Target, label: 'KPI của tôi' },
 ];
 
 const commonNavItems = [
