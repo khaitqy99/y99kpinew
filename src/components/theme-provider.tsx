@@ -8,9 +8,6 @@ type ThemeProviderProps = {
   children: React.ReactNode
   defaultTheme?: Theme
   storageKey?: string
-  attribute?: string
-  enableSystem?: boolean
-  disableTransitionOnChange?: boolean
 }
 
 type ThemeProviderState = {
@@ -29,40 +26,39 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
   storageKey = "ui-theme",
-  attribute = "class",
-  enableSystem = true,
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = React.useState<Theme>(defaultTheme)
+  const [theme, setTheme] = React.useState<Theme>(() => {
+    if (typeof window === 'undefined') {
+      return defaultTheme;
+    }
+    try {
+      return (localStorage.getItem(storageKey) as Theme) || defaultTheme
+    } catch (e) {
+      // Unsupported
+      return defaultTheme
+    }
+  })
+  const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    let initialTheme: Theme = defaultTheme;
-    try {
-      const storedTheme = localStorage.getItem(storageKey) as Theme;
-      if (storedTheme) {
-        initialTheme = storedTheme;
-      }
-    } catch (e) {
-      // Ignore
-    }
-    setTheme(initialTheme);
-  }, [defaultTheme, storageKey]);
+    setMounted(true)
+  }, [])
 
   React.useEffect(() => {
     const root = window.document.documentElement
     root.classList.remove("light", "dark")
 
     let effectiveTheme = theme
-    if (effectiveTheme === "system" && enableSystem) {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+    if (theme === "system") {
+      effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
         .matches
         ? "dark"
         : "light"
-      effectiveTheme = systemTheme
     }
 
     root.classList.add(effectiveTheme)
-  }, [theme, enableSystem])
+  }, [theme])
 
   const value = {
     theme,
@@ -78,7 +74,7 @@ export function ThemeProvider({
 
   return (
     <ThemeProviderContext.Provider {...props} value={value}>
-      {children}
+      {mounted ? children : null}
     </ThemeProviderContext.Provider>
   )
 }
