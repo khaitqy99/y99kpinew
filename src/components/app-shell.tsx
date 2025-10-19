@@ -89,7 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem key={item.href + index}>
                   <SidebarMenuButton
                     asChild
-                    isActive={item.href.startsWith('/admin') && index === 0}
+                    isActive={index === 0}
                     tooltip={{
                       children: item.label,
                       className: 'p-2',
