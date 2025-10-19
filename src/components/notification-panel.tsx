@@ -17,7 +17,7 @@ import { SessionContext } from '@/contexts/SessionContext';
 
 type Notification = (typeof mockNotifications)[0];
 
-const notificationIcons = {
+const notificationIcons: { [key: string]: React.ReactNode } = {
   assigned: <FileCheck className="h-5 w-5 text-blue-500" />,
   approved: <CalendarCheck className="h-5 w-5 text-green-500" />,
   rejected: <AlertTriangle className="h-5 w-5 text-red-500" />,
@@ -27,9 +27,10 @@ const notificationIcons = {
 
 export function NotificationPanel() {
   const { user } = useContext(SessionContext);
-  const [notifications, setNotifications] = useState<Notification[]>(
-      mockNotifications.filter(n => n.recipientId === user?.id || n.recipientId === 'all')
-  );
+  const [notifications, setNotifications] = useState<Notification[]>(() => {
+      if (!user) return [];
+      return mockNotifications.filter(n => n.recipientId === user.id || n.recipientId === 'all')
+  });
   
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 

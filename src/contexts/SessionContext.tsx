@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 type User = {
   id: string;
@@ -38,31 +37,22 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   
   useEffect(() => {
-    let isMounted = true;
-
+    // This effect runs once on mount to check for an existing session.
     const checkSession = () => {
       try {
         const storedUser = sessionStorage.getItem('user');
         if (storedUser) {
-           if (isMounted) {
             setUser(JSON.parse(storedUser));
-           }
         }
       } catch (error) {
         console.error("Failed to parse user from session storage", error);
         sessionStorage.removeItem('user');
       } finally {
-        if (isMounted) {
-            setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
     
     checkSession();
-
-    return () => {
-        isMounted = false;
-    }
   }, []);
 
   const login = (userData: User) => {
@@ -73,6 +63,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     sessionStorage.removeItem('user');
     setUser(null);
+    // The redirection is now handled in the AppLayout component
     router.push('/login');
   };
 

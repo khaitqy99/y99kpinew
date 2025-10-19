@@ -57,8 +57,11 @@ export function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useContext(SessionContext);
 
-  // This component assumes `user` is always defined because RootLayout handles the auth check.
-  if (!user) return null;
+  if (!user) {
+    // This case should ideally not be hit if AppLayout logic is correct,
+    // but as a fallback, it prevents rendering an incomplete shell.
+    return null;
+  }
 
   const navItems = user.role === 'admin' ? adminNavItems : employeeNavItems;
   const activeItem = navItems.find(item => pathname.startsWith(item.href));

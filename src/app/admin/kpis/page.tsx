@@ -83,24 +83,24 @@ export default function KpiListPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-6 py-4">
-                <div className="grid gap-3">
-                  <Label htmlFor="name">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
                     Tên KPI
                   </Label>
-                  <Input id="name" />
+                  <Input id="name" className="col-span-3" />
                 </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="description">
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label htmlFor="description" className="text-right pt-2">
                     Mô tả
                   </Label>
-                  <Textarea id="description" />
+                  <Textarea id="description" className="col-span-3" />
                 </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="department">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="department" className="text-right">
                     Phòng ban
                   </Label>
                   <Select>
-                    <SelectTrigger id="department">
+                    <SelectTrigger id="department" className="col-span-3">
                       <SelectValue placeholder="Chọn phòng ban" />
                     </SelectTrigger>
                     <SelectContent>
@@ -110,22 +110,19 @@ export default function KpiListPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-3">
-                        <Label htmlFor="target">Mục tiêu</Label>
-                        <Input id="target" type="number" />
-                    </div>
-                    <div className="grid gap-3">
-                        <Label htmlFor="unit">Đơn vị</Label>
-                        <Input id="unit" placeholder="%, VNĐ,..." />
-                    </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Mục tiêu</Label>
+                  <div className="col-span-3 grid grid-cols-2 gap-2">
+                     <Input id="target" type="number" placeholder="100"/>
+                     <Input id="unit" placeholder="%, VNĐ,..." />
+                  </div>
                 </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="frequency">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="frequency" className="text-right">
                     Tần suất
                   </Label>
                   <Select>
-                    <SelectTrigger id="frequency">
+                    <SelectTrigger id="frequency" className="col-span-3">
                       <SelectValue placeholder="Chọn tần suất đo lường" />
                     </SelectTrigger>
                     <SelectContent>
@@ -135,13 +132,14 @@ export default function KpiListPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-3">
-                  <Label htmlFor="reward-penalty">
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label htmlFor="reward-penalty" className="text-right pt-2">
                     Thưởng/Phạt
                   </Label>
                   <Textarea
                     id="reward-penalty"
                     placeholder="Cấu hình quy tắc thưởng/phạt"
+                    className="col-span-3"
                   />
                 </div>
               </div>
