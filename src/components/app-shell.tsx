@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -67,7 +68,6 @@ const adminNavItems = [
 const employeeNavItems = [
   { href: '/employee/dashboard', icon: LayoutDashboard, label: 'Dashboard của tôi' },
   { href: '/employee/kpis', icon: Target, label: 'KPI của tôi' },
-  { href: '/settings', icon: Settings, label: 'Cài đặt' },
 ];
 
 
@@ -172,12 +172,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                   <Link href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Cài đặt</span>
-                  </Link>
-                </DropdownMenuItem>
+                {role === 'admin' && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Cài đặt</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem>
                   <LifeBuoy className="mr-2 h-4 w-4" />
                   <span>Hỗ trợ</span>

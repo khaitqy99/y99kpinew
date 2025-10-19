@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -19,9 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { PlusCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 type UserData = {
   name: string;
@@ -29,45 +39,70 @@ type UserData = {
   department?: string;
 };
 
+const mockDepartments = [
+    { id: 'dept-1', name: 'Kinh doanh' },
+    { id: 'dept-2', name: 'Marketing' },
+    { id: 'dept-3', name: 'Kỹ thuật' },
+    { id: 'dept-4', name: 'Nhân sự' },
+];
+
+const mockUsers = [
+    { id: 'user-1', name: 'Nguyễn Văn A', email: 'nva@example.com', department: 'Kinh doanh' },
+    { id: 'user-2', name: 'Trần Thị B', email: 'ttb@example.com', department: 'Marketing' },
+    { id: 'user-3', name: 'Lê Văn C', email: 'lvc@example.com', department: 'Kỹ thuật' },
+];
+
 export default function SettingsPage() {
+  const { toast } = useToast();
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedUserData = localStorage.getItem('userData');
-      const storedRole = localStorage.getItem('userRole');
       if (storedUserData) {
         const parsedData = JSON.parse(storedUserData);
         setUserData({
           ...parsedData,
-          department: storedRole === 'admin' ? 'Quản trị hệ thống' : 'Marketing',
+          department: 'Quản trị hệ thống',
         });
       }
-      setRole(storedRole);
     }
   }, []);
+  
+  const handleCreateDepartment = () => {
+    toast({
+        title: 'Thành công!',
+        description: 'Đã tạo phòng ban mới.'
+    })
+  }
+  
+  const handleCreateUser = () => {
+    toast({
+        title: 'Thành công!',
+        description: 'Đã tạo người dùng mới.'
+    })
+  }
 
   return (
     <div className="space-y-6">
-       <div>
+      <div>
         <h1 className="text-2xl font-bold tracking-tight">Cài đặt</h1>
         <p className="text-muted-foreground">
-          Quản lý thông tin tài khoản và tùy chọn hệ thống của bạn.
+          Quản lý thông tin tài khoản và hệ thống của bạn.
         </p>
       </div>
-       <Separator />
+      <Separator />
       <Tabs defaultValue="profile">
         <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
-          <TabsTrigger value="system">Hệ thống</TabsTrigger>
+          <TabsTrigger value="management">Người dùng & Phòng ban</TabsTrigger>
         </TabsList>
         <TabsContent value="profile">
           <Card>
             <CardHeader>
               <CardTitle>Hồ sơ cá nhân</CardTitle>
               <CardDescription>
-                Thông tin này sẽ được hiển thị công khai, hãy cẩn thận khi chia sẻ.
+                Thông tin này sẽ được hiển thị trong hệ thống.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -83,64 +118,100 @@ export default function SettingsPage() {
                 <Label htmlFor="department">Phòng ban</Label>
                 <Input id="department" defaultValue={userData?.department || ''} readOnly />
               </div>
-               <Button>Lưu thay đổi</Button>
+              <Button>Lưu thay đổi</Button>
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="system">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cài đặt hệ thống</CardTitle>
-              <CardDescription>
-                Tùy chỉnh giao diện và thông báo của ứng dụng.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="space-y-2">
-                <Label htmlFor="language">Ngôn ngữ</Label>
-                <Select defaultValue="vi">
-                  <SelectTrigger className="w-[280px]">
-                    <SelectValue placeholder="Chọn ngôn ngữ" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="vi">Tiếng Việt</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                 <div className="space-y-0.5">
-                    <Label className="text-base">Chế độ tối</Label>
-                    <p className='text-sm text-muted-foreground'>
-                        Bật để chuyển sang giao diện nền tối.
-                    </p>
-                 </div>
-                 <Switch aria-label="Dark mode toggle" />
-              </div>
-               <div className="space-y-4">
-                 <h3 className='font-medium'>Thông báo</h3>
-                 <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                        <Label>Thông báo qua Email</Label>
-                        <p className='text-sm text-muted-foreground'>
-                            Nhận thông báo về KPI và cập nhật quan trọng.
-                        </p>
+        <TabsContent value="management">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quản lý phòng ban</CardTitle>
+                <CardDescription>Tạo và xem danh sách các phòng ban.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 <div className="space-y-2">
+                    <Label htmlFor="new-dept">Tên phòng ban mới</Label>
+                    <div className="flex gap-2">
+                        <Input id="new-dept" placeholder="VD: Chăm sóc khách hàng" />
+                        <Button onClick={handleCreateDepartment}>
+                            <PlusCircle className='h-4 w-4 mr-2' /> Tạo
+                        </Button>
                     </div>
-                    <Switch defaultChecked aria-label="Email notification toggle" />
                 </div>
-                 <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                        <Label>Thông báo đẩy</Label>
-                         <p className='text-sm text-muted-foreground'>
-                            Nhận thông báo ngay trên thiết bị của bạn.
-                        </p>
+                <Separator />
+                 <h3 className="text-sm font-medium">Danh sách phòng ban</h3>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Tên phòng ban</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {mockDepartments.map(dept => (
+                            <TableRow key={dept.id}>
+                                <TableCell>{dept.name}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+             <Card>
+              <CardHeader>
+                <CardTitle>Quản lý người dùng</CardTitle>
+                <CardDescription>Tạo và quản lý tài khoản nhân viên.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 <div className="space-y-3">
+                    <div className="space-y-2">
+                        <Label htmlFor="new-user-name">Tên nhân viên</Label>
+                        <Input id="new-user-name" placeholder="VD: Nguyễn Văn B" />
                     </div>
-                    <Switch aria-label="Push notification toggle" />
+                     <div className="space-y-2">
+                        <Label htmlFor="new-user-email">Email</Label>
+                        <Input id="new-user-email" type="email" placeholder="VD: nvb@example.com" />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="new-user-dept">Phòng ban</Label>
+                        <Select>
+                            <SelectTrigger id="new-user-dept">
+                                <SelectValue placeholder="Chọn phòng ban" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {mockDepartments.map(dept => (
+                                    <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <Button className="w-full" onClick={handleCreateUser}>
+                        <PlusCircle className='h-4 w-4 mr-2' /> Tạo nhân viên
+                    </Button>
                 </div>
-              </div>
-               <Button>Lưu thay đổi</Button>
-            </CardContent>
-          </Card>
+                 <Separator />
+                 <h3 className="text-sm font-medium">Danh sách nhân viên</h3>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Tên</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Phòng ban</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {mockUsers.map(user => (
+                            <TableRow key={user.id}>
+                                <TableCell>{user.name}</TableCell>
+                                <TableCell>{user.email}</TableCell>
+                                <TableCell>{user.department}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
