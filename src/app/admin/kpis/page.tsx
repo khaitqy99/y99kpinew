@@ -135,93 +135,89 @@ const KpiDialog: React.FC<{
           Tạo KPI mới
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{kpiToEdit ? 'Sửa KPI' : 'Tạo KPI mới'}</DialogTitle>
           <DialogDescription>
             Điền thông tin chi tiết để {kpiToEdit ? 'cập nhật' : 'thiết lập'} một KPI.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-6 py-6">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Tên KPI
-            </Label>
-            <Input id="name" value={name} onChange={e => setName(e.target.value)} className="col-span-3" />
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="text-right pt-2">
-              Mô tả
-            </Label>
-            <Textarea id="description" value={description} onChange={e => setDescription(e.target.value)} className="col-span-3" />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="department" className="text-right">
-              Phòng ban
-            </Label>
-            <Select value={department} onValueChange={setDepartment}>
-              <SelectTrigger id="department" className="col-span-3">
-                <SelectValue placeholder="Chọn phòng ban" />
-              </SelectTrigger>
-              <SelectContent>
-                {departments.map(dep => (
-                  <SelectItem key={dep} value={dep}>{dep}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Mục tiêu</Label>
-            <div className="col-span-3 grid grid-cols-2 gap-2">
-              <Input id="target" type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="100"/>
-              <Input id="unit" value={unit} onChange={e => setUnit(e.target.value)} placeholder="%, VNĐ,..." />
+        <div className="grid gap-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="name">Tên KPI</Label>
+                    <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Tăng trưởng doanh thu"/>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="department">Phòng ban</Label>
+                    <Select value={department} onValueChange={setDepartment}>
+                        <SelectTrigger id="department">
+                            <SelectValue placeholder="Chọn phòng ban" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {departments.map(dep => (
+                            <SelectItem key={dep} value={dep}>{dep}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="frequency" className="text-right">
-              Tần suất
-            </Label>
-            <Select value={frequency} onValueChange={setFrequency}>
-              <SelectTrigger id="frequency" className="col-span-3">
-                <SelectValue placeholder="Chọn tần suất đo lường" />
-              </SelectTrigger>
-              <SelectContent>
-                {frequencies.map(freq => (
-                  <SelectItem key={freq} value={freq}>{freq}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="status" className="text-right">
-              Trạng thái
-            </Label>
-            <Select value={status} onValueChange={(value) => setStatus(value as 'active' | 'paused')}>
-              <SelectTrigger id="status" className="col-span-3">
-                <SelectValue placeholder="Chọn trạng thái" />
-              </SelectTrigger>
-              <SelectContent>
-                 <SelectItem value="active">Đang hoạt động</SelectItem>
-                 <SelectItem value="paused">Tạm dừng</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="reward-penalty" className="text-right pt-2">
-              Thưởng/Phạt
-            </Label>
-            <Textarea
-              id="reward-penalty"
-              value={rewardPenaltyConfig}
-              onChange={e => setRewardPenaltyConfig(e.target.value)}
-              placeholder="Cấu hình quy tắc thưởng/phạt"
-              className="col-span-3"
-            />
-          </div>
+            <div className="space-y-2">
+                <Label htmlFor="description">Mô tả</Label>
+                <Textarea id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Mô tả chi tiết mục tiêu, cách đo lường và ý nghĩa của KPI..." />
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex gap-4">
+                     <div className="space-y-2 flex-1">
+                        <Label htmlFor="target">Mục tiêu</Label>
+                        <Input id="target" type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="100"/>
+                    </div>
+                     <div className="space-y-2 flex-1">
+                        <Label htmlFor="unit">Đơn vị</Label>
+                        <Input id="unit" value={unit} onChange={e => setUnit(e.target.value)} placeholder="%, VNĐ, sản phẩm..." />
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="frequency">Tần suất</Label>
+                    <Select value={frequency} onValueChange={setFrequency}>
+                    <SelectTrigger id="frequency">
+                        <SelectValue placeholder="Chọn tần suất đo lường" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {frequencies.map(freq => (
+                        <SelectItem key={freq} value={freq}>{freq}</SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="reward-penalty">Cấu hình Thưởng/Phạt</Label>
+                    <Textarea
+                    id="reward-penalty"
+                    value={rewardPenaltyConfig}
+                    onChange={e => setRewardPenaltyConfig(e.target.value)}
+                    placeholder="VD: Đạt 100% thưởng 1M, dưới 80% phạt 500k"
+                    />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="status">Trạng thái</Label>
+                    <Select value={status} onValueChange={(value) => setStatus(value as 'active' | 'paused')}>
+                    <SelectTrigger id="status">
+                        <SelectValue placeholder="Chọn trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="active">Đang hoạt động</SelectItem>
+                        <SelectItem value="paused">Tạm dừng</SelectItem>
+                    </SelectContent>
+                    </Select>
+                </div>
+            </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-          <Button type="submit" onClick={handleSave}>Lưu</Button>
+          <Button type="submit" onClick={handleSave}>Lưu thay đổi</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
