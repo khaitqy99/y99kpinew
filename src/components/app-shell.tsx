@@ -15,6 +15,7 @@ import {
   Shield,
   User,
   FileText,
+  FileCheck,
 } from 'lucide-react';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -61,6 +62,7 @@ const adminNavItems = [
   { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
   { href: '/admin/kpis', icon: FileText, label: 'Quản lý KPI' },
   { href: '/admin/assign', icon: CheckCircle2, label: 'Giao KPI' },
+  { href: '/admin/approval', icon: FileCheck, label: 'Duyệt KPI' },
 ];
 
 const employeeNavItems = [
