@@ -10,6 +10,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -29,7 +30,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -57,7 +57,7 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
 
 export default function EmployeeDashboardPage() {
   const { user } = useContext(SessionContext);
-  const { kpiRecords, kpis, notifications, updateKpiRecordActual, submitKpiRecord } = useContext(DataContext);
+  const { kpiRecords, kpis, notifications, updateKpiRecordActual } = useContext(DataContext);
   const { toast } = useToast();
   
   const [selectedKpi, setSelectedKpi] = useState<MappedKpi | null>(null);
@@ -65,13 +65,10 @@ export default function EmployeeDashboardPage() {
   // Dialog states
   const [isDetailModalOpen, setDetailModalOpen] = useState(false);
   const [isUpdateModalOpen, setUpdateModalOpen] = useState(false);
-  const [isSubmitModalOpen, setSubmitModalOpen] = useState(false);
   const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
   
   // Form states
   const [actualValue, setActualValue] = useState('');
-  const [submissionDetails, setSubmissionDetails] = useState('');
-  const [attachment, setAttachment] = useState<File | null>(null);
 
 
   const employeeKpiRecords = useMemo(() => 
@@ -118,14 +115,6 @@ export default function EmployeeDashboardPage() {
     setUpdateModalOpen(true);
   };
   
-  const handleSubmitClick = () => {
-    if (!selectedKpi) return;
-    setActualValue(String(selectedKpi.actual));
-    setSubmissionDetails(selectedKpi.submissionDetails);
-    setAttachment(null);
-    setSubmitModalOpen(true);
-  };
-
   const handleFeedbackClick = () => {
     if (!selectedKpi) return;
     setFeedbackModalOpen(true);
@@ -154,36 +143,6 @@ export default function EmployeeDashboardPage() {
     setUpdateModalOpen(false);
   };
   
-  const handleSubmitKpi = () => {
-    if (!selectedKpi) return;
-     if (!submissionDetails.trim()) {
-        toast({
-            variant: 'destructive',
-            title: 'Lỗi',
-            description: 'Vui lòng nhập chi tiết/ghi chú trước khi nộp.',
-        });
-        return;
-    }
-    
-    const submissionData = {
-      actual: Number(actualValue),
-      submissionDetails: submissionDetails,
-      attachment: attachment ? attachment.name : null,
-    };
-
-    submitKpiRecord(selectedKpi.id, submissionData);
-    
-    // Optimistically update local state and close all modals
-    setSelectedKpi(prev => prev ? { ...prev, ...submissionData, status: 'pending_approval' } : null);
-
-    toast({
-        title: 'Nộp KPI thành công',
-        description: `KPI "${selectedKpi.name}" đã được gửi đi để xét duyệt.`,
-    });
-    setSubmitModalOpen(false);
-    setDetailModalOpen(false);
-  }
-
   return (
     <>
     <div className="flex min-h-screen w-full flex-col">
@@ -381,15 +340,17 @@ export default function EmployeeDashboardPage() {
                         </div>
                     </div>
                 </div>
-                <DialogFooter className='sm:justify-end gap-2'>
+                <DialogFooter className='justify-end flex sm:justify-end gap-2'>
                     <Button variant="outline" onClick={handleFeedbackClick}>
                         <MessageSquare className="mr-2 h-4 w-4" /> Xem Feedback
                     </Button>
                     <Button variant="outline" onClick={handleUpdateClick} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
                         <RefreshCw className="mr-2 h-4 w-4" /> Cập nhật
                     </Button>
-                    <Button onClick={handleSubmitClick} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
-                        <FileCheck className="mr-2 h-4 w-4" /> Nộp KPI
+                    <Button asChild onClick={() => setDetailModalOpen(false)} disabled={selectedKpi.status === 'pending_approval' || selectedKpi.status === 'completed'}>
+                        <Link href={`/employee/submit/${selectedKpi.id}`}>
+                            <FileCheck className="mr-2 h-4 w-4" /> Nộp KPI
+                        </Link>
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -421,47 +382,6 @@ export default function EmployeeDashboardPage() {
         </Dialog>
       )}
       
-      {/* Submit KPI Modal */}
-      {selectedKpi && (
-        <Dialog open={isSubmitModalOpen} onOpenChange={setSubmitModalOpen}>
-          <DialogContent className="sm:max-w-[525px]">
-            <DialogHeader>
-              <DialogTitle>Nộp Báo cáo KPI</DialogTitle>
-              <DialogDescription>{selectedKpi.name}</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="actual-submit" className="text-right">
-                  Số liệu cuối cùng
-                </Label>
-                <Input id="actual-submit" value={actualValue} onChange={(e) => setActualValue(e.target.value)} className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="comment-submit" className="text-right pt-2">
-                  Chi tiết/Ghi chú
-                </Label>
-                <Textarea id="comment-submit" value={submissionDetails} onChange={(e) => setSubmissionDetails(e.target.value)} placeholder="Bắt buộc: Thêm chi tiết hoặc bằng chứng hoàn thành..." className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="attachment-submit" className="text-right">
-                    Tệp đính kèm
-                  </Label>
-                  <Input 
-                    id="attachment-submit" 
-                    type="file" 
-                    onChange={(e) => setAttachment(e.target.files ? e.target.files[0] : null)} 
-                    className="col-span-3" 
-                  />
-              </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setSubmitModalOpen(false)}>Hủy</Button>
-              <Button onClick={handleSubmitKpi}>Xác nhận Nộp</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
       {/* View Feedback Modal */}
       {selectedKpi && (
         <Dialog open={isFeedbackModalOpen} onOpenChange={setFeedbackModalOpen}>
