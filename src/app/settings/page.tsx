@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import {
   Table,
@@ -33,11 +32,6 @@ import {
 import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-type UserData = {
-  name: string;
-  email: string;
-  department?: string;
-};
 
 const mockDepartments = [
     { id: 'dept-1', name: 'Kinh doanh' },
@@ -54,20 +48,6 @@ const mockUsers = [
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [userData, setUserData] = useState<UserData | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUserData = localStorage.getItem('userData');
-      if (storedUserData) {
-        const parsedData = JSON.parse(storedUserData);
-        setUserData({
-          ...parsedData,
-          department: 'Quản trị hệ thống',
-        });
-      }
-    }
-  }, []);
   
   const handleCreateDepartment = () => {
     toast({
@@ -88,42 +68,12 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Cài đặt</h1>
         <p className="text-muted-foreground">
-          Quản lý thông tin tài khoản và hệ thống của bạn.
+          Quản lý người dùng và phòng ban trong hệ thống của bạn.
         </p>
       </div>
       <Separator />
-      <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
-          <TabsTrigger value="management">Người dùng & Phòng ban</TabsTrigger>
-        </TabsList>
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Hồ sơ cá nhân</CardTitle>
-              <CardDescription>
-                Thông tin này sẽ được hiển thị trong hệ thống.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">Họ và tên</Label>
-                <Input id="name" defaultValue={userData?.name || ''} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue={userData?.email || ''} readOnly />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="department">Phòng ban</Label>
-                <Input id="department" defaultValue={userData?.department || ''} readOnly />
-              </div>
-              <Button>Lưu thay đổi</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="management">
-          <div className="grid gap-6 md:grid-cols-2">
+      
+        <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Quản lý phòng ban</CardTitle>
@@ -212,8 +162,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
