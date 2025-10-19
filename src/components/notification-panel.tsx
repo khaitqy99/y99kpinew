@@ -101,13 +101,13 @@ export function NotificationPanel() {
       <SheetContent className="w-[400px] sm:w-[540px] flex flex-col">
         <SheetHeader className="pb-4">
           <SheetTitle>Thông báo</SheetTitle>
-           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
+           <div className="flex items-center justify-between text-sm">
+            <p className="text-muted-foreground">
               Bạn có {unreadCount} thông báo chưa đọc.
             </p>
             <Button
               variant="link"
-              className="p-0 h-auto"
+              className="p-0 h-auto whitespace-nowrap"
               onClick={handleMarkAllAsRead}
               disabled={unreadCount === 0}
             >
