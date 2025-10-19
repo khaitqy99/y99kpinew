@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -13,6 +14,7 @@ export default function DashboardPage() {
       <h1 className="text-3xl font-bold font-headline tracking-tight">
         Dashboard
       </h1>
+      <Link href="/admin/dashboard">Go to Admin Dashboard</Link>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

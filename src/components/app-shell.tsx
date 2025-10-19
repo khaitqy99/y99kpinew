@@ -11,6 +11,7 @@ import {
   Users,
   LogOut,
   LifeBuoy,
+  Shield,
 } from 'lucide-react';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -37,17 +38,6 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 
-const userAvatar = PlaceHolderImages.find((p) => p.id === 'user-avatar');
-
-const navItems = [
-  { href: '#', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '#', icon: Target, label: 'KPI Management' },
-  { href: '#', icon: Users, label: 'Employee Management' },
-  { href: '#', icon: CheckCircle2, label: 'KPI Approval' },
-  { href: '#', icon: Bell, label: 'Notifications' },
-  { href: '#', icon: Settings, label: 'Settings' },
-];
-
 function ClientOnly({ children }: { children: React.ReactNode }) {
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -62,6 +52,18 @@ function ClientOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+
+const userAvatar = PlaceHolderImages.find((p) => p.id === 'user-avatar');
+
+const navItems = [
+  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
+  { href: '#', icon: Target, label: 'KPI Management' },
+  { href: '#', icon: Users, label: 'Employee Management' },
+  { href: '#', icon: CheckCircle2, label: 'KPI Approval' },
+  { href: '#', icon: Bell, label: 'Notifications' },
+  { href: '#', icon: Settings, label: 'Settings' },
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
