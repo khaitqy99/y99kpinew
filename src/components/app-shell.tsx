@@ -1,4 +1,3 @@
-// @refresh-reset
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -62,6 +61,7 @@ function ClientOnly({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
