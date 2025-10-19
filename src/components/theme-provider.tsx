@@ -39,11 +39,6 @@ export function ThemeProvider({
       return defaultTheme
     }
   })
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
 
   React.useEffect(() => {
     const root = window.document.documentElement
@@ -74,7 +69,7 @@ export function ThemeProvider({
 
   return (
     <ThemeProviderContext.Provider {...props} value={value}>
-      {mounted ? children : null}
+      {children}
     </ThemeProviderContext.Provider>
   )
 }
