@@ -102,7 +102,7 @@ export function NotificationPanel() {
         <SheetHeader className="pb-4">
           <SheetTitle>Thông báo</SheetTitle>
            <div className="flex items-center justify-between text-sm">
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground whitespace-nowrap">
               Bạn có {unreadCount} thông báo chưa đọc.
             </p>
             <Button
