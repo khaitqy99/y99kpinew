@@ -121,7 +121,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarContent>
             <SidebarMenu>
               {navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
+                <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton
                     asChild
                     isActive={item.href === activeItem?.href}
