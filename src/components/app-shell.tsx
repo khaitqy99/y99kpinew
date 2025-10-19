@@ -172,9 +172,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Cài đặt</span>
+                <DropdownMenuItem asChild>
+                   <Link href="/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Cài đặt</span>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <LifeBuoy className="mr-2 h-4 w-4" />
