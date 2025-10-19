@@ -91,7 +91,7 @@ export default function SettingsPage() {
         email: newUserEmail,
         role: 'employee',
         department: newUserDept,
-        avatar: `https://picsum.photos/seed/${users.length + 10}/40/40`,
+        avatar: `https://picsum.photos/seed/${(users || []).length + 10}/40/40`,
     };
     addUser(newUser);
     setNewUserName('');
@@ -224,7 +224,7 @@ export default function SettingsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {users.map(user => (
+                            {(users || []).map(user => (
                                 <TableRow key={user.id}>
                                     <TableCell>{user.name}</TableCell>
                                     <TableCell>{user.email}</TableCell>

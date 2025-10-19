@@ -20,7 +20,7 @@ export type Feedback = KpiRecord['feedback'][0];
 
 type DataContextType = {
   // State
-  employees: Employee[];
+  users: Employee[];
   kpis: Kpi[];
   kpiRecords: KpiRecord[];
   notifications: Notification[];
@@ -51,7 +51,7 @@ export const DataContext = createContext<DataContextType>({} as DataContextType)
 // --- PROVIDER COMPONENT ---
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [users, setUsers] = useState<Employee[]>(initialEmployees);
   const [kpis, setKpis] = useState<Kpi[]>(initialKpis);
   const [kpiRecords, setKpiRecords] = useState<KpiRecord[]>(initialKpiRecords);
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
@@ -61,10 +61,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   const addUser = (userData: Omit<Employee, 'id'>) => {
     const newUser: Employee = {
-        id: `emp-${String(employees.length + 1).padStart(2, '0')}`,
+        id: `emp-${String(users.length + 1).padStart(2, '0')}`,
         ...userData,
     };
-    setEmployees(prev => [...prev, newUser]);
+    setUsers(prev => [...prev, newUser]);
   };
 
   const addDepartment = (deptName: string) => {
@@ -130,7 +130,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   // --- PROVIDER VALUE ---
   const value = {
-    employees,
+    users,
     kpis,
     kpiRecords,
     notifications,

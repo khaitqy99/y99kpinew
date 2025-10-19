@@ -57,9 +57,9 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
 
 export default function AssignKpiPage() {
   const { toast } = useToast();
-  const { employees, kpis, kpiRecords, assignKpi } = React.useContext(DataContext);
+  const { users, kpis, kpiRecords, assignKpi } = React.useContext(DataContext);
 
-  const [selectedEmployee, setSelectedEmployee] = React.useState(employees[0]);
+  const [selectedEmployee, setSelectedEmployee] = React.useState(users[0]);
   const [selectedKpi, setSelectedKpi] = React.useState(kpis[0]);
   const [selectedPeriod, setSelectedPeriod] = React.useState(periods[0]);
   const [date, setDate] = React.useState<DateRange | undefined>({
@@ -69,7 +69,7 @@ export default function AssignKpiPage() {
   
   const getAssignedKpis = (records: KpiRecord[]) => {
     return records.map(record => {
-        const employee = employees.find(e => e.id === record.employeeId);
+        const employee = users.find(e => e.id === record.employeeId);
         const kpi = kpis.find(k => k.id === record.kpiId);
         return {
             ...record,
@@ -140,7 +140,7 @@ export default function AssignKpiPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64">
-                    {employees.map(emp => (
+                    {users.map(emp => (
                         <DropdownMenuItem key={emp.id} onSelect={() => setSelectedEmployee(emp)}>
                             {emp.name}
                         </DropdownMenuItem>

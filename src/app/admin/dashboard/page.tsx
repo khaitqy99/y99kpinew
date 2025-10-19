@@ -50,10 +50,10 @@ const kpiChartData = [
 
 
 export default function AdminDashboardPage() {
-  const { kpiRecords, employees, kpis } = useContext(DataContext);
+  const { kpiRecords, users, kpis } = useContext(DataContext);
 
   const pendingKpis = kpiRecords.filter(r => r.status === 'pending_approval').slice(0,3).map(record => {
-    const employee = employees.find(e => e.id === record.employeeId);
+    const employee = users.find(e => e.id === record.employeeId);
     const kpi = kpis.find(k => k.id === record.kpiId);
     return {
         id: record.id,
@@ -66,7 +66,7 @@ export default function AdminDashboardPage() {
 
   const totalKpis = kpiRecords.length;
   const pendingCount = kpiRecords.filter(r => r.status === 'pending_approval').length;
-  const employeeCount = employees.length;
+  const employeeCount = users.length;
   const completedCount = kpiRecords.filter(r => r.status === 'completed').length;
   const completionRate = totalKpis > 0 ? (completedCount / totalKpis) * 100 : 0;
 

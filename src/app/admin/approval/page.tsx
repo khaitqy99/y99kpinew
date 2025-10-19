@@ -43,7 +43,7 @@ type MappedApproval = {
 
 export default function ApprovalPage() {
   const { toast } = useToast();
-  const { kpiRecords, employees, kpis, updateKpiRecordStatus } = useContext(DataContext);
+  const { kpiRecords, users, kpis, updateKpiRecordStatus } = useContext(DataContext);
   
   const [selectedApproval, setSelectedApproval] = useState<MappedApproval | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,7 +52,7 @@ export default function ApprovalPage() {
 
   const getPendingApprovals = () => {
     return kpiRecords.filter(r => r.status === 'pending_approval').map(record => {
-        const employee = employees.find(e => e.id === record.employeeId);
+        const employee = users.find(e => e.id === record.employeeId);
         const kpi = kpis.find(k => k.id === record.kpiId);
         const completion = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 100;
         return {
