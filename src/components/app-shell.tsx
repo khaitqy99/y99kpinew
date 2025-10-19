@@ -14,6 +14,7 @@ import {
   LifeBuoy,
   Shield,
   User,
+  FileText,
 } from 'lucide-react';
 
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -58,18 +59,18 @@ const userAvatar = PlaceHolderImages.find((p) => p.id === 'user-avatar');
 
 const adminNavItems = [
   { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
-  { href: '#', icon: Target, label: 'KPI Management' },
-  { href: '#', icon: CheckCircle2, label: 'KPI Approval' },
+  { href: '/admin/kpis', icon: FileText, label: 'Quản lý KPI' },
+  { href: '#', icon: CheckCircle2, label: 'Duyệt KPI' },
 ];
 
 const employeeNavItems = [
-  { href: '/employee/dashboard', icon: LayoutDashboard, label: 'My Dashboard' },
-  { href: '#', icon: Target, label: 'My KPIs' },
+  { href: '/employee/dashboard', icon: LayoutDashboard, label: 'Dashboard của tôi' },
+  { href: '#', icon: Target, label: 'KPI của tôi' },
 ];
 
 const commonNavItems = [
-  { href: '#', icon: Bell, label: 'Notifications' },
-  { href: '#', icon: Settings, label: 'Settings' },
+  { href: '#', icon: Bell, label: 'Thông báo' },
+  { href: '#', icon: Settings, label: 'Cài đặt' },
 ];
 
 type UserData = {
@@ -175,17 +176,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
+                  <span>Cài đặt</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <LifeBuoy className="mr-2 h-4 w-4" />
-                  <span>Support</span>
+                  <span>Hỗ trợ</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/login">
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
+                    <span>Đăng xuất</span>
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
