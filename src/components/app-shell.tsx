@@ -56,7 +56,6 @@ function ClientOnly({ children }: { children: React.ReactNode }) {
 const userAvatar = PlaceHolderImages.find((p) => p.id === 'user-avatar');
 
 const navItems = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
   { href: '#', icon: Target, label: 'KPI Management' },
   { href: '#', icon: Users, label: 'Employee Management' },
