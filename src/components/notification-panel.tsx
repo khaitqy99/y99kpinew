@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useContext } from 'react';
+import React, { useState, useMemo, useContext, useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -27,10 +27,13 @@ const notificationIcons: { [key: string]: React.ReactNode } = {
 
 export function NotificationPanel() {
   const { user } = useContext(SessionContext);
-  const [notifications, setNotifications] = useState<Notification[]>(() => {
-      if (!user) return [];
-      return mockNotifications.filter(n => n.recipientId === user.id || n.recipientId === 'all')
-  });
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  
+  useEffect(() => {
+    if (user) {
+      setNotifications(mockNotifications.filter(n => n.recipientId === user.id || n.recipientId === 'all'));
+    }
+  }, [user]);
   
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
