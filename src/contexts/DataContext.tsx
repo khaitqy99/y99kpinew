@@ -31,8 +31,9 @@ type DataContextType = {
   addKpi: (kpi: Omit<Kpi, 'id'>) => void;
   editKpi: (kpiId: string, updatedKpi: Omit<Kpi, 'id'>) => void;
   deleteKpi: (kpiId: string) => void;
-  assignKpi: (record: Omit<KpiRecord, 'id' | 'attachment'>) => void;
-  updateKpiRecord: (recordId: string, updates: Partial<Pick<KpiRecord, 'actual' | 'submissionDetails' | 'attachment'>>) => void;
+  assignKpi: (record: Omit<KpiRecord, 'id'>) => void;
+  updateKpiRecordActual: (recordId: string, actual: number) => void;
+  submitKpiRecord: (recordId: string, submission: { actual: number; submissionDetails: string; attachment: string | null }) => void;
   updateKpiRecordStatus: (recordId: string, status: KpiStatus, feedback?: Feedback) => void;
   markNotificationAsRead: (notificationId: string) => void;
   markAllNotificationsAsRead: () => void;
@@ -89,19 +90,35 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setKpis(prevKpis => prevKpis.filter(k => k.id !== kpiId));
   };
 
-  const assignKpi = (recordData: Omit<KpiRecord, 'id' | 'attachment'>) => {
+  const assignKpi = (recordData: Omit<KpiRecord, 'id'>) => {
     const newRecord: KpiRecord = {
         id: `rec-${String(kpiRecords.length + 1).padStart(3, '0')}`,
-        attachment: null,
         ...recordData,
     };
     setKpiRecords(prev => [newRecord, ...prev]);
   };
 
-  const updateKpiRecord = (recordId: string, updates: Partial<Pick<KpiRecord, 'actual' | 'submissionDetails' | 'attachment'>>) => {
+  const updateKpiRecordActual = (recordId: string, actual: number) => {
     setKpiRecords(prev => prev.map(rec => {
       if (rec.id === recordId) {
-        return { ...rec, ...updates };
+        // Also update status to 'in_progress' if it was 'not_started'
+        const newStatus = rec.status === 'not_started' ? 'in_progress' : rec.status;
+        return { ...rec, actual, status: newStatus };
+      }
+      return rec;
+    }));
+  };
+  
+  const submitKpiRecord = (recordId: string, submission: { actual: number; submissionDetails: string; attachment: string | null }) => {
+    setKpiRecords(prev => prev.map(rec => {
+      if (rec.id === recordId) {
+        return { 
+          ...rec, 
+          actual: submission.actual,
+          submissionDetails: submission.submissionDetails,
+          attachment: submission.attachment,
+          status: 'pending_approval' 
+        };
       }
       return rec;
     }));
@@ -141,7 +158,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     editKpi,
     deleteKpi,
     assignKpi,
-    updateKpiRecord,
+    updateKpiRecordActual,
+    submitKpiRecord,
     updateKpiRecordStatus,
     markNotificationAsRead,
     markAllNotificationsAsRead,
