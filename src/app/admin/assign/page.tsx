@@ -36,9 +36,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { employees } from '@/data/employees';
-import { kpis } from '@/data/kpis';
-import { kpiRecords } from '@/data/kpiRecords';
+import { useToast } from '@/hooks/use-toast';
+import { employees as initialEmployees } from '@/data/employees';
+import { kpis as initialKpis } from '@/data/kpis';
+import { kpiRecords as initialKpiRecords } from '@/data/kpiRecords';
 
 const periods = [
   'Quý 3 2024',
@@ -47,15 +48,17 @@ const periods = [
   'Tháng 8 2024',
 ];
 
-const assignedKpis = kpiRecords.map(record => {
-    const employee = employees.find(e => e.id === record.employeeId);
-    const kpi = kpis.find(k => k.id === record.kpiId);
-    return {
-        ...record,
-        employeeName: employee?.name || 'N/A',
-        kpiName: kpi?.name || 'N/A',
-    };
-});
+const getAssignedKpis = (records: typeof initialKpiRecords) => {
+    return records.map(record => {
+        const employee = initialEmployees.find(e => e.id === record.employeeId);
+        const kpi = initialKpis.find(k => k.id === record.kpiId);
+        return {
+            ...record,
+            employeeName: employee?.name || 'N/A',
+            kpiName: kpi?.name || 'N/A',
+        };
+    }).sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+};
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
   not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
@@ -67,13 +70,52 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
 
 
 export default function AssignKpiPage() {
+  const { toast } = useToast();
+  const [employees] = React.useState(initialEmployees);
+  const [kpis] = React.useState(initialKpis);
+  const [kpiRecords, setKpiRecords] = React.useState(initialKpiRecords);
+
   const [selectedEmployee, setSelectedEmployee] = React.useState(employees[0]);
   const [selectedKpi, setSelectedKpi] = React.useState(kpis[0]);
   const [selectedPeriod, setSelectedPeriod] = React.useState(periods[0]);
   const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(2024, 6, 1),
-    to: new Date(2024, 6, 31),
+    from: new Date(),
+    to: new Date(new Date().setDate(new Date().getDate() + 30)),
   });
+
+  const assignedKpis = getAssignedKpis(kpiRecords);
+  
+  const handleAssignKpi = () => {
+    if (!selectedEmployee || !selectedKpi || !date?.from || !date?.to) {
+        toast({
+            variant: 'destructive',
+            title: 'Lỗi!',
+            description: 'Vui lòng điền đầy đủ thông tin để giao KPI.'
+        });
+        return;
+    }
+
+    const newRecord = {
+        id: `rec-${String(kpiRecords.length + 1).padStart(3, '0')}`,
+        kpiId: selectedKpi.id,
+        employeeId: selectedEmployee.id,
+        period: selectedPeriod,
+        target: selectedKpi.target,
+        actual: 0,
+        status: 'not_started' as const,
+        startDate: date.from.toISOString(),
+        endDate: date.to.toISOString(),
+        submissionDetails: '',
+        feedback: [],
+    };
+    
+    setKpiRecords(prev => [newRecord, ...prev]);
+
+    toast({
+        title: 'Thành công!',
+        description: `Đã giao KPI "${selectedKpi.name}" cho ${selectedEmployee.name}.`
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -117,7 +159,7 @@ export default function AssignKpiPage() {
                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                    <Button variant="outline" className="w-full justify-between">
-                    <span>{selectedKpi.name}</span>
+                    <span className='truncate'>{selectedKpi.name}</span>
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -166,14 +208,14 @@ export default function AssignKpiPage() {
                     {date?.from ? (
                       date.to ? (
                         <>
-                          {format(date.from, 'LLL dd, y')} -{' '}
-                          {format(date.to, 'LLL dd, y')}
+                          {format(date.from, 'dd/MM/yyyy')} -{' '}
+                          {format(date.to, 'dd/MM/yyyy')}
                         </>
                       ) : (
-                        format(date.from, 'LLL dd, y')
+                        format(date.from, 'dd/MM/yyyy')
                       )
                     ) : (
-                      <span>Pick a date</span>
+                      <span>Chọn ngày</span>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -191,7 +233,7 @@ export default function AssignKpiPage() {
             </div>
           </div>
            <div className="mt-6 flex justify-end">
-            <Button>Giao KPI</Button>
+            <Button onClick={handleAssignKpi}>Giao KPI</Button>
           </div>
         </CardContent>
       </Card>

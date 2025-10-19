@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,11 +32,29 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { FileCheck, MessageSquare, RefreshCw } from 'lucide-react';
-import { kpis } from '@/data/kpis';
-import { kpiRecords } from '@/data/kpiRecords';
+import { kpis as initialKpis } from '@/data/kpis';
+import { kpiRecords as initialKpiRecords } from '@/data/kpiRecords';
 import { SessionContext } from '@/contexts/SessionContext';
 
-type Kpi = ReturnType<typeof getEmployeeKpis>[0];
+type KpiRecord = (typeof initialKpiRecords)[0];
+
+const getEmployeeKpis = (employeeId: string | undefined, records: KpiRecord[]) => {
+    if (!employeeId) return [];
+    return records
+        .filter(record => record.employeeId === employeeId)
+        .map(record => {
+            const kpi = initialKpis.find(k => k.id === record.kpiId);
+            return {
+                ...record,
+                name: kpi?.name || 'N/A',
+                targetFormatted: `${kpi?.target}${kpi?.unit}`,
+                actualFormatted: `${record.actual}${kpi?.unit}`,
+            }
+        })
+        .sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+}
+
+type MappedKpi = ReturnType<typeof getEmployeeKpis>[0];
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
   not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
@@ -46,37 +64,44 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
   overdue: { label: 'Quá hạn', variant: 'destructive' },
 };
 
-const getEmployeeKpis = (employeeId: string | undefined) => {
-    if (!employeeId) return [];
-    return kpiRecords
-        .filter(record => record.employeeId === employeeId)
-        .map(record => {
-            const kpi = kpis.find(k => k.id === record.kpiId);
-            return {
-                ...record,
-                name: kpi?.name || 'N/A',
-                targetFormatted: `${kpi?.target}${kpi?.unit}`,
-                actualFormatted: `${record.actual}${kpi?.unit}`,
-            }
-        });
-}
-
-
 export default function EmployeeKpisPage() {
   const { toast } = useToast();
   const { user } = useContext(SessionContext);
-  const [selectedKpi, setSelectedKpi] = useState<Kpi | null>(null);
+  const [kpiRecords, setKpiRecords] = useState(initialKpiRecords);
+  const [selectedKpi, setSelectedKpi] = useState<MappedKpi | null>(null);
   const [isUpdateModalOpen, setUpdateModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [actualValue, setActualValue] = useState('');
+  const [submissionDetails, setSubmissionDetails] = useState('');
 
-  const kpiData = getEmployeeKpis(user?.id);
+  const kpiData = useMemo(() => getEmployeeKpis(user?.id, kpiRecords), [user?.id, kpiRecords]);
 
-  const handleUpdateClick = (kpi: Kpi) => {
+  const handleUpdateClick = (kpi: MappedKpi) => {
     setSelectedKpi(kpi);
+    setActualValue(String(kpi.actual));
+    setSubmissionDetails(kpi.submissionDetails);
     setUpdateModalOpen(true);
   };
+  
+  const handleFeedbackClick = (kpi: MappedKpi) => {
+    setSelectedKpi(kpi);
+    setFeedbackModalOpen(true);
+  }
 
   const handleSaveChanges = () => {
-    // Logic to save changes would go here
+    if (!selectedKpi) return;
+    
+    setKpiRecords(prev => prev.map(rec => {
+      if (rec.id === selectedKpi.id) {
+        return {
+          ...rec,
+          actual: Number(actualValue),
+          submissionDetails: submissionDetails,
+        };
+      }
+      return rec;
+    }));
+
     toast({
       title: 'Cập nhật thành công',
       description: `Tiến độ cho KPI "${selectedKpi?.name}" đã được lưu.`,
@@ -84,7 +109,23 @@ export default function EmployeeKpisPage() {
     setUpdateModalOpen(false);
   };
   
-  const handleSubmit = (kpi: Kpi) => {
+  const handleSubmit = (kpi: MappedKpi) => {
+    if (kpi.status === 'pending_approval') {
+        toast({
+            variant: 'destructive',
+            title: 'Đã nộp',
+            description: `KPI này đã được nộp và đang chờ duyệt.`
+        });
+        return;
+    }
+    
+    setKpiRecords(prev => prev.map(rec => {
+        if (rec.id === kpi.id) {
+            return { ...rec, status: 'pending_approval' };
+        }
+        return rec;
+    }));
+
     toast({
         title: 'Nộp KPI thành công',
         description: `KPI "${kpi.name}" đã được gửi đi để xét duyệt.`,
@@ -128,10 +169,10 @@ export default function EmployeeKpisPage() {
                     <Button variant="outline" size="sm" onClick={() => handleUpdateClick(kpi)}>
                         <RefreshCw className="h-4 w-4" />
                     </Button>
-                     <Button variant="secondary" size="sm" onClick={() => handleSubmit(kpi)}>
+                     <Button variant="secondary" size="sm" onClick={() => handleSubmit(kpi)} disabled={kpi.status === 'pending_approval'}>
                         <FileCheck className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => handleFeedbackClick(kpi)}>
                         <MessageSquare className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -142,6 +183,7 @@ export default function EmployeeKpisPage() {
         </CardContent>
       </Card>
 
+      {/* Update Progress Modal */}
       {selectedKpi && (
         <Dialog open={isUpdateModalOpen} onOpenChange={setUpdateModalOpen}>
           <DialogContent className="sm:max-w-[525px]">
@@ -152,20 +194,47 @@ export default function EmployeeKpisPage() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="actual" className="text-right">
-                  Thực tế
+                  Thực tế đạt được
                 </Label>
-                <Input id="actual" defaultValue={selectedKpi.actual} className="col-span-3" />
+                <Input id="actual" value={actualValue} onChange={(e) => setActualValue(e.target.value)} className="col-span-3" />
               </div>
               <div className="grid grid-cols-4 items-start gap-4">
                 <Label htmlFor="comment" className="text-right pt-2">
-                  Ghi chú
+                  Chi tiết/Ghi chú
                 </Label>
-                <Textarea id="comment" placeholder="Thêm ghi chú về tiến độ của bạn..." className="col-span-3" />
+                <Textarea id="comment" value={submissionDetails} onChange={(e) => setSubmissionDetails(e.target.value)} placeholder="Thêm chi tiết hoặc bằng chứng hoàn thành (VD: link báo cáo, file đính kèm...)" className="col-span-3" />
               </div>
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={() => setUpdateModalOpen(false)}>Hủy</Button>
               <Button onClick={handleSaveChanges}>Lưu thay đổi</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* View Feedback Modal */}
+      {selectedKpi && (
+        <Dialog open={isFeedbackModalOpen} onOpenChange={setFeedbackModalOpen}>
+          <DialogContent className="sm:max-w-[525px]">
+            <DialogHeader>
+              <DialogTitle>Feedback cho KPI</DialogTitle>
+              <DialogDescription>{selectedKpi.name}</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 max-h-[400px] overflow-y-auto">
+              {selectedKpi.feedback.length > 0 ? (
+                selectedKpi.feedback.map((fb, index) => (
+                  <div key={index} className="space-y-1 rounded-md bg-muted p-3">
+                    <p className="text-sm font-semibold">{fb.author}</p>
+                    <p className="text-sm text-muted-foreground">{fb.comment}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">Chưa có feedback nào.</p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setFeedbackModalOpen(false)}>Đóng</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -29,43 +29,59 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
-import { kpiRecords } from '@/data/kpiRecords';
+import { kpiRecords as initialKpiRecords } from '@/data/kpiRecords';
 import { employees } from '@/data/employees';
 import { kpis } from '@/data/kpis';
 
-const pendingApprovals = kpiRecords.filter(r => r.status === 'pending_approval').map(record => {
-    const employee = employees.find(e => e.id === record.employeeId);
-    const kpi = kpis.find(k => k.id === record.kpiId);
-    const completion = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 100;
-    return {
-        ...record,
-        employeeName: employee?.name || 'N/A',
-        kpiName: kpi?.name || 'N/A',
-        targetFormatted: `${kpi?.target}${kpi?.unit}`,
-        actualFormatted: `${record.actual}${kpi?.unit}`,
-        completion: completion > 100 ? 100 : completion,
-    }
-});
+const getPendingApprovals = (records: typeof initialKpiRecords) => {
+    return records.filter(r => r.status === 'pending_approval').map(record => {
+        const employee = employees.find(e => e.id === record.employeeId);
+        const kpi = kpis.find(k => k.id === record.kpiId);
+        const completion = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 100;
+        return {
+            ...record,
+            employeeName: employee?.name || 'N/A',
+            kpiName: kpi?.name || 'N/A',
+            targetFormatted: `${kpi?.target}${kpi?.unit}`,
+            actualFormatted: `${record.actual}${kpi?.unit}`,
+            completion: completion > 100 ? 100 : completion,
+        }
+    });
+}
 
 
-type Approval = (typeof pendingApprovals)[0];
+type Approval = ReturnType<typeof getPendingApprovals>[0];
 
 export default function ApprovalPage() {
   const { toast } = useToast();
+  const [kpiRecords, setKpiRecords] = useState(initialKpiRecords);
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [feedback, setFeedback] = useState('');
+
+  const pendingApprovals = getPendingApprovals(kpiRecords);
 
   const handleActionClick = (approval: Approval, type: 'approve' | 'reject') => {
     setSelectedApproval(approval);
     setActionType(type);
+    setFeedback('');
     setIsModalOpen(true);
   };
 
   const handleConfirm = () => {
     if (!selectedApproval || !actionType) return;
 
-    // Logic for approve/reject would go here
+    setKpiRecords(prevRecords => 
+        prevRecords.map(record => {
+            if (record.id === selectedApproval.id) {
+                const newStatus = actionType === 'approve' ? 'completed' : 'in_progress';
+                const newFeedback = feedback ? [...record.feedback, { author: 'Admin User', comment: feedback }] : record.feedback;
+                return { ...record, status: newStatus, feedback: newFeedback };
+            }
+            return record;
+        })
+    );
     
     setIsModalOpen(false);
     toast({
@@ -74,6 +90,7 @@ export default function ApprovalPage() {
     });
     setSelectedApproval(null);
     setActionType(null);
+    setFeedback('');
   };
 
   return (
@@ -98,7 +115,7 @@ export default function ApprovalPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pendingApprovals.map((item) => (
+              {pendingApprovals.length > 0 ? pendingApprovals.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.employeeName}</TableCell>
                   <TableCell>{item.kpiName}</TableCell>
@@ -123,7 +140,11 @@ export default function ApprovalPage() {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+              )) : (
+                <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24">Không có KPI nào chờ duyệt.</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -143,13 +164,18 @@ export default function ApprovalPage() {
             <div className="grid gap-4 py-4">
               <div className='space-y-1'>
                  <h4 className='text-sm font-semibold'>Chi tiết nhân viên nộp:</h4>
-                 <p className='text-sm p-3 bg-muted rounded-md'>{selectedApproval.submissionDetails}</p>
+                 <p className='text-sm p-3 bg-muted rounded-md'>{selectedApproval.submissionDetails || 'Không có chi tiết.'}</p>
               </div>
               <div className="grid w-full gap-1.5">
                 <Label htmlFor="feedback">
                   Phản hồi (tùy chọn)
                 </Label>
-                <Textarea placeholder="Nhập phản hồi của bạn cho nhân viên..." id="feedback" />
+                <Textarea 
+                  placeholder="Nhập phản hồi của bạn cho nhân viên..." 
+                  id="feedback" 
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                />
               </div>
             </div>
             <DialogFooter>

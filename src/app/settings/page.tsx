@@ -1,6 +1,6 @@
 'use client';
 
-import React, {useContext} from 'react';
+import React, {useState} from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -32,20 +32,45 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { employees } from '@/data/employees';
-import { kpis } from '@/data/kpis';
+import { employees as initialEmployees } from '@/data/employees';
+import { kpis as initialKpis } from '@/data/kpis';
 
-
-const mockDepartments = [...new Set(employees.map(e => e.department))].map((dept, i) => ({ id: `dept-${i+1}`, name: dept }));
-const mockUsers = employees;
-
-const kpiDepartments = [...new Set(kpis.map(k => k.department))];
-const kpiFrequencies = [...new Set(kpis.map(k => k.frequency))];
 
 export default function SettingsPage() {
   const { toast } = useToast();
+
+  // State for Users & Departments
+  const [users, setUsers] = useState(initialEmployees);
+  const allDepartments = [...new Set([...users.map(u => u.department), ...initialKpis.map(k => k.department)])];
+  const [departments, setDepartments] = useState<string[]>(allDepartments);
+  const [newDeptName, setNewDeptName] = useState('');
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserDept, setNewUserDept] = useState('');
+
+  // State for KPI Creation
+  const [kpis, setKpis] = useState(initialKpis);
+  const [kpiName, setKpiName] = useState('');
+  const [kpiDescription, setKpiDescription] = useState('');
+  const [kpiDepartment, setKpiDepartment] = useState('');
+  const [kpiTarget, setKpiTarget] = useState('');
+  const [kpiUnit, setKpiUnit] = useState('');
+  const [kpiFrequency, setKpiFrequency] = useState('');
+  const [kpiRewardPenalty, setKpiRewardPenalty] = useState('');
   
+  const kpiFrequencies = [...new Set(kpis.map(k => k.frequency))];
+
   const handleCreateDepartment = () => {
+    if (!newDeptName.trim()) {
+        toast({ variant: 'destructive', title: 'Lỗi', description: 'Tên phòng ban không được để trống.' });
+        return;
+    }
+    if (departments.includes(newDeptName.trim())) {
+        toast({ variant: 'destructive', title: 'Lỗi', description: 'Phòng ban đã tồn tại.' });
+        return;
+    }
+    setDepartments(prev => [...prev, newDeptName.trim()]);
+    setNewDeptName('');
     toast({
         title: 'Thành công!',
         description: 'Đã tạo phòng ban mới.'
@@ -53,6 +78,22 @@ export default function SettingsPage() {
   }
   
   const handleCreateUser = () => {
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserDept) {
+        toast({ variant: 'destructive', title: 'Lỗi', description: 'Vui lòng điền đầy đủ thông tin nhân viên.' });
+        return;
+    }
+    const newUser = {
+        id: `emp-${String(users.length + 1).padStart(2, '0')}`,
+        name: newUserName,
+        email: newUserEmail,
+        role: 'employee' as const,
+        department: newUserDept,
+        avatar: `https://picsum.photos/seed/${users.length + 10}/40/40`,
+    };
+    setUsers(prev => [...prev, newUser]);
+    setNewUserName('');
+    setNewUserEmail('');
+    setNewUserDept('');
     toast({
         title: 'Thành công!',
         description: 'Đã tạo người dùng mới.'
@@ -60,6 +101,30 @@ export default function SettingsPage() {
   }
 
   const handleCreateKpi = () => {
+    if (!kpiName || !kpiDepartment || !kpiTarget || !kpiUnit || !kpiFrequency) {
+        toast({ variant: 'destructive', title: 'Lỗi', description: 'Vui lòng điền đầy đủ các trường bắt buộc.' });
+        return;
+    }
+    const newKpi = {
+        id: `KPI-${String(kpis.length + 1).padStart(3, '0')}`,
+        name: kpiName,
+        description: kpiDescription,
+        department: kpiDepartment,
+        target: Number(kpiTarget),
+        unit: kpiUnit,
+        frequency: kpiFrequency,
+        status: 'active' as const,
+        rewardPenaltyConfig: kpiRewardPenalty,
+    };
+    setKpis(prev => [...prev, newKpi]);
+    // Reset form
+    setKpiName('');
+    setKpiDescription('');
+    setKpiDepartment('');
+    setKpiTarget('');
+    setKpiUnit('');
+    setKpiFrequency('');
+    setKpiRewardPenalty('');
     toast({
         title: 'Thành công!',
         description: 'Đã tạo KPI mới.'
@@ -90,7 +155,7 @@ export default function SettingsPage() {
                      <div className="space-y-2">
                         <Label htmlFor="new-dept">Tên phòng ban mới</Label>
                         <div className="flex gap-2">
-                            <Input id="new-dept" placeholder="VD: Chăm sóc khách hàng" />
+                            <Input id="new-dept" value={newDeptName} onChange={e => setNewDeptName(e.target.value)} placeholder="VD: Chăm sóc khách hàng" />
                             <Button onClick={handleCreateDepartment}>
                                 <PlusCircle className='h-4 w-4 mr-2' /> Tạo
                             </Button>
@@ -105,9 +170,9 @@ export default function SettingsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {mockDepartments.map(dept => (
-                                <TableRow key={dept.id}>
-                                    <TableCell>{dept.name}</TableCell>
+                            {departments.map(dept => (
+                                <TableRow key={dept}>
+                                    <TableCell>{dept}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -123,21 +188,21 @@ export default function SettingsPage() {
                      <div className="space-y-3">
                         <div className="space-y-2">
                             <Label htmlFor="new-user-name">Tên nhân viên</Label>
-                            <Input id="new-user-name" placeholder="VD: Nguyễn Văn B" />
+                            <Input id="new-user-name" value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="VD: Nguyễn Văn B" />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="new-user-email">Email</Label>
-                            <Input id="new-user-email" type="email" placeholder="VD: nvb@example.com" />
+                            <Input id="new-user-email" type="email" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="VD: nvb@example.com" />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="new-user-dept">Phòng ban</Label>
-                            <Select>
+                            <Select value={newUserDept} onValueChange={setNewUserDept}>
                                 <SelectTrigger id="new-user-dept">
                                     <SelectValue placeholder="Chọn phòng ban" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {mockDepartments.map(dept => (
-                                        <SelectItem key={dept.id} value={dept.name}>{dept.name}</SelectItem>
+                                    {departments.map(dept => (
+                                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -157,7 +222,7 @@ export default function SettingsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {mockUsers.map(user => (
+                            {users.map(user => (
                                 <TableRow key={user.id}>
                                     <TableCell>{user.name}</TableCell>
                                     <TableCell>{user.email}</TableCell>
@@ -181,20 +246,20 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="kpi-name">Tên KPI</Label>
-                        <Input id="kpi-name" placeholder="VD: Tăng trưởng doanh thu" />
+                        <Input id="kpi-name" value={kpiName} onChange={e => setKpiName(e.target.value)} placeholder="VD: Tăng trưởng doanh thu" />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="kpi-description">Mô tả</Label>
-                        <Textarea id="kpi-description" placeholder="Mô tả chi tiết về KPI..." />
+                        <Textarea id="kpi-description" value={kpiDescription} onChange={e => setKpiDescription(e.target.value)} placeholder="Mô tả chi tiết về KPI..." />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="kpi-department">Phòng ban chịu trách nhiệm</Label>
-                        <Select>
+                        <Select value={kpiDepartment} onValueChange={setKpiDepartment}>
                             <SelectTrigger id="kpi-department">
                             <SelectValue placeholder="Chọn phòng ban" />
                             </SelectTrigger>
                             <SelectContent>
-                            {kpiDepartments.map(dept => (
+                            {departments.map(dept => (
                                 <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                             ))}
                             </SelectContent>
@@ -203,15 +268,15 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="kpi-target">Mục tiêu</Label>
-                            <Input id="kpi-target" type="number" placeholder="VD: 15" />
+                            <Input id="kpi-target" type="number" value={kpiTarget} onChange={e => setKpiTarget(e.target.value)} placeholder="VD: 15" />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="kpi-unit">Đơn vị</Label>
-                            <Input id="kpi-unit" placeholder="%, VNĐ, sản phẩm,..." />
+                            <Input id="kpi-unit" value={kpiUnit} onChange={e => setKpiUnit(e.target.value)} placeholder="%, VNĐ, sản phẩm,..." />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="kpi-frequency">Tần suất đo lường</Label>
-                             <Select>
+                             <Select value={kpiFrequency} onValueChange={setKpiFrequency}>
                                 <SelectTrigger id="kpi-frequency">
                                     <SelectValue placeholder="Chọn tần suất" />
                                 </SelectTrigger>
@@ -225,7 +290,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="kpi-reward-penalty">Cấu hình Thưởng/Phạt</Label>
-                        <Textarea id="kpi-reward-penalty" placeholder="VD: Đạt 100% target thưởng 1M, dưới 80% phạt 500k..." />
+                        <Textarea id="kpi-reward-penalty" value={kpiRewardPenalty} onChange={e => setKpiRewardPenalty(e.target.value)} placeholder="VD: Đạt 100% target thưởng 1M, dưới 80% phạt 500k..." />
                     </div>
                      <div className='flex justify-end'>
                         <Button onClick={handleCreateKpi}>
