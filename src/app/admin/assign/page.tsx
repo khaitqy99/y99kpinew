@@ -18,6 +18,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -36,6 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { DataContext, KpiRecord } from '@/contexts/DataContext';
 
@@ -54,6 +63,16 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
   pending_approval: { label: 'Chờ duyệt', variant: 'secondary' },
 };
 
+type AssignedKpiDetails = KpiRecord & {
+    employeeName: string;
+    employeeAvatar: string;
+    kpiName: string;
+    kpiDescription: string;
+    kpiUnit: string;
+    kpiRewardPenalty: string;
+    completionPercentage: number;
+}
+
 
 export default function AssignKpiPage() {
   const { toast } = useToast();
@@ -67,14 +86,23 @@ export default function AssignKpiPage() {
     to: new Date(new Date().setDate(new Date().getDate() + 30)),
   });
   
-  const getAssignedKpis = (records: KpiRecord[]) => {
+  const [isDetailModalOpen, setDetailModalOpen] = React.useState(false);
+  const [selectedRecord, setSelectedRecord] = React.useState<AssignedKpiDetails | null>(null);
+
+  const getAssignedKpis = (records: KpiRecord[]): AssignedKpiDetails[] => {
     return records.map(record => {
         const employee = users.find(e => e.id === record.employeeId);
         const kpi = kpis.find(k => k.id === record.kpiId);
+        const completion = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 0;
         return {
             ...record,
             employeeName: employee?.name || 'N/A',
+            employeeAvatar: employee?.avatar || '',
             kpiName: kpi?.name || 'N/A',
+            kpiDescription: kpi?.description || '',
+            kpiUnit: kpi?.unit || '',
+            kpiRewardPenalty: kpi?.rewardPenaltyConfig || '',
+            completionPercentage: completion > 100 ? 100 : completion
         };
     }).sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
   };
@@ -111,8 +139,14 @@ export default function AssignKpiPage() {
         description: `Đã giao KPI "${selectedKpi.name}" cho ${selectedEmployee.name}.`
     });
   };
+  
+  const handleRowClick = (record: AssignedKpiDetails) => {
+    setSelectedRecord(record);
+    setDetailModalOpen(true);
+  }
 
   return (
+    <>
     <div className="space-y-6">
       <Card>
         <CardHeader>
@@ -251,7 +285,7 @@ export default function AssignKpiPage() {
             </TableHeader>
             <TableBody>
               {assignedKpis.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
                   <TableCell className="font-medium">{item.employeeName}</TableCell>
                   <TableCell>{item.kpiName}</TableCell>
                   <TableCell>{item.period}</TableCell>
@@ -270,5 +304,73 @@ export default function AssignKpiPage() {
         </CardContent>
       </Card>
     </div>
+
+    {selectedRecord && (
+        <Dialog open={isDetailModalOpen} onOpenChange={setDetailModalOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{selectedRecord.kpiName}</DialogTitle>
+                    <DialogDescription>{selectedRecord.kpiDescription}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="flex items-center gap-4">
+                        <Avatar className="h-12 w-12">
+                            <AvatarImage src={selectedRecord.employeeAvatar} />
+                            <AvatarFallback>{selectedRecord.employeeName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <p className="font-semibold">{selectedRecord.employeeName}</p>
+                            <p className="text-sm text-muted-foreground">Nhân viên thực hiện</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 rounded-lg border p-4">
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Mục tiêu</p>
+                            <p className="text-lg font-semibold">{selectedRecord.target}{selectedRecord.kpiUnit}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground">Thực tế</p>
+                            <p className="text-lg font-semibold">{selectedRecord.actual}{selectedRecord.kpiUnit}</p>
+                        </div>
+                         <div className="col-span-2">
+                             <p className="text-sm font-medium text-muted-foreground mb-1">Tiến độ hoàn thành</p>
+                             <div className="flex items-center gap-2">
+                                 <Progress value={selectedRecord.completionPercentage} className="h-2" />
+                                 <span className="font-semibold text-sm">{selectedRecord.completionPercentage}%</span>
+                             </div>
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <p className="font-medium text-muted-foreground">Trạng thái</p>
+                            <Badge variant={statusConfig[selectedRecord.status]?.variant || 'default'}>
+                              {statusConfig[selectedRecord.status]?.label || 'Không xác định'}
+                            </Badge>
+                        </div>
+                         <div>
+                            <p className="font-medium text-muted-foreground">Kỳ</p>
+                            <p>{selectedRecord.period}</p>
+                        </div>
+                         <div>
+                            <p className="font-medium text-muted-foreground">Thời gian</p>
+                            <p>{format(new Date(selectedRecord.startDate), 'dd/MM/yy')} - {format(new Date(selectedRecord.endDate), 'dd/MM/yy')}</p>
+                        </div>
+                    </div>
+                    {selectedRecord.kpiRewardPenalty && (
+                        <div>
+                             <p className="font-medium text-muted-foreground text-sm">Cấu hình Thưởng/Phạt</p>
+                             <p className="text-sm p-2 bg-muted rounded-md mt-1">{selectedRecord.kpiRewardPenalty}</p>
+                        </div>
+                    )}
+
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setDetailModalOpen(false)}>Đóng</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )}
+    </>
   );
 }
