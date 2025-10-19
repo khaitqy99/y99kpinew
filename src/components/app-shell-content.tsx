@@ -55,24 +55,10 @@ const employeeNavItems = [
 
 export function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout, isLoading } = useContext(SessionContext);
+  const { user, logout } = useContext(SessionContext);
 
-  // While loading the session, render nothing to avoid layout flashes.
-  if (isLoading) {
-    return null;
-  }
-
-  // If there's no user, it's a public page (like /login).
-  // The logic in SessionContext handles redirection for protected pages.
-  if (!user) {
-    return <>{children}</>;
-  }
-  
-  // If the user is logged in, but we are still on the login page (e.g., during redirect),
-  // render nothing to prevent a flash of the authenticated layout.
-  if (pathname === '/login') {
-    return null;
-  }
+  // This component assumes `user` is always defined because RootLayout handles the auth check.
+  if (!user) return null;
 
   const navItems = user.role === 'admin' ? adminNavItems : employeeNavItems;
   const activeItem = navItems.find(item => pathname.startsWith(item.href));
@@ -125,13 +111,13 @@ export function AppShellContent({ children }: { children: React.ReactNode }) {
                     alt="User Avatar"
                   />
                   <AvatarFallback>
-                    {user?.name?.charAt(0) ?? 'U'}
+                    {user.name.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="duration-200 group-data-[collapsible=icon]:hidden">
-                  <p className="font-medium">{user?.name ?? 'User'}</p>
+                  <p className="font-medium">{user.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {user?.email ?? 'user@example.com'}
+                    {user.email}
                   </p>
                 </div>
               </div>
@@ -140,10 +126,10 @@ export function AppShellContent({ children }: { children: React.ReactNode }) {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
-                    {user?.name ?? 'User'}
+                    {user.name}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email ?? 'user@example.com'}
+                    {user.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
