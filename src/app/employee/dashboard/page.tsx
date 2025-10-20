@@ -7,7 +7,8 @@ import {
   XCircle,
   MessageSquare,
   RefreshCw,
-  FileCheck
+  FileCheck,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -36,6 +37,7 @@ import { DataContext, KpiRecord as KpiRecordType, Kpi as KpiType } from '@/conte
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { uploadFile } from '@/ai/flows/upload-file';
 
 type MappedKpi = KpiRecordType & {
     name: string;
@@ -45,6 +47,15 @@ type MappedKpi = KpiRecordType & {
     unit: string;
     completionPercentage: number;
 };
+
+// Helper function to convert file to base64
+const toBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = (error) => reject(error);
+  });
 
 export default function EmployeeDashboardPage() {
   const { user } = useContext(SessionContext);
@@ -62,6 +73,7 @@ export default function EmployeeDashboardPage() {
   const [actualValue, setActualValue] = useState('');
   const [submissionDetails, setSubmissionDetails] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 
   const employeeKpiRecords = useMemo(() => 
@@ -130,7 +142,7 @@ export default function EmployeeDashboardPage() {
     setUpdateModalOpen(false);
   };
   
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     if (!selectedKpi) return;
     if (!submissionDetails.trim()) {
       toast({
@@ -141,20 +153,45 @@ export default function EmployeeDashboardPage() {
       return;
     }
 
-    const submissionData = {
-      actual: Number(actualValue),
-      submissionDetails,
-      attachment: attachment ? attachment.name : null,
-    };
+    setIsSubmitting(true);
+    let attachmentUrl: string | null = null;
 
-    submitKpiRecord(selectedKpi.id, submissionData);
+    try {
+      if (attachment) {
+        toast({ title: 'Đang tải tệp lên...', description: 'Vui lòng chờ trong giây lát.' });
+        const fileContent = await toBase64(attachment);
+        const response = await uploadFile({
+          fileName: attachment.name,
+          fileContent: fileContent,
+          mimeType: attachment.type,
+        });
+        attachmentUrl = response.fileUrl;
+      }
 
-    toast({
-      title: 'Nộp KPI thành công',
-      description: `KPI "${selectedKpi.name}" đã được gửi đi để xét duyệt.`,
-    });
+      const submissionData = {
+        actual: Number(actualValue),
+        submissionDetails,
+        attachment: attachmentUrl,
+      };
 
-    setSubmitModalOpen(false);
+      submitKpiRecord(selectedKpi.id, submissionData);
+
+      toast({
+        title: 'Nộp KPI thành công',
+        description: `KPI "${selectedKpi.name}" đã được gửi đi để xét duyệt.`,
+      });
+
+      setSubmitModalOpen(false);
+    } catch (error) {
+      console.error('Submission failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Đã xảy ra lỗi',
+        description: 'Không thể nộp KPI. Vui lòng thử lại.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
 
@@ -388,8 +425,11 @@ export default function EmployeeDashboardPage() {
                 </div>
             </div>
             <DialogFooter className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setSubmitModalOpen(false)}>Hủy</Button>
-              <Button onClick={handleConfirmSubmit}>Xác nhận Nộp</Button>
+              <Button variant="outline" onClick={() => setSubmitModalOpen(false)} disabled={isSubmitting}>Hủy</Button>
+              <Button onClick={handleConfirmSubmit} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting ? 'Đang nộp...' : 'Xác nhận Nộp'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

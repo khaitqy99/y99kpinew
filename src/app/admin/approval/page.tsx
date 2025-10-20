@@ -99,10 +99,7 @@ export default function ApprovalPage() {
   
   const handleViewAttachment = () => {
     if (selectedApproval?.attachment) {
-      toast({
-        title: 'Xem Tệp đính kèm',
-        description: `Đang mở tệp "${selectedApproval.attachment}"... (Đây là chức năng giả lập)`,
-      });
+      window.open(selectedApproval.attachment, '_blank');
     }
   }
 
@@ -184,7 +181,7 @@ export default function ApprovalPage() {
                   <h4 className='text-sm font-semibold'>Tệp đính kèm:</h4>
                   <Button variant="outline" size="sm" onClick={handleViewAttachment}>
                     <Paperclip className="mr-2 h-4 w-4" />
-                    {selectedApproval.attachment}
+                    Xem tệp trên Google Drive
                   </Button>
                 </div>
               )}

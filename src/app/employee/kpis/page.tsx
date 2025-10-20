@@ -30,11 +30,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { FileCheck, MessageSquare, RefreshCw } from 'lucide-react';
+import { FileCheck, MessageSquare, RefreshCw, Loader2 } from 'lucide-react';
 import { SessionContext } from '@/contexts/SessionContext';
 import { DataContext, KpiRecord as KpiRecordType, Kpi as KpiType } from '@/contexts/DataContext';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
+import { uploadFile } from '@/ai/flows/upload-file';
 
 
 type MappedKpi = KpiRecordType & {
@@ -45,6 +46,15 @@ type MappedKpi = KpiRecordType & {
     unit: string;
     completionPercentage: number;
 };
+
+// Helper function to convert file to base64
+const toBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = (error) => reject(error);
+  });
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
   not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
@@ -71,6 +81,7 @@ export default function EmployeeKpisPage() {
   const [actualValue, setActualValue] = useState('');
   const [submissionDetails, setSubmissionDetails] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 
   const kpiData: MappedKpi[] = useMemo(() => {
@@ -141,7 +152,7 @@ export default function EmployeeKpisPage() {
     setUpdateModalOpen(false);
   };
   
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     if (!selectedKpi) return;
     if (!submissionDetails.trim()) {
       toast({
@@ -151,24 +162,49 @@ export default function EmployeeKpisPage() {
       });
       return;
     }
-
-    const submissionData = {
-      actual: Number(actualValue),
-      submissionDetails,
-      attachment: attachment ? attachment.name : null,
-    };
-
-    submitKpiRecord(selectedKpi.id, submissionData);
-
-    toast({
-      title: 'Nộp KPI thành công',
-      description: `KPI "${selectedKpi.name}" đã được gửi đi để xét duyệt.`,
-    });
-
-    setSubmitModalOpen(false);
-    setDetailModalOpen(false); // Close detail modal as well
+  
+    setIsSubmitting(true);
+    let attachmentUrl: string | null = null;
+  
+    try {
+      if (attachment) {
+        toast({ title: 'Đang tải tệp lên...', description: 'Vui lòng chờ trong giây lát.' });
+        const fileContent = await toBase64(attachment);
+        const response = await uploadFile({
+          fileName: attachment.name,
+          fileContent: fileContent,
+          mimeType: attachment.type,
+        });
+        attachmentUrl = response.fileUrl;
+      }
+  
+      const submissionData = {
+        actual: Number(actualValue),
+        submissionDetails,
+        attachment: attachmentUrl,
+      };
+  
+      submitKpiRecord(selectedKpi.id, submissionData);
+  
+      toast({
+        title: 'Nộp KPI thành công',
+        description: `KPI "${selectedKpi.name}" đã được gửi đi để xét duyệt.`,
+      });
+  
+      setSubmitModalOpen(false);
+      setDetailModalOpen(false); // Close detail modal as well
+  
+    } catch (error) {
+      console.error('Submission failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Đã xảy ra lỗi',
+        description: 'Không thể nộp KPI. Vui lòng thử lại.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
   
   return (
     <>
@@ -389,8 +425,11 @@ export default function EmployeeKpisPage() {
                 </div>
             </div>
             <DialogFooter className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setSubmitModalOpen(false)}>Hủy</Button>
-              <Button onClick={handleConfirmSubmit}>Xác nhận Nộp</Button>
+              <Button variant="outline" onClick={() => setSubmitModalOpen(false)} disabled={isSubmitting}>Hủy</Button>
+              <Button onClick={handleConfirmSubmit} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting ? 'Đang nộp...' : 'Xác nhận Nộp'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
