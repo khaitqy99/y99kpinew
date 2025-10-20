@@ -4,13 +4,22 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { z } from 'zod';
 import { DriveService } from '@/services/drive';
-import {
+import type {
   UploadFileInput,
-  UploadFileInputSchema,
   UploadFileOutput,
-  UploadFileOutputSchema,
 } from '@/ai/flows/upload-file';
+
+export const UploadFileInputSchema = z.object({
+  fileName: z.string().describe('The name of the file to upload.'),
+  fileContent: z.string().describe('The Base64 encoded content of the file.'),
+  mimeType: z.string().describe('The MIME type of the file.'),
+});
+
+export const UploadFileOutputSchema = z.object({
+  fileUrl: z.string().describe('The web view link of the uploaded file.'),
+});
 
 const uploadFileFlow = ai.defineFlow(
   {
