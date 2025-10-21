@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import React, { createContext, useState, ReactNode, useCallback, useEffect, useContext } from 'react';
 import { 
   employeeService, 
   departmentService, 
@@ -15,6 +15,9 @@ import {
   type KpiRecord,
   type Notification
 } from '@/services/supabase-service';
+import { notificationManager } from '@/services/notification-service';
+import { notificationScheduler } from '@/services/notification-scheduler';
+import { SessionContext } from './SessionContext';
 
 // Type definitions
 export type KpiStatus = KpiRecord['status'];
@@ -97,6 +100,7 @@ export const SupabaseDataContext = createContext<SupabaseDataContextType>({} as 
 
 // Provider component
 export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
+  const { user: currentUser } = useContext(SessionContext);
   const [users, setUsers] = useState<any[]>([]);
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [kpiRecords, setKpiRecords] = useState<KpiRecord[]>([]);
@@ -209,6 +213,14 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     loadDepartments();
     loadCompanies();
     loadRoles();
+    
+    // Khởi động notification scheduler
+    notificationScheduler.startScheduler();
+    
+    // Cleanup khi component unmount
+    return () => {
+      notificationScheduler.stopScheduler();
+    };
   }, []);
 
   // Action functions
@@ -398,8 +410,28 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
 
   const assignKpi = async (recordData: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => {
     try {
-      await kpiRecordService.create(recordData);
+      const createdRecord = await kpiRecordService.create(recordData);
       await loadKpiRecords();
+      
+      // Tạo thông báo cho người được giao KPI
+      const assigneeInfo = {
+        id: recordData.employee_id || recordData.department_id || '',
+        name: recordData.employee_id ? 
+          users.find(u => u.id === recordData.employee_id)?.name || 'Nhân viên' :
+          departments.find(d => d.id === recordData.department_id)?.name || 'Phòng ban',
+        type: recordData.employee_id ? 'employee' as const : 'department' as const
+      };
+      
+      const kpiInfo = kpis.find(k => k.id === recordData.kpi_id);
+      const notificationData = {
+        ...createdRecord,
+        kpi_name: kpiInfo?.name || 'KPI',
+        unit: kpiInfo?.unit || '',
+        period: recordData.period || '',
+        employee_name: assigneeInfo.name
+      };
+      
+      await notificationManager.notifyKpiAssigned(notificationData, assigneeInfo);
     } catch (error) {
       console.error('Error assigning kpi:', error);
       throw error;
@@ -442,6 +474,24 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         status: 'pending_approval',
       });
       await loadKpiRecords();
+      
+      // Tạo thông báo cho admin khi submit
+      const submitterInfo = {
+        id: record.employee_id || '',
+        name: users.find(u => u.id === record.employee_id)?.name || 'Nhân viên'
+      };
+      
+      const kpiInfo = kpis.find(k => k.id === record.kpi_id);
+      const notificationData = {
+        ...record,
+        kpi_name: kpiInfo?.name || 'KPI',
+        unit: kpiInfo?.unit || '',
+        period: record.period || '',
+        employee_name: submitterInfo.name,
+        actual: submission.actual
+      };
+      
+      await notificationManager.notifyKpiSubmitted(notificationData, submitterInfo);
     } catch (error) {
       console.error('Error submitting kpi record:', error);
       console.error('Error details:', {
@@ -468,6 +518,35 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         approval_date: approvalDate,
       });
       await loadKpiRecords();
+      
+      // Tạo thông báo cho nhân viên khi approve/reject
+      const approverInfo = {
+        id: 'admin', // Hoặc lấy từ current user
+        name: 'Quản lý'
+      };
+      
+      const kpiInfo = kpis.find(k => k.id === record.kpi_id);
+      const notificationData = {
+        ...record,
+        kpi_name: kpiInfo?.name || 'KPI',
+        unit: kpiInfo?.unit || '',
+        period: record.period || '',
+        employee_name: users.find(u => u.id === record.employee_id)?.name || 'Nhân viên',
+        score: record.score
+      };
+      
+      await notificationManager.notifyKpiApproved(notificationData, approverInfo, status);
+      
+      // Gửi thông báo bonus/penalty nếu được approve
+      if (status === 'approved') {
+        const kpiInfo = kpis.find(k => k.id === record.kpi_id);
+        if (kpiInfo) {
+          const { bonusAmount, penaltyAmount } = notificationScheduler.calculateBonusPenalty(record, kpiInfo);
+          if (bonusAmount > 0 || penaltyAmount > 0) {
+            await notificationScheduler.sendBonusPenaltyNotification(notificationData, bonusAmount, penaltyAmount);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error updating kpi record status:', error);
       throw error;
@@ -507,8 +586,10 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   
   const markAllNotificationsAsRead = async () => {
     try {
-      // This would need to be implemented based on current user
-      await loadNotifications();
+      if (currentUser?.id) {
+        await notificationService.markAllAsRead(currentUser.id);
+        await loadNotifications();
+      }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       throw error;
