@@ -29,8 +29,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
-import { DataContext } from '@/contexts/DataContext';
-import { Paperclip } from 'lucide-react';
+import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { Paperclip, CheckCircle } from 'lucide-react';
 
 type MappedApproval = {
     id: string;
@@ -45,26 +45,41 @@ type MappedApproval = {
 
 export default function ApprovalPage() {
   const { toast } = useToast();
-  const { kpiRecords, users, kpis, updateKpiRecordStatus } = useContext(DataContext);
+  const { kpiRecords, users, kpis, updateKpiRecordStatus, loading } = useContext(SupabaseDataContext);
   
   const [selectedApproval, setSelectedApproval] = useState<MappedApproval | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [feedback, setFeedback] = useState('');
 
+  // Show loading state while data is being fetched
+  if (loading.kpiRecords || loading.users || loading.kpis) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <div className="text-lg">Đang tải dữ liệu...</div>
+      </div>
+    );
+  }
+
+  // Ensure arrays are defined before using filter
+  const safeKpiRecords = kpiRecords || [];
+  const safeUsers = users || [];
+  const safeKpis = kpis || [];
+
   const getPendingApprovals = () => {
-    return kpiRecords.filter(r => r.status === 'pending_approval').map(record => {
-        const employee = users.find(e => e.id === record.employeeId);
-        const kpi = kpis.find(k => k.id === record.kpiId);
+    return safeKpiRecords.filter(r => r.status === 'pending_approval').map(record => {
+        const employee = safeUsers.find(e => e.id === record.employee_id); // Fixed: employeeId -> employee_id
+        const kpi = safeKpis.find(k => k.id === record.kpi_id); // Fixed: kpiId -> kpi_id
         const completion = record.target > 0 ? Math.round((record.actual / record.target) * 100) : 100;
         return {
             id: record.id,
             employeeName: employee?.name || 'N/A',
             kpiName: kpi?.name || 'N/A',
-            targetFormatted: `${kpi?.target}${kpi?.unit}`,
-            actualFormatted: `${record.actual}${kpi?.unit}`,
+            targetFormatted: `${record.target}${kpi?.unit || ''}`,
+            actualFormatted: `${record.actual || 0}${kpi?.unit || ''}`,
             completion: completion > 100 ? 100 : completion,
-            submissionDetails: record.submissionDetails,
+            submissionDetails: record.submission_details || '', // Fixed: submissionDetails -> submission_details
             attachment: record.attachment || null,
         }
     });
@@ -72,11 +87,16 @@ export default function ApprovalPage() {
 
   const pendingApprovals = getPendingApprovals();
 
+  const handleRowClick = (approval: MappedApproval) => {
+    setSelectedApproval(approval);
+    setIsDetailModalOpen(true);
+  };
+
   const handleActionClick = (approval: MappedApproval, type: 'approve' | 'reject') => {
     setSelectedApproval(approval);
     setActionType(type);
     setFeedback('');
-    setIsModalOpen(true);
+    setIsActionModalOpen(true);
   };
 
   const handleConfirm = () => {
@@ -87,7 +107,8 @@ export default function ApprovalPage() {
 
     updateKpiRecordStatus(selectedApproval.id, newStatus, feedback ? feedbackComment : undefined);
     
-    setIsModalOpen(false);
+    setIsActionModalOpen(false);
+    setIsDetailModalOpen(false);
     toast({
       title: actionType === 'approve' ? 'Đã duyệt thành công' : 'Đã từ chối KPI',
       description: `KPI "${selectedApproval.kpiName}" của ${selectedApproval.employeeName} đã được xử lý.`,
@@ -121,12 +142,11 @@ export default function ApprovalPage() {
                 <TableHead>Mục tiêu</TableHead>
                 <TableHead>Thực tế</TableHead>
                 <TableHead className="w-[150px]">% Hoàn thành</TableHead>
-                <TableHead className="text-right">Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pendingApprovals.length > 0 ? pendingApprovals.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer hover:bg-muted/50">
                   <TableCell className="font-medium">{item.employeeName}</TableCell>
                   <TableCell>{item.kpiName}</TableCell>
                   <TableCell>{item.targetFormatted}</TableCell>
@@ -137,22 +157,16 @@ export default function ApprovalPage() {
                         <span>{item.completion}%</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleActionClick(item, 'reject')}
-                    >
-                      Từ chối
-                    </Button>
-                    <Button size="sm" onClick={() => handleActionClick(item, 'approve')}>
-                      Duyệt
-                    </Button>
-                  </TableCell>
                 </TableRow>
               )) : (
                 <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">Không có KPI nào chờ duyệt.</TableCell>
+                    <TableCell colSpan={5} className="text-center h-24">
+                      <div className="flex flex-col items-center justify-center">
+                        <CheckCircle className="h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">Không có KPI nào chờ duyệt</p>
+                        <p className="text-sm text-muted-foreground">Tất cả KPI đã được xử lý</p>
+                      </div>
+                    </TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -160,8 +174,70 @@ export default function ApprovalPage() {
         </CardContent>
       </Card>
 
+      {/* Detail Modal */}
       {selectedApproval && (
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+          <DialogContent className="sm:max-w-[625px]">
+            <DialogHeader>
+              <DialogTitle>Chi tiết KPI: {selectedApproval.kpiName}</DialogTitle>
+              <DialogDescription>
+                Nhân viên: <strong>{selectedApproval.employeeName}</strong>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4 rounded-lg border p-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Mục tiêu</p>
+                  <p className="text-lg font-semibold">{selectedApproval.targetFormatted}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Thực tế</p>
+                  <p className="text-lg font-semibold">{selectedApproval.actualFormatted}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Tiến độ hoàn thành</p>
+                  <div className="flex items-center gap-2">
+                    <Progress value={selectedApproval.completion} className="h-2" />
+                    <span className="font-semibold text-sm">{selectedApproval.completion}%</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className='space-y-1'>
+                <h4 className='text-sm font-semibold'>Chi tiết nhân viên nộp:</h4>
+                <p className='text-sm p-3 bg-muted rounded-md'>{selectedApproval.submissionDetails || 'Không có chi tiết.'}</p>
+              </div>
+              
+              {selectedApproval.attachment && (
+                <div className="space-y-2">
+                  <h4 className='text-sm font-semibold'>Tệp đính kèm:</h4>
+                  <Button variant="outline" size="sm" onClick={handleViewAttachment}>
+                    <Paperclip className="mr-2 h-4 w-4" />
+                    Xem tệp trên Google Drive
+                  </Button>
+                </div>
+              )}
+            </div>
+            <DialogFooter className="flex justify-end">
+              <div className="space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleActionClick(selectedApproval, 'reject')}
+                >
+                  Từ chối
+                </Button>
+                <Button onClick={() => handleActionClick(selectedApproval, 'approve')}>
+                  Duyệt
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Action Modal */}
+      {selectedApproval && (
+        <Dialog open={isActionModalOpen} onOpenChange={setIsActionModalOpen}>
           <DialogContent className="sm:max-w-[625px]">
             <DialogHeader>
               <DialogTitle>
@@ -198,7 +274,7 @@ export default function ApprovalPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              <Button variant="outline" onClick={() => setIsActionModalOpen(false)}>
                 Hủy
               </Button>
               <Button 

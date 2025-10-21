@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 import {
   ArrowUpRight,
   CheckCircle,
@@ -37,24 +37,87 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { DataContext } from '@/contexts/DataContext';
+import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 
-const kpiChartData = [
-  { name: 'Jan', completed: 80 },
-  { name: 'Feb', completed: 85 },
-  { name: 'Mar', completed: 90 },
-  { name: 'Apr', completed: 88 },
-  { name: 'May', completed: 92 },
-  { name: 'Jun', completed: 95 },
-];
+// Helper function to get month name in Vietnamese
+const getMonthName = (monthIndex: number) => {
+  const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+  return months[monthIndex];
+};
+
+// Helper function to calculate completion rate for a month
+const calculateMonthlyCompletionRate = (records: any[], targetMonth: number, targetYear: number) => {
+  const monthRecords = records.filter(record => {
+    // Try different date fields that might exist in the record
+    const recordDate = new Date(record.created_at || record.createdAt || record.submission_date || record.submissionDate);
+    
+    // Skip invalid dates
+    if (isNaN(recordDate.getTime())) return false;
+    
+    return recordDate.getMonth() === targetMonth && recordDate.getFullYear() === targetYear;
+  });
+
+  if (monthRecords.length === 0) return 0;
+
+  const completedRecords = monthRecords.filter(record => 
+    record.status === 'completed' || record.status === 'approved'
+  );
+  
+  return Math.round((completedRecords.length / monthRecords.length) * 100);
+};
 
 
 export default function AdminDashboardPage() {
-  const { kpiRecords, users, kpis } = useContext(DataContext);
+  const { kpiRecords, users, kpis, loading } = useContext(SupabaseDataContext);
 
-  const pendingKpis = kpiRecords.filter(r => r.status === 'pending_approval').slice(0,3).map(record => {
-    const employee = users.find(e => e.id === record.employeeId);
-    const kpi = kpis.find(k => k.id === record.kpiId);
+  // Show loading state while data is being fetched
+  if (loading.kpiRecords || loading.users || loading.kpis) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <div className="text-lg">Đang tải dữ liệu...</div>
+      </div>
+    );
+  }
+
+  // Ensure arrays are defined before using filter
+  const safeKpiRecords = kpiRecords || [];
+  const safeUsers = users || [];
+  const safeKpis = kpis || [];
+
+  // Calculate chart data from real KPI records
+  const kpiChartData = useMemo(() => {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    // Get last 6 months
+    const chartData = [];
+    for (let i = 5; i >= 0; i--) {
+      const targetMonth = (currentMonth - i + 12) % 12;
+      const targetYear = currentMonth - i < 0 ? currentYear - 1 : currentYear;
+      
+      const completionRate = calculateMonthlyCompletionRate(safeKpiRecords, targetMonth, targetYear);
+      
+      chartData.push({
+        name: getMonthName(targetMonth),
+        completed: completionRate,
+        month: targetMonth,
+        year: targetYear,
+        totalRecords: safeKpiRecords.filter(record => {
+          const recordDate = new Date(record.created_at || record.createdAt || record.submission_date || record.submissionDate);
+          return !isNaN(recordDate.getTime()) && 
+                 recordDate.getMonth() === targetMonth && 
+                 recordDate.getFullYear() === targetYear;
+        }).length
+      });
+    }
+    
+    return chartData;
+  }, [safeKpiRecords]);
+
+  const pendingKpis = safeKpiRecords.filter(r => r.status === 'pending_approval').slice(0,3).map(record => {
+    const employee = safeUsers.find(e => e.id === record.employee_id);
+    const kpi = safeKpis.find(k => k.id === record.kpi_id);
     return {
         id: record.id,
         title: kpi?.name || 'N/A',
@@ -63,11 +126,10 @@ export default function AdminDashboardPage() {
     }
   });
 
-
-  const totalKpis = kpiRecords.length;
-  const pendingCount = kpiRecords.filter(r => r.status === 'pending_approval').length;
-  const employeeCount = users.length;
-  const completedCount = kpiRecords.filter(r => r.status === 'completed').length;
+  const totalKpis = safeKpiRecords.length;
+  const pendingCount = safeKpiRecords.filter(r => r.status === 'pending_approval').length;
+  const employeeCount = safeUsers.length;
+  const completedCount = safeKpiRecords.filter(r => r.status === 'completed' || r.status === 'approved').length;
   const completionRate = totalKpis > 0 ? (completedCount / totalKpis) * 100 : 0;
 
   return (
@@ -81,7 +143,9 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalKpis}</div>
-              <p className="text-xs text-muted-foreground">+5 so với tháng trước</p>
+              <p className="text-xs text-muted-foreground">
+                {safeKpis.length > 0 ? `${safeKpis.length} KPI được định nghĩa` : 'Chưa có KPI nào'}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -94,7 +158,7 @@ export default function AdminDashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{pendingCount}</div>
               <p className="text-xs text-muted-foreground">
-                +3 so với tuần trước
+                {pendingCount > 0 ? 'Cần được duyệt' : 'Không có KPI chờ duyệt'}
               </p>
             </CardContent>
           </Card>
@@ -106,7 +170,7 @@ export default function AdminDashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{employeeCount}</div>
               <p className="text-xs text-muted-foreground">
-                +1 so với quý trước
+                {employeeCount > 0 ? 'Nhân viên trong hệ thống' : 'Chưa có nhân viên nào'}
               </p>
             </CardContent>
           </Card>
@@ -120,7 +184,7 @@ export default function AdminDashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{completionRate.toFixed(1)}%</div>
               <p className="text-xs text-muted-foreground">
-                +2.1% so với tháng trước
+                {completionRate > 0 ? `${completedCount}/${totalKpis} KPI hoàn thành` : 'Chưa có KPI nào hoàn thành'}
               </p>
             </CardContent>
           </Card>
@@ -134,25 +198,62 @@ export default function AdminDashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={kpiChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis unit="%" />
-                  <Tooltip
-                    cursor={{ fill: 'hsl(var(--muted))' }}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--background))',
-                      borderColor: 'hsl(var(--border))',
-                    }}
-                  />
-                  <Bar
-                    dataKey="completed"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              {kpiChartData.length > 0 && kpiChartData.some(item => item.totalRecords > 0) ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={kpiChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      tickLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <YAxis 
+                      unit="%" 
+                      domain={[0, 100]}
+                      tick={{ fontSize: 12 }}
+                      axisLine={{ stroke: 'hsl(var(--border))' }}
+                      tickLine={{ stroke: 'hsl(var(--border))' }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: 'hsl(var(--muted))' }}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--background))',
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                      }}
+                      formatter={(value: number, name: string, props: any) => {
+                        const totalRecords = props.payload.totalRecords;
+                        return [
+                          `${value}%`,
+                          `Tỷ lệ hoàn thành (${totalRecords} KPI)`
+                        ];
+                      }}
+                      labelFormatter={(label: string, payload: any[]) => {
+                        if (payload && payload[0]) {
+                          const data = payload[0].payload;
+                          return `${label} ${data.year}`;
+                        }
+                        return label;
+                      }}
+                    />
+                    <Bar
+                      dataKey="completed"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  <div className="text-center">
+                    <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Chưa có dữ liệu KPI</p>
+                    <p className="text-xs">Dữ liệu sẽ hiển thị khi có KPI được tạo</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -165,7 +266,13 @@ export default function AdminDashboardPage() {
             <CardContent className="grid gap-4">
               <Button asChild><Link href="/admin/kpis">Tạo KPI mới</Link></Button>
               <Button variant="outline" asChild><Link href="/admin/assign">Giao KPI</Link></Button>
-              <Button variant="secondary" asChild><Link href="/admin/approval">Duyệt KPI</Link></Button>
+              <Button variant="outline" asChild><Link href="/admin/approval">Duyệt KPI</Link></Button>
+              <Button variant="outline" asChild>
+                <Link href="/settings">Tạo phòng ban</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/settings">Tạo nhân viên</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -195,16 +302,27 @@ export default function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingKpis.map((kpi) => (
-                  <TableRow key={kpi.id}>
-                    <TableCell className="font-medium">{kpi.id}</TableCell>
-                    <TableCell>{kpi.title}</TableCell>
-                    <TableCell>{kpi.assignee}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{kpi.status}</Badge>
+                {pendingKpis.length > 0 ? (
+                  pendingKpis.map((kpi) => (
+                    <TableRow key={kpi.id}>
+                      <TableCell className="font-medium">{kpi.id}</TableCell>
+                      <TableCell>{kpi.title}</TableCell>
+                      <TableCell>{kpi.assignee}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{kpi.status}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center h-24">
+                      <div className="flex flex-col items-center justify-center">
+                        <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
+                        <p className="text-muted-foreground">Không có KPI nào chờ duyệt</p>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </CardContent>

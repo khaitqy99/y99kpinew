@@ -1,0 +1,592 @@
+'use client';
+
+import React, { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import { 
+  employeeService, 
+  departmentService, 
+  kpiService, 
+  kpiRecordService, 
+  notificationService,
+  companyService,
+  roleService,
+  type Employee,
+  type Department,
+  type Kpi,
+  type KpiRecord,
+  type Notification
+} from '@/services/supabase-service';
+
+// Type definitions
+export type KpiStatus = KpiRecord['status'];
+export type Feedback = {
+  id: string;
+  comment: string;
+  rating: number;
+  createdBy: string;
+  createdAt: string;
+};
+
+// Context type
+type SupabaseDataContextType = {
+  // State
+  users: any[];
+  kpis: Kpi[];
+  kpiRecords: KpiRecord[];
+  notifications: Notification[];
+  departments: Department[];
+  companies: any[];
+  roles: any[];
+
+  // Loading states
+  loading: {
+    users: boolean;
+    kpis: boolean;
+    kpiRecords: boolean;
+    notifications: boolean;
+    departments: boolean;
+    companies: boolean;
+    roles: boolean;
+  };
+
+  // Actions
+  addUser: (user: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateUser: (userId: string, updatedUser: Partial<any>) => Promise<void>;
+  addKpi: (kpi: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  editKpi: (kpiId: string, updatedKpi: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  deleteKpi: (kpiId: string) => Promise<void>;
+  assignKpi: (record: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => Promise<void>;
+  updateKpiRecordActual: (recordId: string, actual: number) => Promise<void>;
+  submitKpiRecord: (recordId: string, submission: { actual: number; submissionDetails: string; attachment: string | null }) => Promise<void>;
+  updateKpiRecordStatus: (recordId: string, status: KpiStatus, feedback?: Feedback) => Promise<void>;
+  addKpiFeedback: (recordId: string, feedback: Omit<Feedback, 'id' | 'createdAt'>) => Promise<void>;
+  markNotificationAsRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
+  addNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  addDepartment: (department: Omit<Department, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => Promise<void>;
+  updateDepartment: (departmentId: string, updatedDepartment: Partial<Department>) => Promise<void>;
+  deleteDepartment: (departmentId: string) => Promise<void>;
+  addCompany: (company: any) => Promise<void>;
+  updateCompany: (companyId: string, updatedCompany: any) => Promise<void>;
+  deleteCompany: (companyId: string) => Promise<void>;
+  addRole: (role: any) => Promise<void>;
+  updateRole: (roleId: string, updatedRole: any) => Promise<void>;
+  deleteRole: (roleId: string) => Promise<void>;
+
+  // Getters
+  getDepartments: () => Department[];
+  getDepartmentNames: () => string[];
+  getFrequencies: () => string[];
+  getKpiCategories: () => string[];
+  getKpiStatuses: () => string[];
+  getNotificationTypes: () => string[];
+  getNotificationPriorities: () => string[];
+  getNotificationCategories: () => string[];
+
+  // Refresh functions
+  refreshUsers: () => Promise<void>;
+  refreshKpis: () => Promise<void>;
+  refreshKpiRecords: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
+  refreshDepartments: () => Promise<void>;
+  refreshCompanies: () => Promise<void>;
+  refreshRoles: () => Promise<void>;
+};
+
+// Context creation
+export const SupabaseDataContext = createContext<SupabaseDataContextType>({} as SupabaseDataContextType);
+
+// Provider component
+export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [kpis, setKpis] = useState<Kpi[]>([]);
+  const [kpiRecords, setKpiRecords] = useState<KpiRecord[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
+
+  const [loading, setLoading] = useState({
+    users: false,
+    kpis: false,
+    kpiRecords: false,
+    notifications: false,
+    departments: false,
+    companies: false,
+    roles: false,
+  });
+
+  // Load data functions
+  const loadUsers = useCallback(async () => {
+    setLoading(prev => ({ ...prev, users: true }));
+    try {
+      const data = await employeeService.getAll();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, users: false }));
+    }
+  }, []);
+
+  const loadKpis = useCallback(async () => {
+    setLoading(prev => ({ ...prev, kpis: true }));
+    try {
+      const data = await kpiService.getAll();
+      setKpis(data);
+    } catch (error) {
+      console.error('Error loading kpis:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, kpis: false }));
+    }
+  }, []);
+
+  const loadKpiRecords = useCallback(async () => {
+    setLoading(prev => ({ ...prev, kpiRecords: true }));
+    try {
+      const data = await kpiRecordService.getAll();
+      setKpiRecords(data);
+    } catch (error) {
+      console.error('Error loading kpi records:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, kpiRecords: false }));
+    }
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    setLoading(prev => ({ ...prev, notifications: true }));
+    try {
+      const data = await notificationService.getAll();
+      setNotifications(data);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, notifications: false }));
+    }
+  }, []);
+
+  const loadDepartments = useCallback(async () => {
+    setLoading(prev => ({ ...prev, departments: true }));
+    try {
+      const data = await departmentService.getAll();
+      setDepartments(data);
+    } catch (error) {
+      console.error('Error loading departments:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, departments: false }));
+    }
+  }, []);
+
+  const loadCompanies = useCallback(async () => {
+    setLoading(prev => ({ ...prev, companies: true }));
+    try {
+      const data = await companyService.getAll();
+      setCompanies(data);
+    } catch (error) {
+      console.error('Error loading companies:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, companies: false }));
+    }
+  }, []);
+
+  const loadRoles = useCallback(async () => {
+    setLoading(prev => ({ ...prev, roles: true }));
+    try {
+      const data = await roleService.getAll();
+      setRoles(data);
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, roles: false }));
+    }
+  }, []);
+
+  // Load all data on mount
+  useEffect(() => {
+    loadUsers();
+    loadKpis();
+    loadKpiRecords();
+    loadNotifications();
+    loadDepartments();
+    loadCompanies();
+    loadRoles();
+  }, []);
+
+  // Action functions
+  const addUser = async (userData: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      await employeeService.create(userData);
+      await loadUsers();
+    } catch (error) {
+      console.error('Error adding user:', error);
+      throw error;
+    }
+  };
+
+  const updateUser = async (userId: string, updatedUserData: Partial<any>) => {
+    try {
+      await employeeService.update(userId, updatedUserData);
+      await loadUsers();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  };
+
+  const addDepartment = async (deptData: Omit<Department, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => {
+    try {
+      // Lấy company_id mặc định
+      const company = await companyService.getDefault();
+      if (!company) {
+        throw new Error('Không tìm thấy company mặc định');
+      }
+      
+      // Thêm company_id vào dữ liệu department
+      const departmentWithCompany = {
+        ...deptData,
+        company_id: company.id
+      };
+      
+      await departmentService.create(departmentWithCompany);
+      await loadDepartments();
+    } catch (error) {
+      console.error('Error adding department:', error);
+      throw error;
+    }
+  };
+
+  const addCompany = async (companyData: any) => {
+    try {
+      await companyService.create(companyData);
+      await loadCompanies();
+    } catch (error) {
+      console.error('Error adding company:', error);
+      throw error;
+    }
+  };
+
+  const addRole = async (roleData: any) => {
+    try {
+      await roleService.create(roleData);
+      await loadRoles();
+    } catch (error) {
+      console.error('Error adding role:', error);
+      throw error;
+    }
+  };
+
+  const updateDepartment = async (departmentId: string, updatedDepartmentData: Partial<Department>) => {
+    try {
+      await departmentService.update(departmentId, updatedDepartmentData);
+      await loadDepartments();
+    } catch (error) {
+      console.error('Error updating department:', error);
+      throw error;
+    }
+  };
+
+  const deleteDepartment = async (departmentId: string) => {
+    try {
+      await departmentService.delete(departmentId);
+      await loadDepartments();
+    } catch (error) {
+      console.error('Error deleting department:', error);
+      throw error;
+    }
+  };
+
+  const updateCompany = async (companyId: string, updatedCompanyData: any) => {
+    try {
+      await companyService.update(companyId, updatedCompanyData);
+      await loadCompanies();
+    } catch (error) {
+      console.error('Error updating company:', error);
+      throw error;
+    }
+  };
+
+  const deleteCompany = async (companyId: string) => {
+    try {
+      await companyService.delete(companyId);
+      await loadCompanies();
+    } catch (error) {
+      console.error('Error deleting company:', error);
+      throw error;
+    }
+  };
+
+  const updateRole = async (roleId: string, updatedRoleData: any) => {
+    try {
+      await roleService.update(roleId, updatedRoleData);
+      await loadRoles();
+    } catch (error) {
+      console.error('Error updating role:', error);
+      throw error;
+    }
+  };
+
+  const deleteRole = async (roleId: string) => {
+    try {
+      await roleService.delete(roleId);
+      await loadRoles();
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      throw error;
+    }
+  };
+
+  const addKpi = async (kpiData: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      // Get default company for KPI
+      const company = await companyService.getDefault();
+      if (!company) {
+        throw new Error('Không tìm thấy công ty mặc định');
+      }
+
+      // Map UI fields to DB columns; avoid sending unknown fields
+      const payload: any = {
+        company_id: company.id,
+        name: (kpiData as any).name,
+        description: (kpiData as any).description || null,
+        target: Number((kpiData as any).target) || null,
+        unit: (kpiData as any).unit || null,
+        frequency: (kpiData as any).frequency || null,
+        category: (kpiData as any).category || 'performance',
+        weight: Number((kpiData as any).weight) || 1,
+        status: (kpiData as any).status || 'active',
+        reward_penalty_config: (kpiData as any).rewardPenaltyConfig || null,
+        created_by: null, // Will be set by current user context
+        is_active: true,
+      }
+      await kpiService.create(payload);
+      await loadKpis();
+    } catch (error) {
+      console.error('Error adding kpi:', error);
+      throw error;
+    }
+  };
+  
+  const editKpi = async (kpiId: string, updatedKpiData: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const updates: any = {
+        name: (updatedKpiData as any).name,
+        description: (updatedKpiData as any).description || null,
+        target: Number((updatedKpiData as any).target) || null,
+        unit: (updatedKpiData as any).unit || null,
+        frequency: (updatedKpiData as any).frequency || null,
+        category: (updatedKpiData as any).category || 'performance',
+        weight: Number((updatedKpiData as any).weight) || 1,
+        status: (updatedKpiData as any).status || 'active',
+        reward_penalty_config: (updatedKpiData as any).rewardPenaltyConfig || null,
+      }
+      await kpiService.update(kpiId, updates);
+      await loadKpis();
+    } catch (error) {
+      console.error('Error editing kpi:', error);
+      throw error;
+    }
+  };
+  
+  const deleteKpi = async (kpiId: string) => {
+    try {
+      await kpiService.delete(kpiId);
+      await loadKpis();
+    } catch (error) {
+      console.error('Error deleting kpi:', error);
+      throw error;
+    }
+  };
+
+  const assignKpi = async (recordData: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => {
+    try {
+      await kpiRecordService.create(recordData);
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error assigning kpi:', error);
+      throw error;
+    }
+  };
+
+  const updateKpiRecordActual = async (recordId: string, actual: number) => {
+    try {
+      const record = await kpiRecordService.getById(recordId);
+      if (!record) throw new Error('Record not found');
+      
+      const progress = Math.min(100, Math.max(0, Math.round((actual / record.target) * 100)));
+      const newStatus = record.status === 'not_started' ? 'in_progress' : record.status;
+      
+      await kpiRecordService.update(recordId, {
+        actual,
+        progress,
+        status: newStatus,
+      });
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error updating kpi record actual:', error);
+      throw error;
+    }
+  };
+  
+  const submitKpiRecord = async (recordId: string, submission: { actual: number; submissionDetails: string; attachment: string | null }) => {
+    try {
+      const record = await kpiRecordService.getById(recordId);
+      if (!record) throw new Error('Record not found');
+      
+      const progress = Math.min(100, Math.max(0, Math.round((submission.actual / record.target) * 100)));
+      
+      await kpiRecordService.update(recordId, {
+        actual: submission.actual,
+        progress,
+        submission_details: submission.submissionDetails,
+        attachment: submission.attachment,
+        submission_date: new Date().toISOString(),
+        status: 'pending_approval',
+      });
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error submitting kpi record:', error);
+      console.error('Error details:', {
+        recordId,
+        submission,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined
+      });
+      throw error;
+    }
+  };
+  
+  const updateKpiRecordStatus = async (recordId: string, status: KpiStatus, feedback?: Feedback) => {
+    try {
+      const record = await kpiRecordService.getById(recordId);
+      if (!record) throw new Error('Record not found');
+      
+      const newFeedback = feedback ? [...record.feedback, feedback] : record.feedback;
+      const approvalDate = (status === 'approved' || status === 'rejected') ? new Date().toISOString() : record.approval_date;
+      
+      await kpiRecordService.update(recordId, {
+        status,
+        feedback: newFeedback,
+        approval_date: approvalDate,
+      });
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error updating kpi record status:', error);
+      throw error;
+    }
+  };
+
+  const addKpiFeedback = async (recordId: string, feedback: Omit<Feedback, 'id' | 'createdAt'>) => {
+    try {
+      const record = await kpiRecordService.getById(recordId);
+      if (!record) throw new Error('Record not found');
+      
+      const newFeedback: Feedback = {
+        id: `fb-${Date.now()}`,
+        ...feedback,
+        createdAt: new Date().toISOString(),
+      };
+      
+      await kpiRecordService.update(recordId, {
+        feedback: [...record.feedback, newFeedback],
+      });
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error adding kpi feedback:', error);
+      throw error;
+    }
+  };
+  
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      await notificationService.markAsRead(notificationId);
+      await loadNotifications();
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      throw error;
+    }
+  };
+  
+  const markAllNotificationsAsRead = async () => {
+    try {
+      // This would need to be implemented based on current user
+      await loadNotifications();
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      throw error;
+    }
+  };
+
+  const addNotification = async (notificationData: Omit<Notification, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      await notificationService.create(notificationData);
+      await loadNotifications();
+    } catch (error) {
+      console.error('Error adding notification:', error);
+      throw error;
+    }
+  };
+
+  // Getter functions
+  const getDepartments = useCallback(() => [...departments].sort((a, b) => a.name.localeCompare(b.name)), [departments]);
+  const getDepartmentNames = useCallback(() => [...new Set(departments.map(d => d.name))].sort(), [departments]);
+  const getFrequencies = useCallback(() => [...new Set(kpis.map(k => k.frequency))].sort(), [kpis]);
+  const getKpiCategories = useCallback(() => [...new Set(kpis.map(k => k.category))].sort(), [kpis]);
+  const getKpiStatuses = useCallback(() => [...new Set(kpiRecords.map(r => r.status))].sort(), [kpiRecords]);
+  const getNotificationTypes = useCallback(() => [...new Set(notifications.map(n => n.type))].sort(), [notifications]);
+  const getNotificationPriorities = useCallback(() => [...new Set(notifications.map(n => n.priority))].sort(), [notifications]);
+  const getNotificationCategories = useCallback(() => [...new Set(notifications.map(n => n.category))].sort(), [notifications]);
+
+  // Provider value
+  const value = {
+    users,
+    kpis,
+    kpiRecords,
+    notifications,
+    departments,
+    companies,
+    roles,
+    loading,
+    addUser,
+    updateUser,
+    addKpi,
+    editKpi,
+    deleteKpi,
+    assignKpi,
+    updateKpiRecordActual,
+    submitKpiRecord,
+    updateKpiRecordStatus,
+    addKpiFeedback,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    addNotification,
+    addDepartment,
+    updateDepartment,
+    deleteDepartment,
+    addCompany,
+    updateCompany,
+    deleteCompany,
+    addRole,
+    updateRole,
+    deleteRole,
+    getDepartments,
+    getDepartmentNames,
+    getFrequencies,
+    getKpiCategories,
+    getKpiStatuses,
+    getNotificationTypes,
+    getNotificationPriorities,
+    getNotificationCategories,
+    refreshUsers: loadUsers,
+    refreshKpis: loadKpis,
+    refreshKpiRecords: loadKpiRecords,
+    refreshNotifications: loadNotifications,
+    refreshDepartments: loadDepartments,
+    refreshCompanies: loadCompanies,
+    refreshRoles: loadRoles,
+  };
+
+  return (
+    <SupabaseDataContext.Provider value={value}>
+      {children}
+    </SupabaseDataContext.Provider>
+  );
+};

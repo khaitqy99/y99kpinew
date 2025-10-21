@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AppShellContent } from "@/components/app-shell-content";
 import { Toaster } from "@/components/ui/toaster";
 import { SessionContext, SessionProvider } from "@/contexts/SessionContext";
-import { DataProvider } from "@/contexts/DataContext";
+import { SupabaseDataProvider } from "@/contexts/SupabaseDataContext";
 import "./globals.css";
 
 function AppLayout({
@@ -56,10 +56,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <SessionProvider>
-          <DataProvider>
+          <SupabaseDataProvider>
             <AppLayout>{children}</AppLayout>
             <Toaster />
-          </DataProvider>
+          </SupabaseDataProvider>
         </SessionProvider>
       </body>
     </html>

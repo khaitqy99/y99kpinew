@@ -13,7 +13,7 @@ import { Bell, FileCheck, Gift, AlertTriangle, CalendarCheck } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { Separator } from './ui/separator';
 import { SessionContext } from '@/contexts/SessionContext';
-import { DataContext } from '@/contexts/DataContext';
+import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 
 const notificationIcons: { [key: string]: React.ReactNode } = {
   assigned: <FileCheck className="h-5 w-5 text-blue-500" />,
@@ -25,7 +25,7 @@ const notificationIcons: { [key: string]: React.ReactNode } = {
 
 export function NotificationPanel() {
   const { user } = useContext(SessionContext);
-  const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useContext(DataContext);
+  const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useContext(SupabaseDataContext);
   
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
@@ -33,8 +33,8 @@ export function NotificationPanel() {
   }, []);
 
   const userNotifications = useMemo(() => {
-    if (!user) return [];
-    return notifications.filter(n => n.recipientId === user.id || n.recipientId === 'all');
+    if (!user || !notifications) return [];
+    return notifications.filter(n => n.user_id === user.id || n.user_id === 'all');
   }, [notifications, user]);
 
   const unreadCount = useMemo(() => userNotifications.filter((n) => !n.read).length, [userNotifications]);
@@ -100,9 +100,9 @@ export function NotificationPanel() {
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">{notification.title}</p>
-                  <p className={cn(!notification.read ? "text-foreground/80" : "text-muted-foreground")}>{notification.description}</p>
+                  <p className={cn(!notification.read ? "text-foreground/80" : "text-muted-foreground")}>{notification.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {notification.time}
+                    {new Date(notification.created_at).toLocaleDateString('vi-VN')}
                   </p>
                 </div>
               </div>

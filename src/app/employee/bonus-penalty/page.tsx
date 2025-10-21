@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function EmployeeKPIRedirect() {
+export default function EmployeeBonusPenaltyRedirect() {
   const router = useRouter();
 
   useEffect(() => {

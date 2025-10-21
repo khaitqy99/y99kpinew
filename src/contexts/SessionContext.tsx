@@ -2,14 +2,18 @@
 
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { AuthService } from '@/services/auth-service';
 
 type User = {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'employee';
+  role: 'admin' | 'manager' | 'employee';
   department: string;
+  department_id: string;
   avatar: string;
+  position: string;
+  employee_code: string;
 };
 
 type SessionContextType = {
@@ -38,14 +42,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   
   useEffect(() => {
     // This effect runs once on mount to check for an existing session.
-    const checkSession = () => {
+    const checkSession = async () => {
       try {
-        const storedUser = sessionStorage.getItem('user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
+        // Đảm bảo admin account tồn tại
+        await AuthService.ensureAdminExists();
+        
+        // Kiểm tra session hiện tại
+        const currentUser = await AuthService.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
         }
       } catch (error) {
-        console.error("Failed to parse user from session storage", error);
+        console.error("Failed to check session", error);
         sessionStorage.removeItem('user');
       } finally {
         setIsLoading(false);
@@ -60,8 +68,8 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setUser(userData);
   };
 
-  const logout = () => {
-    sessionStorage.removeItem('user');
+  const logout = async () => {
+    await AuthService.logout();
     setUser(null);
     // The redirection is now handled in the AppLayout component
     router.push('/login');
