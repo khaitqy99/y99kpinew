@@ -410,7 +410,11 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
 
   const assignKpi = async (recordData: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => {
     try {
+      console.log('Assigning KPI with data:', recordData);
+      
       const createdRecord = await kpiRecordService.create(recordData);
+      console.log('KPI record created successfully:', createdRecord);
+      
       await loadKpiRecords();
       
       // Tạo thông báo cho người được giao KPI
@@ -422,18 +426,31 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         type: recordData.employee_id ? 'employee' as const : 'department' as const
       };
       
-      const kpiInfo = kpis.find(k => k.id === recordData.kpi_id);
-      const notificationData = {
-        ...createdRecord,
-        kpi_name: kpiInfo?.name || 'KPI',
-        unit: kpiInfo?.unit || '',
-        period: recordData.period || '',
-        employee_name: assigneeInfo.name
-      };
+      console.log('Assignee info:', assigneeInfo);
       
-      await notificationManager.notifyKpiAssigned(notificationData, assigneeInfo);
+      // Chỉ gửi thông báo nếu có assignee hợp lệ
+      if (assigneeInfo.id && assigneeInfo.id !== '') {
+        const kpiInfo = kpis.find(k => k.id === recordData.kpi_id);
+        const notificationData = {
+          ...createdRecord,
+          kpi_name: kpiInfo?.name || 'KPI',
+          unit: kpiInfo?.unit || '',
+          period: recordData.period || '',
+          employee_name: assigneeInfo.name
+        };
+        
+        try {
+          await notificationManager.notifyKpiAssigned(notificationData, assigneeInfo);
+        } catch (notificationError) {
+          console.warn('Failed to send notification:', notificationError);
+          // Không throw error để không làm gián đoạn việc assign KPI
+        }
+      } else {
+        console.warn('No valid assignee found, skipping notification');
+      }
     } catch (error) {
       console.error('Error assigning kpi:', error);
+      console.error('Record data:', recordData);
       throw error;
     }
   };
@@ -491,7 +508,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         actual: submission.actual
       };
       
-      await notificationManager.notifyKpiSubmitted(notificationData, submitterInfo);
+      try {
+        await notificationManager.notifyKpiSubmitted(notificationData, submitterInfo);
+      } catch (notificationError) {
+        console.warn('Failed to send notification:', notificationError);
+        // Không throw error để không làm gián đoạn việc submit KPI
+      }
     } catch (error) {
       console.error('Error submitting kpi record:', error);
       console.error('Error details:', {
@@ -535,7 +557,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         score: record.score
       };
       
-      await notificationManager.notifyKpiApproved(notificationData, approverInfo, status);
+      try {
+        await notificationManager.notifyKpiApproved(notificationData, approverInfo, status);
+      } catch (notificationError) {
+        console.warn('Failed to send notification:', notificationError);
+        // Không throw error để không làm gián đoạn việc approve/reject KPI
+      }
       
       // Gửi thông báo bonus/penalty nếu được approve
       if (status === 'approved') {

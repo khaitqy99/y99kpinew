@@ -54,7 +54,23 @@ export function NotificationPanel() {
 
   const userNotifications = useMemo(() => {
     if (!user || !notifications) return [];
-    return notifications.filter(n => n.user_id === user.id || n.user_id === 'all');
+    
+    // Lấy thông báo cho user cụ thể và thông báo theo role
+    return notifications.filter(n => {
+      // Thông báo cá nhân cho user này
+      if (n.user_id === user.id) return true;
+      
+      // Thông báo cho admin (nếu user là admin)
+      if (user.role === 'admin' && n.user_id === 'admin') return true;
+      
+      // Thông báo cho employee (nếu user là employee)
+      if (user.role === 'employee' && n.user_id === 'employee') return true;
+      
+      // Thông báo cho tất cả
+      if (n.user_id === 'all') return true;
+      
+      return false;
+    });
   }, [notifications, user]);
 
   const filteredNotifications = useMemo(() => {
@@ -74,10 +90,8 @@ export function NotificationPanel() {
       await markNotificationAsRead(notification.id);
     }
     
-    // Navigate to action URL if available
-    if (notification.actionUrl) {
-      window.location.href = notification.actionUrl;
-    }
+    // Có thể thêm navigation logic ở đây nếu cần
+    // Ví dụ: router.push('/employee/kpis') cho thông báo KPI
   };
 
   const handleMarkAllAsRead = async () => {
@@ -200,31 +214,7 @@ export function NotificationPanel() {
                         minute: '2-digit'
                       })}
                     </p>
-                    {notification.action && (
-                      <span className="text-xs text-primary font-medium">
-                        {notification.action} →
-                      </span>
-                    )}
                   </div>
-                  {notification.metadata && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {notification.metadata.bonusAmount && (
-                        <span className="text-green-600 font-medium">
-                          Thưởng: {notification.metadata.bonusAmount.toLocaleString('vi-VN')} VNĐ
-                        </span>
-                      )}
-                      {notification.metadata.penaltyAmount && (
-                        <span className="text-red-600 font-medium">
-                          Phạt: {notification.metadata.penaltyAmount.toLocaleString('vi-VN')} VNĐ
-                        </span>
-                      )}
-                      {notification.metadata.deadline && (
-                        <span className="text-orange-600">
-                          Hạn: {new Date(notification.metadata.deadline).toLocaleDateString('vi-VN')}
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

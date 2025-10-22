@@ -47,15 +47,29 @@ export class NotificationManager {
 
   async createNotification(notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'>) {
     try {
-      const notification = await notificationService.create({
-        ...notificationData,
+      // Xử lý user_id đặc biệt - giữ nguyên để có thể filter theo role
+      let userId = notificationData.user_id;
+      
+      // Chỉ lấy các field có trong database schema
+      const dbNotification = {
+        user_id: userId,
+        type: notificationData.type,
+        priority: notificationData.priority,
+        category: notificationData.category,
+        title: notificationData.title,
+        message: notificationData.message,
+        read: notificationData.read,
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
+      };
+
+      console.log('Creating notification with data:', dbNotification);
+      const notification = await notificationService.create(dbNotification);
       return notification;
     } catch (error) {
       console.error('Error creating notification:', error);
+      console.error('Notification data:', notificationData);
       throw error;
     }
   }
@@ -68,7 +82,7 @@ export class NotificationManager {
       priority: 'medium',
       category: 'kpi',
       title: 'KPI mới được giao',
-      message: `Bạn đã được giao KPI "${kpiRecord.kpi_name}" với mục tiêu ${kpiRecord.target} ${kpiRecord.unit || ''} trong kỳ ${kpiRecord.period}`,
+      message: `Bạn đã được giao KPI "${kpiRecord.kpi_name || 'KPI'}" với mục tiêu ${kpiRecord.target || 0} ${kpiRecord.unit || ''} trong kỳ ${kpiRecord.period || 'hiện tại'}`,
       read: false,
       actor: {
         id: this.currentUser?.id || 'system',
@@ -93,7 +107,7 @@ export class NotificationManager {
   async notifyKpiSubmitted(kpiRecord: any, submitterInfo: { id: string; name: string }) {
     // Thông báo cho admin/manager
     const adminNotificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
-      user_id: 'admin', // Hoặc lấy từ role admin
+      user_id: 'admin', // Thông báo cho tất cả admin
       type: 'submitted',
       priority: 'medium',
       category: 'kpi',
@@ -115,7 +129,33 @@ export class NotificationManager {
       }
     };
 
-    return await this.createNotification(adminNotificationData);
+    // Thông báo xác nhận cho người submit
+    const submitterNotificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
+      user_id: submitterInfo.id,
+      type: 'submitted',
+      priority: 'low',
+      category: 'kpi',
+      title: 'KPI đã được submit thành công',
+      message: `Bạn đã submit KPI "${kpiRecord.kpi_name}" thành công. Đang chờ phê duyệt từ quản lý.`,
+      read: false,
+      actor: {
+        id: submitterInfo.id,
+        name: submitterInfo.name,
+        avatar: '/default-avatar.png'
+      },
+      target: submitterInfo.name,
+      action: 'Xem chi tiết',
+      actionUrl: `/employee/kpis`,
+      metadata: {
+        kpiId: kpiRecord.kpi_id,
+        recordId: kpiRecord.id,
+        period: kpiRecord.period
+      }
+    };
+
+    // Tạo cả hai thông báo
+    await this.createNotification(adminNotificationData);
+    return await this.createNotification(submitterNotificationData);
   }
 
   // Thông báo khi approve/reject KPI
@@ -228,6 +268,87 @@ export class NotificationManager {
       target: userId ? 'Người dùng' : 'Tất cả',
       action: 'Xem',
       actionUrl: '/settings'
+    };
+
+    return await this.createNotification(notificationData);
+  }
+
+  // Thông báo khi có KPI mới được tạo (cho admin)
+  async notifyNewKpiCreated(kpi: any, creatorInfo: { id: string; name: string }) {
+    const notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
+      user_id: 'admin',
+      type: 'assigned',
+      priority: 'low',
+      category: 'kpi',
+      title: 'KPI mới được tạo',
+      message: `${creatorInfo.name} đã tạo KPI mới "${kpi.name}" trong hệ thống`,
+      read: false,
+      actor: {
+        id: creatorInfo.id,
+        name: creatorInfo.name,
+        avatar: '/default-avatar.png'
+      },
+      target: 'Quản lý',
+      action: 'Xem chi tiết',
+      actionUrl: `/admin/kpis`,
+      metadata: {
+        kpiId: kpi.id,
+        period: kpi.period
+      }
+    };
+
+    return await this.createNotification(notificationData);
+  }
+
+  // Thông báo khi có thưởng/phạt mới được thêm (cho nhân viên)
+  async notifyBonusPenaltyAdded(record: any, employeeInfo: { id: string; name: string }, bonusAmount?: number, penaltyAmount?: number) {
+    const isBonus = bonusAmount && bonusAmount > 0;
+    const notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
+      user_id: employeeInfo.id,
+      type: isBonus ? 'reward' : 'penalty',
+      priority: 'medium',
+      category: 'bonus',
+      title: isBonus ? 'Thưởng mới' : 'Phạt mới',
+      message: isBonus 
+        ? `Bạn đã nhận được thưởng ${bonusAmount?.toLocaleString('vi-VN')} VNĐ cho ${record.reason || 'hiệu suất tốt'}`
+        : `Bạn đã bị phạt ${penaltyAmount?.toLocaleString('vi-VN')} VNĐ vì ${record.reason || 'hiệu suất chưa đạt'}`,
+      read: false,
+      actor: {
+        id: 'system',
+        name: 'Hệ thống',
+        avatar: '/system-avatar.png'
+      },
+      target: employeeInfo.name,
+      action: 'Xem chi tiết',
+      actionUrl: `/employee/bonus-penalty`,
+      metadata: {
+        bonusAmount: bonusAmount || 0,
+        penaltyAmount: penaltyAmount || 0,
+        period: record.period
+      }
+    };
+
+    return await this.createNotification(notificationData);
+  }
+
+  // Thông báo chào mừng cho user mới
+  async notifyWelcomeUser(userInfo: { id: string; name: string; role: string }) {
+    const notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
+      user_id: userInfo.id,
+      type: 'reminder',
+      priority: 'low',
+      category: 'system',
+      title: 'Chào mừng đến với hệ thống KPI',
+      message: `Chào mừng ${userInfo.name}! Bạn đã được thêm vào hệ thống với vai trò ${userInfo.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}.`,
+      read: false,
+      actor: {
+        id: 'system',
+        name: 'Hệ thống',
+        avatar: '/system-avatar.png'
+      },
+      target: userInfo.name,
+      action: 'Khám phá',
+      actionUrl: userInfo.role === 'admin' ? '/admin/dashboard' : '/employee/dashboard'
     };
 
     return await this.createNotification(notificationData);

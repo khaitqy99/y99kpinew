@@ -295,7 +295,6 @@ export default function AdminDashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Mã KPI</TableHead>
                   <TableHead>Tên KPI</TableHead>
                   <TableHead>Nhân viên</TableHead>
                   <TableHead>Trạng thái</TableHead>
@@ -305,8 +304,7 @@ export default function AdminDashboardPage() {
                 {pendingKpis.length > 0 ? (
                   pendingKpis.map((kpi) => (
                     <TableRow key={kpi.id}>
-                      <TableCell className="font-medium">{kpi.id}</TableCell>
-                      <TableCell>{kpi.title}</TableCell>
+                      <TableCell className="font-medium">{kpi.title}</TableCell>
                       <TableCell>{kpi.assignee}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{kpi.status}</Badge>
@@ -315,7 +313,7 @@ export default function AdminDashboardPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24">
+                    <TableCell colSpan={3} className="text-center h-24">
                       <div className="flex flex-col items-center justify-center">
                         <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
                         <p className="text-muted-foreground">Không có KPI nào chờ duyệt</p>

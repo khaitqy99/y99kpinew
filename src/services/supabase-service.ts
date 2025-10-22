@@ -461,13 +461,28 @@ export const kpiRecordService = {
   },
 
   async create(kpiRecord: KpiRecordInsert): Promise<KpiRecord> {
+    // Đảm bảo có đầy đủ các field required
+    const recordData = {
+      ...kpiRecord,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      last_updated: new Date().toISOString(),
+    };
+
+    console.log('Creating KPI record with data:', recordData);
+
     const { data, error } = await supabase
       .from('kpi_records')
-      .insert(kpiRecord)
+      .insert(recordData)
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('Error creating KPI record:', error);
+      console.error('Record data:', recordData);
+      throw error;
+    }
     return data
   },
 

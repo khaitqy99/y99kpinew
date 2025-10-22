@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useContext, useState, useEffect } from 'react';
 import { SessionContext } from '@/contexts/SessionContext';
 import { AuthService, LoginCredentials } from '@/services/auth-service';
-import { Eye, EyeOff, Mail, Lock, User, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function LoginPage() {
@@ -79,35 +79,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async (role: 'admin' | 'employee') => {
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const demoCredentials: LoginCredentials = role === 'admin' 
-        ? { email: 'db@y99.vn', password: '12345678' }
-        : { email: 'employee@y99.vn', password: '12345678' };
-
-      const response = await AuthService.login(demoCredentials);
-      
-      if (response.success && response.user) {
-        login(response.user);
-        
-        if (response.user.role === 'admin') {
-          router.push('/admin/dashboard');
-        } else {
-          router.push('/employee/dashboard');
-        }
-      } else {
-        setError(response.error || 'Đăng nhập demo thất bại');
-      }
-    } catch (error) {
-      console.error('Demo login error:', error);
-      setError('Có lỗi xảy ra khi đăng nhập demo');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
 
   return (
@@ -115,10 +86,13 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo và Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <Building2 className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-24 h-24 mb-4">
+            <img 
+              src="https://y99.vn/logo.png" 
+              alt="Y99 Logo" 
+              className="w-24 h-24 object-contain"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Y99 KPI System</h1>
           <p className="text-gray-600">Hệ thống quản lý KPI và đánh giá hiệu suất</p>
         </div>
 
@@ -218,39 +192,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Demo Accounts */}
-            <div className="space-y-3">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-gray-200" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-500">Tài khoản demo</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => handleDemoLogin('admin')}
-                  disabled={isLoading}
-                  className="h-10 text-sm"
-                >
-                  <User className="w-4 h-4 mr-2" />
-                  Admin Demo
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => handleDemoLogin('employee')}
-                  disabled={isLoading}
-                  className="h-10 text-sm"
-                >
-                  <User className="w-4 h-4 mr-2" />
-                  Employee Demo
-                </Button>
-              </div>
-            </div>
-
             {/* Help Text */}
             <div className="text-center text-sm text-gray-500">
               <p>Nếu bạn gặp vấn đề đăng nhập, vui lòng liên hệ quản trị viên</p>
@@ -260,7 +201,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>&copy; 2024 Y99 Company. All rights reserved.</p>
+          <p>&copy; 2025 Y99 Company. All rights reserved.</p>
         </div>
       </div>
     </div>

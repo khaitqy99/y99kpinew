@@ -43,7 +43,6 @@ import {
 import { SessionContext } from '@/contexts/SessionContext';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import { EmployeeBonusPenaltySummary } from '@/components/EmployeeBonusPenaltySummary';
-import { EmployeeNotificationSummary } from '@/components/EmployeeNotificationSummary';
 import { useToast } from '@/hooks/use-toast';
 import { uploadFile } from '@/ai/flows/upload-file';
 
@@ -368,11 +367,6 @@ export default function EmployeeDashboardPage() {
 
             {/* Bonus & Penalty */}
             <EmployeeBonusPenaltySummary />
-          </div>
-
-          {/* Notifications Section */}
-          <div className="grid gap-4 md:grid-cols-1">
-            <EmployeeNotificationSummary />
           </div>
 
           {/* KPI Management Section */}

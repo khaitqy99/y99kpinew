@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { notificationManager } from './notification-service';
 
 export interface BonusPenaltyRecord {
   id: string;
@@ -181,6 +182,30 @@ class BonusPenaltyService {
     if (fetchError) {
       console.warn('Could not fetch complete record, returning basic data:', fetchError);
       return data as BonusPenaltyRecord;
+    }
+
+    // Gửi thông báo cho nhân viên
+    try {
+      if (completeRecord.employees) {
+        const notificationResult = await notificationManager.notifyBonusPenaltyAdded(
+          completeRecord,
+          {
+            id: completeRecord.employees.id,
+            name: completeRecord.employees.name
+          },
+          record.type === 'bonus' ? record.amount : undefined,
+          record.type === 'penalty' ? record.amount : undefined
+        );
+        
+        if (notificationResult) {
+          console.log('Notification sent successfully');
+        } else {
+          console.log('Notification skipped (special user_id)');
+        }
+      }
+    } catch (notificationError) {
+      console.warn('Failed to send notification:', notificationError);
+      // Không throw error để không làm gián đoạn việc tạo record
     }
 
     return completeRecord;
