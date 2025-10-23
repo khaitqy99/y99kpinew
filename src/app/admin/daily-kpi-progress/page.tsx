@@ -236,26 +236,16 @@ export default function DailyKpiProgressPage() {
   // Show loading state if context is still loading
   if (contextLoading.dailyKpiProgress || contextLoading.users || contextLoading.departments || contextLoading.kpis) {
     return (
-      <div className="min-h-screen bg-gray-50/50 p-6">
-        <div className="mx-auto max-w-7xl space-y-6">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-              <p className="text-gray-600">Đang tải dữ liệu...</p>
-            </div>
-          </div>
-        </div>
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <div className="text-lg">Đang tải dữ liệu...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50 p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-
-
-        {/* Main Content */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div className="space-y-6">
+      {/* Main Content */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Form Section */}
           <div className="lg:col-span-1">
             <Card className="border-0 shadow-sm">
@@ -549,7 +539,6 @@ export default function DailyKpiProgressPage() {
             </Card>
           </div>
         </div>
-      </div>
     </div>
   );
 }
