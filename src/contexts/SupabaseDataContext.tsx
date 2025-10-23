@@ -7,13 +7,15 @@ import {
   kpiService, 
   kpiRecordService, 
   notificationService,
+  dailyKpiProgressService,
   companyService,
   roleService,
   type Employee,
   type Department,
   type Kpi,
   type KpiRecord,
-  type Notification
+  type Notification,
+  type DailyKpiProgress
 } from '@/services/supabase-service';
 import { notificationManager } from '@/services/notification-service';
 import { notificationScheduler } from '@/services/notification-scheduler';
@@ -35,6 +37,7 @@ type SupabaseDataContextType = {
   users: any[];
   kpis: Kpi[];
   kpiRecords: KpiRecord[];
+  dailyKpiProgress: DailyKpiProgress[];
   notifications: Notification[];
   departments: Department[];
   companies: any[];
@@ -45,6 +48,7 @@ type SupabaseDataContextType = {
     users: boolean;
     kpis: boolean;
     kpiRecords: boolean;
+    dailyKpiProgress: boolean;
     notifications: boolean;
     departments: boolean;
     companies: boolean;
@@ -58,6 +62,12 @@ type SupabaseDataContextType = {
   editKpi: (kpiId: string, updatedKpi: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   deleteKpi: (kpiId: string) => Promise<void>;
   assignKpi: (record: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => Promise<void>;
+  addKpiRecord: (record: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => Promise<void>;
+  editKpiRecord: (recordId: string, updatedRecord: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => Promise<void>;
+  deleteKpiRecord: (recordId: string) => Promise<void>;
+  addDailyKpiProgress: (progress: Omit<DailyKpiProgress, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  editDailyKpiProgress: (progressId: string, updatedProgress: Omit<DailyKpiProgress, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  deleteDailyKpiProgress: (progressId: string) => Promise<void>;
   updateKpiRecordActual: (recordId: string, actual: number) => Promise<void>;
   submitKpiRecord: (recordId: string, submission: { actual: number; submissionDetails: string; attachment: string | null }) => Promise<void>;
   updateKpiRecordStatus: (recordId: string, status: KpiStatus, feedback?: Feedback) => Promise<void>;
@@ -89,6 +99,7 @@ type SupabaseDataContextType = {
   refreshUsers: () => Promise<void>;
   refreshKpis: () => Promise<void>;
   refreshKpiRecords: () => Promise<void>;
+  refreshDailyKpiProgress: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
   refreshDepartments: () => Promise<void>;
   refreshCompanies: () => Promise<void>;
@@ -104,6 +115,7 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [kpiRecords, setKpiRecords] = useState<KpiRecord[]>([]);
+  const [dailyKpiProgress, setDailyKpiProgress] = useState<DailyKpiProgress[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
@@ -113,6 +125,7 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     users: false,
     kpis: false,
     kpiRecords: false,
+    dailyKpiProgress: false,
     notifications: false,
     departments: false,
     companies: false,
@@ -153,6 +166,18 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error loading kpi records:', error);
     } finally {
       setLoading(prev => ({ ...prev, kpiRecords: false }));
+    }
+  }, []);
+
+  const loadDailyKpiProgress = useCallback(async () => {
+    setLoading(prev => ({ ...prev, dailyKpiProgress: true }));
+    try {
+      const data = await dailyKpiProgressService.getAll();
+      setDailyKpiProgress(data);
+    } catch (error) {
+      console.error('Error loading daily KPI progress:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, dailyKpiProgress: false }));
     }
   }, []);
 
@@ -209,6 +234,7 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     loadUsers();
     loadKpis();
     loadKpiRecords();
+    loadDailyKpiProgress();
     loadNotifications();
     loadDepartments();
     loadCompanies();
@@ -600,6 +626,82 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
       throw error;
     }
   };
+
+  const addKpiRecord = async (recordData: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => {
+    try {
+      console.log('Adding KPI record with data:', recordData);
+      
+      const createdRecord = await kpiRecordService.create(recordData);
+      console.log('KPI record created successfully:', createdRecord);
+      
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error adding kpi record:', error);
+      console.error('Record data:', recordData);
+      throw error;
+    }
+  };
+
+  const editKpiRecord = async (recordId: string, updatedRecordData: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => {
+    try {
+      console.log('Editing KPI record:', recordId, 'with data:', updatedRecordData);
+      
+      await kpiRecordService.update(recordId, updatedRecordData);
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error editing kpi record:', error);
+      console.error('Record data:', updatedRecordData);
+      throw error;
+    }
+  };
+
+  const deleteKpiRecord = async (recordId: string) => {
+    try {
+      await kpiRecordService.delete(recordId);
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error deleting kpi record:', error);
+      throw error;
+    }
+  };
+
+  const addDailyKpiProgress = async (progressData: Omit<DailyKpiProgress, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      console.log('Adding daily KPI progress with data:', progressData);
+      
+      const createdProgress = await dailyKpiProgressService.create(progressData);
+      console.log('Daily KPI progress created successfully:', createdProgress);
+      
+      await loadDailyKpiProgress();
+    } catch (error) {
+      console.error('Error adding daily KPI progress:', error);
+      console.error('Progress data:', progressData);
+      throw error;
+    }
+  };
+
+  const editDailyKpiProgress = async (progressId: string, updatedProgressData: Omit<DailyKpiProgress, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      console.log('Editing daily KPI progress:', progressId, 'with data:', updatedProgressData);
+      
+      await dailyKpiProgressService.update(progressId, updatedProgressData);
+      await loadDailyKpiProgress();
+    } catch (error) {
+      console.error('Error editing daily KPI progress:', error);
+      console.error('Progress data:', updatedProgressData);
+      throw error;
+    }
+  };
+
+  const deleteDailyKpiProgress = async (progressId: string) => {
+    try {
+      await dailyKpiProgressService.delete(progressId);
+      await loadDailyKpiProgress();
+    } catch (error) {
+      console.error('Error deleting daily KPI progress:', error);
+      throw error;
+    }
+  };
   
   const markNotificationAsRead = async (notificationId: string) => {
     try {
@@ -648,6 +750,7 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     users,
     kpis,
     kpiRecords,
+    dailyKpiProgress,
     notifications,
     departments,
     companies,
@@ -659,6 +762,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     editKpi,
     deleteKpi,
     assignKpi,
+    addKpiRecord,
+    editKpiRecord,
+    deleteKpiRecord,
+    addDailyKpiProgress,
+    editDailyKpiProgress,
+    deleteDailyKpiProgress,
     updateKpiRecordActual,
     submitKpiRecord,
     updateKpiRecordStatus,
@@ -686,6 +795,7 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     refreshUsers: loadUsers,
     refreshKpis: loadKpis,
     refreshKpiRecords: loadKpiRecords,
+    refreshDailyKpiProgress: loadDailyKpiProgress,
     refreshNotifications: loadNotifications,
     refreshDepartments: loadDepartments,
     refreshCompanies: loadCompanies,

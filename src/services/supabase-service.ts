@@ -21,11 +21,16 @@ type Notification = Database['public']['Tables']['notifications']['Row']
 type NotificationInsert = Database['public']['Tables']['notifications']['Insert']
 type NotificationUpdate = Database['public']['Tables']['notifications']['Update']
 
+type DailyKpiProgress = Database['public']['Tables']['daily_kpi_progress']['Row']
+type DailyKpiProgressInsert = Database['public']['Tables']['daily_kpi_progress']['Insert']
+type DailyKpiProgressUpdate = Database['public']['Tables']['daily_kpi_progress']['Update']
+
 export type { Employee, EmployeeInsert, EmployeeUpdate }
 export type { Department, DepartmentInsert, DepartmentUpdate }
 export type { Kpi, KpiInsert, KpiUpdate }
 export type { KpiRecord, KpiRecordInsert, KpiRecordUpdate }
 export type { Notification, NotificationInsert, NotificationUpdate }
+export type { DailyKpiProgress, DailyKpiProgressInsert, DailyKpiProgressUpdate }
 
 // Employee operations
 export const employeeService = {
@@ -604,5 +609,130 @@ export const notificationService = {
       .eq('id', id)
     
     if (error) throw error
+  }
+}
+
+// Daily KPI Progress operations
+export const dailyKpiProgressService = {
+  async getAll(): Promise<DailyKpiProgress[]> {
+    const { data, error } = await supabase
+      .from('daily_kpi_progress')
+      .select('*')
+      .eq('is_active', true)
+      .order('date', { ascending: false })
+    
+    if (error) {
+      const enriched = new Error(
+        `Supabase daily_kpi_progress.getAll failed: ${(error as any)?.message || 'Unknown error'}${(error as any)?.code ? ` (code ${(error as any).code})` : ''}`
+      ) as Error & { code?: string; details?: string; hint?: string }
+      enriched.code = (error as any)?.code
+      enriched.details = (error as any)?.details
+      enriched.hint = (error as any)?.hint
+      throw enriched
+    }
+    return data || []
+  },
+
+  async getByDateRange(startDate: string, endDate: string): Promise<DailyKpiProgress[]> {
+    const { data, error } = await supabase
+      .from('daily_kpi_progress')
+      .select('*')
+      .eq('is_active', true)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getByDepartment(departmentId: string): Promise<DailyKpiProgress[]> {
+    const { data, error } = await supabase
+      .from('daily_kpi_progress')
+      .select('*')
+      .eq('department_id', departmentId)
+      .eq('is_active', true)
+      .order('date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getByEmployee(employeeId: string): Promise<DailyKpiProgress[]> {
+    const { data, error } = await supabase
+      .from('daily_kpi_progress')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('is_active', true)
+      .order('date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getById(id: string): Promise<DailyKpiProgress | null> {
+    const { data, error } = await supabase
+      .from('daily_kpi_progress')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    
+    if (error) throw error
+    return data
+  },
+
+  async create(dailyProgress: DailyKpiProgressInsert): Promise<DailyKpiProgress> {
+    const { data, error } = await supabase
+      .from('daily_kpi_progress')
+      .insert(dailyProgress)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Error creating daily KPI progress:', error);
+      throw error;
+    }
+    return data
+  },
+
+  async update(id: string, updates: DailyKpiProgressUpdate): Promise<DailyKpiProgress> {
+    const { data, error } = await supabase
+      .from('daily_kpi_progress')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('daily_kpi_progress')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    
+    if (error) throw error
+  },
+
+  async getSummary(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('daily_kpi_summary')
+      .select('*')
+      .order('date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getDetails(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('daily_kpi_details')
+      .select('*')
+      .order('date', { ascending: false })
+    
+    if (error) throw error
+    return data || []
   }
 }

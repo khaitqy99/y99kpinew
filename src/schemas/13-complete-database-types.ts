@@ -1,11 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
+-- =====================================================
+-- COMPLETE DATABASE SCHEMA
+-- Schema hoàn chỉnh cho hệ thống quản lý KPI
+-- =====================================================
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xfvtyrfkrahrtotillfw.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdnR5cmZrcmFocnRvdGlsbGZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5MzkyODMsImV4cCI6MjA3NjUxNTI4M30.KxJVEMPxQdo-uChZ5cvv3ne7GDfReQ1sCaY-wXxG9Kk'
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// Database types cho schema đầy đủ và nhất quán
+-- Database types cho schema đầy đủ và nhất quán
 export type Database = {
   public: {
     Tables: {
@@ -19,6 +17,10 @@ export type Database = {
           phone?: string
           address?: string
           logo_url?: string
+          website?: string
+          tax_code?: string
+          business_license?: string
+          founded_date?: string
           is_active: boolean
           created_at: string
           updated_at: string
@@ -32,6 +34,10 @@ export type Database = {
           phone?: string
           address?: string
           logo_url?: string
+          website?: string
+          tax_code?: string
+          business_license?: string
+          founded_date?: string
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -45,6 +51,10 @@ export type Database = {
           phone?: string
           address?: string
           logo_url?: string
+          website?: string
+          tax_code?: string
+          business_license?: string
+          founded_date?: string
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -58,6 +68,13 @@ export type Database = {
           code: string
           description?: string
           manager_id?: string
+          parent_department_id?: string
+          level: number
+          budget?: number
+          cost_center?: string
+          location?: string
+          phone?: string
+          email?: string
           is_active: boolean
           created_at: string
           updated_at: string
@@ -69,6 +86,13 @@ export type Database = {
           code: string
           description?: string
           manager_id?: string
+          parent_department_id?: string
+          level?: number
+          budget?: number
+          cost_center?: string
+          location?: string
+          phone?: string
+          email?: string
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -80,6 +104,13 @@ export type Database = {
           code?: string
           description?: string
           manager_id?: string
+          parent_department_id?: string
+          level?: number
+          budget?: number
+          cost_center?: string
+          location?: string
+          phone?: string
+          email?: string
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -94,6 +125,7 @@ export type Database = {
           description?: string
           level: number
           permissions: any[]
+          is_system_role: boolean
           is_active: boolean
           created_at: string
           updated_at: string
@@ -106,6 +138,7 @@ export type Database = {
           description?: string
           level?: number
           permissions?: any[]
+          is_system_role?: boolean
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -118,6 +151,7 @@ export type Database = {
           description?: string
           level?: number
           permissions?: any[]
+          is_system_role?: boolean
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -137,11 +171,13 @@ export type Database = {
           manager_id?: string
           position: string
           level: number
-          salary: number
+          salary?: number
           currency: string
           hire_date: string
           contract_type: string
-          status: 'active' | 'inactive' | 'suspended' | 'terminated'
+          contract_start_date?: string
+          contract_end_date?: string
+          status: 'active' | 'inactive' | 'suspended' | 'terminated' | 'on_leave'
           is_active: boolean
           password_hash: string
           last_login?: string
@@ -167,7 +203,9 @@ export type Database = {
           currency?: string
           hire_date?: string
           contract_type?: string
-          status?: 'active' | 'inactive' | 'suspended' | 'terminated'
+          contract_start_date?: string
+          contract_end_date?: string
+          status?: 'active' | 'inactive' | 'suspended' | 'terminated' | 'on_leave'
           is_active?: boolean
           password_hash: string
           last_login?: string
@@ -193,7 +231,9 @@ export type Database = {
           currency?: string
           hire_date?: string
           contract_type?: string
-          status?: 'active' | 'inactive' | 'suspended' | 'terminated'
+          contract_start_date?: string
+          contract_end_date?: string
+          status?: 'active' | 'inactive' | 'suspended' | 'terminated' | 'on_leave'
           is_active?: boolean
           password_hash?: string
           last_login?: string
@@ -206,16 +246,17 @@ export type Database = {
       kpis: {
         Row: {
           id: string
+          company_id: string
           name: string
-          description: string
+          description?: string
           department_id: string
           target: number
           unit: string
           frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-          category: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth'
+          category: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth' | 'financial' | 'customer' | 'innovation'
           weight: number
           status: 'active' | 'inactive' | 'paused' | 'archived'
-          reward_penalty_config: string
+          reward_penalty_config: any
           created_by: string
           is_active: boolean
           created_at: string
@@ -223,16 +264,17 @@ export type Database = {
         }
         Insert: {
           id?: string
+          company_id: string
           name: string
-          description: string
+          description?: string
           department_id: string
           target: number
           unit: string
           frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-          category: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth'
+          category: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth' | 'financial' | 'customer' | 'innovation'
           weight: number
           status?: 'active' | 'inactive' | 'paused' | 'archived'
-          reward_penalty_config: string
+          reward_penalty_config: any
           created_by: string
           is_active?: boolean
           created_at?: string
@@ -240,16 +282,17 @@ export type Database = {
         }
         Update: {
           id?: string
+          company_id?: string
           name?: string
           description?: string
           department_id?: string
           target?: number
           unit?: string
           frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-          category?: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth'
+          category?: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth' | 'financial' | 'customer' | 'innovation'
           weight?: number
           status?: 'active' | 'inactive' | 'paused' | 'archived'
-          reward_penalty_config?: string
+          reward_penalty_config?: any
           created_by?: string
           is_active?: boolean
           created_at?: string
@@ -274,8 +317,8 @@ export type Database = {
           approved_by?: string
           submission_details: string
           attachment?: string
-          bonus_amount?: number
-          penalty_amount?: number
+          bonus_amount: number
+          penalty_amount: number
           score?: number
           is_active: boolean
           created_at: string
@@ -344,6 +387,8 @@ export type Database = {
           kpi_id?: string
           kpi_name: string
           actual_result: number
+          target_result?: number
+          progress_percentage?: number
           notes?: string
           created_by?: string
           is_active: boolean
@@ -360,6 +405,8 @@ export type Database = {
           kpi_id?: string
           kpi_name: string
           actual_result: number
+          target_result?: number
+          progress_percentage?: number
           notes?: string
           created_by?: string
           is_active?: boolean
@@ -376,6 +423,8 @@ export type Database = {
           kpi_id?: string
           kpi_name?: string
           actual_result?: number
+          target_result?: number
+          progress_percentage?: number
           notes?: string
           created_by?: string
           is_active?: boolean
@@ -393,6 +442,11 @@ export type Database = {
           title: string
           message: string
           read: boolean
+          read_at?: string
+          action_url?: string
+          metadata: any
+          sender_id?: string
+          expires_at?: string
           is_active: boolean
           created_at: string
           updated_at: string
@@ -406,6 +460,11 @@ export type Database = {
           title: string
           message: string
           read?: boolean
+          read_at?: string
+          action_url?: string
+          metadata?: any
+          sender_id?: string
+          expires_at?: string
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -419,6 +478,193 @@ export type Database = {
           title?: string
           message?: string
           read?: boolean
+          read_at?: string
+          action_url?: string
+          metadata?: any
+          sender_id?: string
+          expires_at?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      bonus_configs: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          description?: string
+          amount: number
+          currency: string
+          frequency: string
+          conditions: any[]
+          is_active: boolean
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          description?: string
+          amount: number
+          currency?: string
+          frequency: string
+          conditions: any[]
+          is_active?: boolean
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          description?: string
+          amount?: number
+          currency?: string
+          frequency?: string
+          conditions?: any[]
+          is_active?: boolean
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      penalty_configs: {
+        Row: {
+          id: string
+          company_id: string
+          name: string
+          description?: string
+          amount: number
+          currency: string
+          conditions: any[]
+          is_active: boolean
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_id: string
+          name: string
+          description?: string
+          amount: number
+          currency?: string
+          conditions: any[]
+          is_active?: boolean
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_id?: string
+          name?: string
+          description?: string
+          amount?: number
+          currency?: string
+          conditions?: any[]
+          is_active?: boolean
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      feedback: {
+        Row: {
+          id: string
+          kpi_record_id: string
+          author_id: string
+          author_name: string
+          comment: string
+          type: string
+          rating?: number
+          is_visible_to_employee: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          kpi_record_id: string
+          author_id: string
+          author_name: string
+          comment: string
+          type: string
+          rating?: number
+          is_visible_to_employee?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          kpi_record_id?: string
+          author_id?: string
+          author_name?: string
+          comment?: string
+          type?: string
+          rating?: number
+          is_visible_to_employee?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      bonus_penalty_records: {
+        Row: {
+          id: string
+          employee_id: string
+          kpi_record_id?: string
+          bonus_config_id?: string
+          penalty_config_id?: string
+          amount: number
+          currency: string
+          type: string
+          reason: string
+          period: string
+          status: string
+          approved_by?: string
+          approved_at?: string
+          paid_at?: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          kpi_record_id?: string
+          bonus_config_id?: string
+          penalty_config_id?: string
+          amount: number
+          currency?: string
+          type: string
+          reason: string
+          period: string
+          status?: string
+          approved_by?: string
+          approved_at?: string
+          paid_at?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          kpi_record_id?: string
+          bonus_config_id?: string
+          penalty_config_id?: string
+          amount?: number
+          currency?: string
+          type?: string
+          reason?: string
+          period?: string
+          status?: string
+          approved_by?: string
+          approved_at?: string
+          paid_at?: string
           is_active?: boolean
           created_at?: string
           updated_at?: string

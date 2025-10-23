@@ -18,6 +18,7 @@ import {
   PanelLeft,
   DollarSign,
   User,
+  Calendar,
 } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,6 +39,7 @@ import { SessionContext } from '@/contexts/SessionContext';
 const adminNavItems = [
   { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
   { href: '/admin/kpis', icon: FileText, label: 'Quản lý KPI' },
+  { href: '/admin/daily-kpi-progress', icon: Calendar, label: 'Tiến độ hàng ngày' },
   { href: '/admin/assign', icon: CheckCircle2, label: 'Giao KPI' },
   { href: '/admin/approval', icon: FileCheck, label: 'Duyệt KPI' },
   { href: '/admin/bonus-calculation', icon: Calculator, label: 'Tính thưởng' },
