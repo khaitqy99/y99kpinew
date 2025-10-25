@@ -31,6 +31,7 @@ import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { formatDateToLocal } from '@/lib/utils';
 import type { Employee } from '@/services/supabase-service';
 import { roleService } from '@/services/supabase-service';
 import { companyService } from '@/services/supabase-service';
@@ -148,7 +149,7 @@ export function UsersDepartmentsTab() {
         level: level,
         salary: 0,
         currency: 'VND',
-        hire_date: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD
+        hire_date: formatDateToLocal(new Date()), // Format YYYY-MM-DD using local timezone
         contract_type: 'full_time',
         status: 'active',
         is_active: true,

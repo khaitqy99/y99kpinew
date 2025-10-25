@@ -57,7 +57,7 @@ import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { KpiRecord as KpiRecordType, Kpi as KpiType } from '@/services/supabase-service';
 import { useToast } from '@/hooks/use-toast';
 import { uploadFile } from '@/ai/flows/upload-file';
-import { getCurrentQuarterLabel, generatePeriodOptions } from '@/lib/period-utils';
+import { getCurrentQuarterLabel, generatePeriodOptions, getPeriodLabel } from '@/lib/period-utils';
 import { bonusPenaltyService, BonusPenaltyRecord } from '@/services/bonus-penalty-service';
 
 type MappedKpi = KpiRecordType & {
@@ -185,7 +185,7 @@ const BonusPenaltyDetailDialog: React.FC<{
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium text-muted-foreground">Thời kỳ</Label>
-              <div className="mt-1 text-sm">{record.period}</div>
+              <div className="mt-1 text-sm">{getPeriodLabel(record.period)}</div>
             </div>
             
             <div>

@@ -12,8 +12,9 @@ export interface PeriodOption {
 }
 
 /**
- * Generate period options for the current year and previous year
+ * Generate period options for the current year and next year
  * Includes quarters and months for better granularity
+ * Starts from current year quarters to next year quarters
  */
 export function generatePeriodOptions(): PeriodOption[] {
   const currentDate = new Date();
@@ -34,13 +35,13 @@ export function generatePeriodOptions(): PeriodOption[] {
     });
   }
   
-  // Generate quarters for previous year
+  // Generate quarters for next year
   for (let quarter = 1; quarter <= 4; quarter++) {
     periods.push({
-      value: `Q${quarter}-${currentYear - 1}`,
-      label: `Quý ${quarter} ${currentYear - 1}`,
+      value: `Q${quarter}-${currentYear + 1}`,
+      label: `Quý ${quarter} ${currentYear + 1}`,
       type: 'quarter',
-      year: currentYear - 1,
+      year: currentYear + 1,
       quarter: quarter
     });
   }
@@ -56,18 +57,25 @@ export function generatePeriodOptions(): PeriodOption[] {
     });
   }
   
-  // Sort periods by year and quarter/month
+  // Generate months for next year (first 6 months)
+  for (let month = 1; month <= 6; month++) {
+    periods.push({
+      value: `M${month}-${currentYear + 1}`,
+      label: `Tháng ${month} ${currentYear + 1}`,
+      type: 'month',
+      year: currentYear + 1,
+      month: month
+    });
+  }
+  
+  // Sort periods to prioritize current and next year quarters first
   return periods.sort((a, b) => {
-    if (a.year !== b.year) {
-      return b.year - a.year; // Newer years first
-    }
-    
+    // First priority: quarters of current and next year
     if (a.type === 'quarter' && b.type === 'quarter') {
-      return (b.quarter || 0) - (a.quarter || 0);
-    }
-    
-    if (a.type === 'month' && b.type === 'month') {
-      return (b.month || 0) - (a.month || 0);
+      if (a.year !== b.year) {
+        return a.year - b.year; // Current year first, then next year
+      }
+      return a.quarter! - b.quarter!; // Q1, Q2, Q3, Q4 order
     }
     
     // Quarters come before months
@@ -75,7 +83,19 @@ export function generatePeriodOptions(): PeriodOption[] {
       return -1;
     }
     
-    return 1;
+    if (a.type === 'month' && b.type === 'quarter') {
+      return 1;
+    }
+    
+    // For months, sort by year and month
+    if (a.type === 'month' && b.type === 'month') {
+      if (a.year !== b.year) {
+        return a.year - b.year; // Current year first, then next year
+      }
+      return b.month! - a.month!; // Newer months first within same year
+    }
+    
+    return 0;
   });
 }
 
@@ -110,4 +130,58 @@ export function getCurrentQuarterLabel(): string {
   const currentQuarter = Math.ceil(currentMonth / 3);
   
   return `Quý ${currentQuarter} ${currentYear}`;
+}
+
+/**
+ * Get start and end dates for a period
+ */
+export function getPeriodDateRange(periodValue: string): { startDate: Date; endDate: Date } {
+  const periods = generatePeriodOptions();
+  const period = periods.find(p => p.value === periodValue);
+  
+  if (!period) {
+    // Default to current quarter if period not found
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentQuarter = Math.ceil(currentMonth / 3);
+    
+    return getQuarterDateRange(currentYear, currentQuarter);
+  }
+  
+  if (period.type === 'quarter') {
+    return getQuarterDateRange(period.year, period.quarter!);
+  } else if (period.type === 'month') {
+    return getMonthDateRange(period.year, period.month!);
+  }
+  
+  // Fallback
+  const currentDate = new Date();
+  return {
+    startDate: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
+    endDate: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+  };
+}
+
+/**
+ * Get quarter date range
+ */
+function getQuarterDateRange(year: number, quarter: number): { startDate: Date; endDate: Date } {
+  const startMonth = (quarter - 1) * 3;
+  const endMonth = startMonth + 2;
+  
+  return {
+    startDate: new Date(year, startMonth, 1),
+    endDate: new Date(year, endMonth + 1, 0) // Last day of the month
+  };
+}
+
+/**
+ * Get month date range
+ */
+function getMonthDateRange(year: number, month: number): { startDate: Date; endDate: Date } {
+  return {
+    startDate: new Date(year, month - 1, 1),
+    endDate: new Date(year, month, 0) // Last day of the month
+  };
 }

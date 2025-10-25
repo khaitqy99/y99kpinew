@@ -54,6 +54,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { formatDateToLocal } from '@/lib/utils';
+import { getPeriodLabel } from '@/lib/period-utils';
 import type { Kpi, KpiRecord } from '@/services/supabase-service';
 
 // Lazy load components
@@ -87,7 +89,7 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
   // Daily progress form state
   const [isDailyFormOpen, setIsDailyFormOpen] = useState(false);
   const [dailyFormData, setDailyFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: formatDateToLocal(new Date()),
     department: '',
     responsiblePerson: '',
     kpiName: '',
@@ -244,7 +246,7 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
 
       // Reset form
       setDailyFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: formatDateToLocal(new Date()),
         department: '',
         responsiblePerson: '',
         kpiName: '',
@@ -672,7 +674,7 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
                           {kpi?.name || 'N/A'}
                         </TableCell>
                         <TableCell>{kpi?.department || 'N/A'}</TableCell>
-                        <TableCell>{record.period}</TableCell>
+                        <TableCell>{getPeriodLabel(record.period)}</TableCell>
                         <TableCell>{record.target}{kpi?.unit || ''}</TableCell>
                         <TableCell>{record.actual}{kpi?.unit || ''}</TableCell>
                         <TableCell>

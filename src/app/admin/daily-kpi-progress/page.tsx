@@ -49,6 +49,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { formatDateToLocal } from '@/lib/utils';
 import type { Kpi, DailyKpiProgress } from '@/services/supabase-service';
 
 export default function DailyKpiProgressPage() {
@@ -81,7 +82,7 @@ export default function DailyKpiProgressPage() {
   }, [users, departments, kpis, dailyKpiProgress, contextLoading]);
   
   const [dailyFormData, setDailyFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: formatDateToLocal(new Date()),
     department: '',
     responsiblePerson: '',
     kpiName: '',
@@ -185,7 +186,7 @@ export default function DailyKpiProgressPage() {
 
       // Reset form
       setDailyFormData({
-        date: new Date().toISOString().split('T')[0],
+        date: formatDateToLocal(new Date()),
         department: '',
         responsiblePerson: '',
         kpiName: '',

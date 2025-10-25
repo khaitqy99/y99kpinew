@@ -5,7 +5,7 @@ import { CalendarIcon, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 
-import { cn } from '@/lib/utils';
+import { cn, formatDateToLocal } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,7 +47,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
-import { generatePeriodOptions, getDefaultPeriod, getPeriodLabel } from '@/lib/period-utils';
+import { generatePeriodOptions, getDefaultPeriod, getPeriodLabel, getPeriodDateRange } from '@/lib/period-utils';
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
   not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
@@ -149,13 +149,13 @@ export default function AssignKpiPage() {
         kpi_id: selectedKpi.id,
         employee_id: assignmentType === 'employee' ? selectedEmployee?.id : null,
         department_id: assignmentType === 'department' ? selectedDepartmentId : null,
-        period: `${date.from.toISOString().split('T')[0]} to ${date.to.toISOString().split('T')[0]}`, // Format period as string
+        period: selectedPeriod, // Use the selected period value (e.g., "Q1-2025")
         target: selectedKpi.target,
         actual: 0,
         progress: 0,
         status: 'not_started',
-        start_date: date.from.toISOString().split('T')[0], // Format as date string
-        end_date: date.to.toISOString().split('T')[0], // Format as date string
+        start_date: formatDateToLocal(date.from), // Format as date string using local timezone
+        end_date: formatDateToLocal(date.to), // Format as date string using local timezone
         submission_details: '',
         attachment: null,
         feedback: [],
@@ -404,7 +404,7 @@ export default function AssignKpiPage() {
                     )}
                   </TableCell>
                   <TableCell>{item.kpiName}</TableCell>
-                  <TableCell>{item.period}</TableCell>
+                  <TableCell>{getPeriodLabel(item.period)}</TableCell>
                   <TableCell>
                     {format(new Date((item as any).start_date), 'dd/MM/yy')} - {format(new Date((item as any).end_date), 'dd/MM/yy')}
                   </TableCell>
@@ -490,7 +490,7 @@ export default function AssignKpiPage() {
                         </div>
                          <div>
                             <p className="font-medium text-muted-foreground">Kỳ</p>
-                            <p>{selectedRecord.period}</p>
+                            <p>{getPeriodLabel(selectedRecord.period)}</p>
                         </div>
                          <div>
                             <p className="font-medium text-muted-foreground">Thời gian</p>

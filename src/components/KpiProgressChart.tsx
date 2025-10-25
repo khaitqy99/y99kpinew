@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getPeriodLabel } from '@/lib/period-utils';
 import type { Kpi } from '@/services/supabase-service';
 
 interface KpiProgressChartProps {
@@ -82,7 +83,7 @@ const KpiProgressChart: React.FC<KpiProgressChartProps> = ({ open, onOpenChange,
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">{maxProgress}%</div>
                 <p className="text-xs text-muted-foreground">
-                  Kỳ {mockChartData.find(d => d.progress === maxProgress)?.period}
+                  Kỳ {getPeriodLabel(mockChartData.find(d => d.progress === maxProgress)?.period || '')}
                 </p>
               </CardContent>
             </Card>
@@ -123,7 +124,7 @@ const KpiProgressChart: React.FC<KpiProgressChartProps> = ({ open, onOpenChange,
                   {mockChartData.map((data, index) => (
                     <div key={data.period} className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{data.period}</span>
+                        <span className="font-medium">{getPeriodLabel(data.period)}</span>
                         <span className="text-muted-foreground">{data.progress}%</span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2">
