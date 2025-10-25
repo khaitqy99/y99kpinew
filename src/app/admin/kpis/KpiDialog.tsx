@@ -49,8 +49,8 @@ const KpiDialog: React.FC<{
   const frequencies = useMemo(() => {
     const existing = getFrequencies();
     if (existing && existing.length > 0) return existing;
-    return ['monthly', 'quarterly', 'annually'];
-  }, []);
+    return ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
+  }, [getFrequencies]);
 
   // Optimize form reset
   const resetForm = useCallback(() => {

@@ -738,7 +738,13 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   // Getter functions
   const getDepartments = useCallback(() => [...departments].sort((a, b) => a.name.localeCompare(b.name)), [departments]);
   const getDepartmentNames = useCallback(() => [...new Set(departments.map(d => d.name))].sort(), [departments]);
-  const getFrequencies = useCallback(() => [...new Set(kpis.map(k => k.frequency))].sort(), [kpis]);
+  const getFrequencies = useCallback(() => {
+    const existingFrequencies = [...new Set(kpis.map(k => k.frequency))].sort();
+    const allSupportedFrequencies = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
+    
+    // Always return all supported frequencies
+    return allSupportedFrequencies;
+  }, [kpis]);
   const getKpiCategories = useCallback(() => [...new Set(kpis.map(k => k.category))].sort(), [kpis]);
   const getKpiStatuses = useCallback(() => [...new Set(kpiRecords.map(r => r.status))].sort(), [kpiRecords]);
   const getNotificationTypes = useCallback(() => [...new Set(notifications.map(n => n.type))].sort(), [notifications]);
