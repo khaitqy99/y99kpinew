@@ -351,7 +351,13 @@ export const kpiService = {
   async getAll(): Promise<Kpi[]> {
     const { data, error } = await supabase
       .from('kpis')
-      .select('*')
+      .select(`
+        *,
+        departments!kpis_department_id_fkey (
+          id,
+          name
+        )
+      `)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
     
@@ -365,18 +371,37 @@ export const kpiService = {
       enriched.hint = (error as any)?.hint
       throw enriched
     }
-    return data || []
+    
+    // Transform the data to include department name
+    const transformedData = (data || []).map(kpi => ({
+      ...kpi,
+      department: (kpi as any).departments?.name || 'Unknown Department'
+    }))
+    
+    return transformedData
   },
 
   async getById(id: string): Promise<Kpi | null> {
     const { data, error } = await supabase
       .from('kpis')
-      .select('*')
+      .select(`
+        *,
+        departments!kpis_department_id_fkey (
+          id,
+          name
+        )
+      `)
       .eq('id', id)
       .maybeSingle()
     
     if (error) throw error
-    return data
+    if (!data) return null
+    
+    // Transform the data to include department name
+    return {
+      ...data,
+      department: (data as any).departments?.name || 'Unknown Department'
+    }
   },
 
   async create(kpi: KpiInsert): Promise<Kpi> {

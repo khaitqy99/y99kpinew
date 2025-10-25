@@ -380,11 +380,19 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Không tìm thấy công ty mặc định');
       }
 
+      // Find department by name to get department_id
+      const departmentName = (kpiData as any).department;
+      const department = departments.find(d => d.name === departmentName);
+      if (!department) {
+        throw new Error(`Không tìm thấy phòng ban: ${departmentName}`);
+      }
+
       // Map UI fields to DB columns; avoid sending unknown fields
       const payload: any = {
         company_id: company.id,
         name: (kpiData as any).name,
         description: (kpiData as any).description || null,
+        department_id: department.id, // Use department_id instead of department name
         target: Number((kpiData as any).target) || null,
         unit: (kpiData as any).unit || null,
         frequency: (kpiData as any).frequency || null,
@@ -405,6 +413,17 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   
   const editKpi = async (kpiId: string, updatedKpiData: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => {
     try {
+      // Find department by name to get department_id if department is being updated
+      let departmentId = null;
+      if ((updatedKpiData as any).department) {
+        const departmentName = (updatedKpiData as any).department;
+        const department = departments.find(d => d.name === departmentName);
+        if (!department) {
+          throw new Error(`Không tìm thấy phòng ban: ${departmentName}`);
+        }
+        departmentId = department.id;
+      }
+
       const updates: any = {
         name: (updatedKpiData as any).name,
         description: (updatedKpiData as any).description || null,
@@ -416,6 +435,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         status: (updatedKpiData as any).status || 'active',
         reward_penalty_config: (updatedKpiData as any).rewardPenaltyConfig || null,
       }
+      
+      // Only update department_id if department is being changed
+      if (departmentId) {
+        updates.department_id = departmentId;
+      }
+      
       await kpiService.update(kpiId, updates);
       await loadKpis();
     } catch (error) {
