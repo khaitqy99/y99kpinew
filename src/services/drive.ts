@@ -117,9 +117,27 @@ export class DriveService {
 
         return file.data.webViewLink;
 
-      } catch (error) {
+      } catch (error: any) {
         lastError = error;
-        console.error(`Upload attempt ${attempt} failed:`, error);
+        
+        // Extract detailed error information
+        let errorDetails = 'Unknown error';
+        if (error?.response) {
+          // Google API error response
+          errorDetails = `Status: ${error.response.status}, Message: ${error.response.statusText || JSON.stringify(error.response.data || {})}`;
+        } else if (error?.message) {
+          errorDetails = error.message;
+        } else if (typeof error === 'string') {
+          errorDetails = error;
+        }
+        
+        console.error(`Upload attempt ${attempt}/${maxRetries} failed:`, {
+          error: errorDetails,
+          fileName,
+          fileSize: `${(buffer.length / (1024 * 1024)).toFixed(2)}MB`,
+          errorType: error?.code || error?.name || 'Unknown',
+          fullError: error
+        });
         
         // If this is not the last attempt, wait before retrying
         if (attempt < maxRetries) {
@@ -131,7 +149,40 @@ export class DriveService {
     }
 
     // If all retries failed
-    console.error('All upload attempts failed:', lastError);
-    throw new Error(`Failed to upload file after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
+    console.error('All upload attempts failed:', {
+      fileName,
+      lastError,
+      errorMessage: lastError?.message,
+      errorCode: lastError?.code,
+      errorResponse: lastError?.response
+    });
+    
+    // Provide more specific error messages
+    let userFriendlyError = 'Không thể upload file. Vui lòng thử lại sau.';
+    
+    if (lastError?.response) {
+      const status = lastError.response.status;
+      if (status === 401 || status === 403) {
+        userFriendlyError = 'Lỗi xác thực Google Drive. Vui lòng kiểm tra lại cấu hình token.';
+      } else if (status === 404) {
+        userFriendlyError = 'Không tìm thấy thư mục trên Google Drive. Vui lòng kiểm tra lại GOOGLE_DRIVE_FOLDER_ID.';
+      } else if (status === 429) {
+        userFriendlyError = 'Quá nhiều yêu cầu. Vui lòng đợi và thử lại sau.';
+      } else if (status >= 500) {
+        userFriendlyError = 'Lỗi server Google Drive. Vui lòng thử lại sau.';
+      } else {
+        userFriendlyError = `Lỗi từ Google Drive (${status}): ${lastError.response.statusText || 'Unknown error'}`;
+      }
+    } else if (lastError?.message) {
+      if (lastError.message.includes('timeout')) {
+        userFriendlyError = 'Upload quá lâu. Vui lòng kiểm tra kết nối mạng hoặc thử lại với file nhỏ hơn.';
+      } else if (lastError.message.includes('unexpected response')) {
+        userFriendlyError = 'Phản hồi không đúng định dạng từ server. Có thể do token Google Drive hết hạn hoặc lỗi kết nối.';
+      } else {
+        userFriendlyError = lastError.message;
+      }
+    }
+    
+    throw new Error(userFriendlyError);
   }
 }

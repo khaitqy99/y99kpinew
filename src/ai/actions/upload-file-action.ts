@@ -30,13 +30,25 @@ const uploadFileFlow = ai.defineFlow(
     outputSchema: UploadFileOutputSchema,
   },
   async (input) => {
-    const driveService = new DriveService();
-    const fileUrl = await driveService.uploadFile(
-      input.fileName,
-      input.fileContent,
-      input.mimeType
-    );
-    return { fileUrl };
+    try {
+      const driveService = new DriveService();
+      const fileUrl = await driveService.uploadFile(
+        input.fileName,
+        input.fileContent,
+        input.mimeType
+      );
+      return { fileUrl };
+    } catch (error: any) {
+      console.error('Upload file flow error:', {
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        fileContentLength: input.fileContent?.length || 0,
+        error: error?.message || error,
+        stack: error?.stack
+      });
+      // Re-throw with better error message
+      throw error;
+    }
   }
 );
 

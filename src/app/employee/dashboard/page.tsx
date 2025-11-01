@@ -245,16 +245,21 @@ export default function EmployeeDashboardPage() {
             console.error(`Error uploading file ${file.name}:`, uploadError);
             
             // Provide more specific error messages
-            let errorMessage = 'Unknown error';
+            let errorMessage = 'Lỗi không xác định';
             if (uploadError instanceof Error) {
-              if (uploadError.message.includes('Transient failure')) {
-                errorMessage = 'Lỗi tạm thời từ Google Drive. Vui lòng thử lại sau.';
-              } else if (uploadError.message.includes('timeout')) {
-                errorMessage = 'Upload quá lâu. Vui lòng kiểm tra kết nối mạng.';
-              } else if (uploadError.message.includes('too large')) {
+              const msg = uploadError.message.toLowerCase();
+              if (msg.includes('transient failure') || msg.includes('network')) {
+                errorMessage = 'Lỗi kết nối tạm thời. Vui lòng kiểm tra mạng và thử lại.';
+              } else if (msg.includes('timeout')) {
+                errorMessage = 'Upload quá lâu. Vui lòng kiểm tra kết nối mạng hoặc thử lại với file nhỏ hơn.';
+              } else if (msg.includes('too large')) {
                 errorMessage = 'File quá lớn. Kích thước tối đa là 100MB.';
-              } else if (uploadError.message.includes('permission')) {
-                errorMessage = 'Không có quyền truy cập Google Drive.';
+              } else if (msg.includes('permission') || msg.includes('401') || msg.includes('403')) {
+                errorMessage = 'Lỗi xác thực Google Drive. Vui lòng liên hệ admin.';
+              } else if (msg.includes('unexpected response')) {
+                errorMessage = 'Lỗi phản hồi từ server. Có thể do token Google Drive hết hạn hoặc lỗi cấu hình.';
+              } else if (msg.includes('404') || msg.includes('không tìm thấy')) {
+                errorMessage = 'Không tìm thấy thư mục trên Google Drive. Vui lòng liên hệ admin.';
               } else {
                 errorMessage = uploadError.message;
               }
