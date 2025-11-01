@@ -1,23 +1,65 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+import { existsSync } from 'fs';
 import { config } from 'dotenv';
 
-// Load environment variables
-config({ path: '.env.local' });
-config({ path: '.env' });
+// Load environment variables only in development or if .env files exist
+// In production, environment variables should be set by the platform (Firebase App Hosting, etc.)
+if (process.env.NODE_ENV !== 'production') {
+  // Try to load .env.local first, then .env
+  if (existsSync('.env.local')) {
+    config({ path: '.env.local' });
+  }
+  if (existsSync('.env')) {
+    config({ path: '.env' });
+  }
+} else {
+  // In production, log if env vars are missing for debugging
+  const requiredVars = [
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'GOOGLE_OAUTH_REDIRECT_URI',
+    'GOOGLE_OAUTH_REFRESH_TOKEN',
+    'GOOGLE_DRIVE_FOLDER_ID'
+  ];
+  
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  if (missingVars.length > 0) {
+    console.error('Missing required environment variables in production:', missingVars);
+  }
+}
 
 export class DriveService {
   private drive;
 
   constructor() {
+    // Validate required environment variables
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI;
+    const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+
+    if (!clientId || !clientSecret || !redirectUri || !refreshToken) {
+      const missing = [];
+      if (!clientId) missing.push('GOOGLE_CLIENT_ID');
+      if (!clientSecret) missing.push('GOOGLE_CLIENT_SECRET');
+      if (!redirectUri) missing.push('GOOGLE_OAUTH_REDIRECT_URI');
+      if (!refreshToken) missing.push('GOOGLE_OAUTH_REFRESH_TOKEN');
+      
+      throw new Error(
+        `Missing required Google OAuth environment variables: ${missing.join(', ')}\n` +
+        'Please ensure these are set in your production environment variables.'
+      );
+    }
+
     const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_OAUTH_REDIRECT_URI
+      clientId,
+      clientSecret,
+      redirectUri
     );
 
     oauth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_OAUTH_REFRESH_TOKEN,
+      refresh_token: refreshToken,
     });
 
     this.drive = google.drive({
@@ -27,7 +69,13 @@ export class DriveService {
   }
 
   public async uploadFile(fileName: string, base64Content: string, mimeType: string): Promise<string> {
-    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID!;
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    
+    if (!folderId) {
+      throw new Error(
+        'GOOGLE_DRIVE_FOLDER_ID is not set. Please configure this environment variable in your production settings.'
+      );
+    }
     
     // First, verify the folder exists and we have access to it
     try {
