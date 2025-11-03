@@ -146,9 +146,6 @@ export default function EmployeeAccountPage() {
               <User className="h-5 w-5" />
               Cài đặt tài khoản
             </CardTitle>
-            <CardDescription>
-              Quản lý bảo mật và cài đặt tài khoản
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">

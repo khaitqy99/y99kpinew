@@ -8,7 +8,23 @@ import {
   FileCheck,
   Loader2,
   Upload,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  ArrowUpRight,
+  DollarSign,
+  X,
+  File,
 } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,6 +61,7 @@ import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import { EmployeeBonusPenaltySummary } from '@/components/EmployeeBonusPenaltySummary';
 import { useToast } from '@/hooks/use-toast';
 import { uploadFile } from '@/ai/flows/upload-file';
+import Link from 'next/link';
 
 interface KpiRecord {
   id: string;
@@ -80,7 +97,6 @@ export default function EmployeeDashboardPage() {
   
   // State for modals
   const [isSubmitModalOpen, setSubmitModalOpen] = useState(false);
-  const [isKpiDetailModalOpen, setKpiDetailModalOpen] = useState(false);
   const [selectedKpi, setSelectedKpi] = useState<KpiRecord | null>(null);
   const [submissionDetails, setSubmissionDetails] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -112,12 +128,68 @@ export default function EmployeeDashboardPage() {
   const completedCount = kpiData.filter(kpi => kpi.status === 'completed' || kpi.status === 'approved').length;
   const pendingCount = kpiData.filter(kpi => kpi.status === 'pending_approval').length;
   const overdueCount = kpiData.filter(kpi => kpi.status === 'overdue').length;
+  const inProgressCount = kpiData.filter(kpi => kpi.status === 'pending').length;
+  const totalKpis = kpiData.length;
+  const averageCompletionRate = kpiData.length > 0 
+    ? Math.round(kpiData.reduce((sum, kpi) => sum + kpi.completionPercentage, 0) / kpiData.length)
+    : 0;
+
+  // Helper function to get month name in Vietnamese
+  const getMonthName = (monthIndex: number) => {
+    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    return months[monthIndex];
+  };
+
+  // Calculate chart data from KPI records
+  const kpiChartData = useMemo(() => {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    // Get last 6 months
+    const chartData = [];
+    for (let i = 5; i >= 0; i--) {
+      const targetMonth = (currentMonth - i + 12) % 12;
+      const targetYear = currentMonth - i < 0 ? currentYear - 1 : currentYear;
+      
+      // Filter KPI records for this month
+      const monthRecords = kpiData.filter(record => {
+        const recordDate = new Date(record.created_at || record.createdAt || record.submission_date || record.submissionDate);
+        if (isNaN(recordDate.getTime())) return false;
+        return recordDate.getMonth() === targetMonth && recordDate.getFullYear() === targetYear;
+      });
+
+      const avgCompletion = monthRecords.length > 0
+        ? Math.round(monthRecords.reduce((sum, r) => sum + (r.completionPercentage || 0), 0) / monthRecords.length)
+        : 0;
+      
+      chartData.push({
+        name: getMonthName(targetMonth),
+        completed: avgCompletion,
+        month: targetMonth,
+        year: targetYear,
+        totalRecords: monthRecords.length
+      });
+    }
+    
+    return chartData;
+  }, [kpiData]);
+
+  // Get pending KPIs for table
+  const pendingKpis = kpiData
+    .filter(kpi => kpi.status === 'pending_approval')
+    .slice(0, 3)
+    .map(kpi => ({
+      id: kpi.id,
+      title: kpi.kpis?.name || 'N/A',
+      progress: kpi.completionPercentage,
+      status: 'Chờ duyệt',
+    }));
 
 
   // Event handlers
   const handleKpiRowClick = useCallback((kpi: KpiRecord) => {
     setSelectedKpi(kpi);
-    setKpiDetailModalOpen(true);
   }, []);
 
   const handleSubmitClick = useCallback((kpi: KpiRecord) => {
@@ -319,128 +391,200 @@ export default function EmployeeDashboardPage() {
     <>
       <div className="flex min-h-screen w-full flex-col">
         <main className="flex flex-1 flex-col gap-4">
-          {/* KPI Overview & Bonus Penalty Section */}
-          <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-            {/* KPI Overview */}
+          {/* Statistics Cards - Similar to Admin */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tổng KPI</CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalKpis}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  KPI được giao cho bạn
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Hoàn thành</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{completedCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {completedCount > 0 ? 'KPI đã hoàn thành' : 'Chưa có KPI hoàn thành'}
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Chờ duyệt</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{pendingCount}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {pendingCount > 0 ? 'Đang chờ admin duyệt' : 'Không có KPI chờ duyệt'}
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tỷ lệ hoàn thành</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{averageCompletionRate}%</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {completedCount}/{totalKpis} KPI hoàn thành
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content Grid */}
+          <div className="grid gap-4 md:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            {/* KPI Progress Chart */}
+            <Card className="xl:col-span-2">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Tổng quan KPI
-                </CardTitle>
+                <CardTitle>Tiến độ KPI</CardTitle>
                 <CardDescription>
-                  Thống kê hiệu suất và tiến độ của bạn
+                  Biểu đồ tiến độ KPI trong 6 tháng gần nhất.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Progress Overview */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Tỷ lệ hoàn thành trung bình</span>
-                    <span className="text-lg font-bold">
-                      {kpiData.length > 0 
-                        ? Math.round(kpiData.reduce((sum, kpi) => sum + kpi.completionPercentage, 0) / kpiData.length)
-                        : 0}%
-                    </span>
+              <CardContent>
+                {kpiChartData.length > 0 && kpiChartData.some(item => item.totalRecords > 0) ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={kpiChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="name" 
+                        tick={{ fontSize: 12 }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        tickLine={{ stroke: 'hsl(var(--border))' }}
+                      />
+                      <YAxis 
+                        unit="%" 
+                        domain={[0, 100]}
+                        tick={{ fontSize: 12 }}
+                        axisLine={{ stroke: 'hsl(var(--border))' }}
+                        tickLine={{ stroke: 'hsl(var(--border))' }}
+                      />
+                      <Tooltip
+                        cursor={{ fill: 'hsl(var(--muted))' }}
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--background))',
+                          borderColor: 'hsl(var(--border))',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                        }}
+                        formatter={(value: number, name: string, props: any) => {
+                          const totalRecords = props.payload.totalRecords;
+                          return [
+                            `${value}%`,
+                            `Tiến độ trung bình (${totalRecords} KPI)`
+                          ];
+                        }}
+                        labelFormatter={(label: string, payload: any[]) => {
+                          if (payload && payload[0]) {
+                            const data = payload[0].payload;
+                            return `${label} ${data.year}`;
+                          }
+                          return label;
+                        }}
+                      />
+                      <Bar
+                        dataKey="completed"
+                        fill="hsl(var(--primary))"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    <div className="text-center">
+                      <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Chưa có dữ liệu KPI</p>
+                      <p className="text-xs">Dữ liệu sẽ hiển thị khi có KPI được giao</p>
+                    </div>
                   </div>
-                  <Progress 
-                    value={kpiData.length > 0 
-                      ? kpiData.reduce((sum, kpi) => sum + kpi.completionPercentage, 0) / kpiData.length
-                      : 0
-                    } 
-                    className="h-3" 
-                  />
-                </div>
-                
-                {/* Status Summary */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 rounded-lg bg-green-50 border border-green-200">
-                    <div className="text-2xl font-bold text-green-600">{completedCount}</div>
-                    <div className="text-sm text-green-700 font-medium">Hoàn thành</div>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-orange-50 border border-orange-200">
-                    <div className="text-2xl font-bold text-orange-600">{pendingCount}</div>
-                    <div className="text-sm text-orange-700 font-medium">Chờ duyệt</div>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-red-50 border border-red-200">
-                    <div className="text-2xl font-bold text-red-600">{overdueCount}</div>
-                    <div className="text-sm text-red-700 font-medium">Quá hạn</div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Bonus & Penalty */}
-            <EmployeeBonusPenaltySummary />
+            {/* Quick Actions & Bonus/Penalty */}
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap gap-2 justify-between">
+                    <Button asChild variant="default" size="sm" className="flex-1 min-w-[140px]">
+                      <Link href="/employee/kpis">Xem tất cả KPI</Link>
+                    </Button>
+                    <Button asChild variant="default" size="sm" className="flex-1 min-w-[140px]">
+                      <Link href="/employee/kpi-bonus-penalty">Xem thưởng phạt</Link>
+                    </Button>
+                    <Button asChild variant="default" size="sm" className="flex-1 min-w-[140px]">
+                      <Link href="/employee/account">Tài khoản</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Bonus & Penalty Summary */}
+              <EmployeeBonusPenaltySummary />
+            </div>
           </div>
 
-          {/* KPI Management Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                Quản lý KPI
-              </CardTitle>
-              <CardDescription>
-                Xem chi tiết và nộp báo cáo KPI của bạn
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {kpiData.length > 0 ? (
+          {/* Pending Approvals Table */}
+          {pendingKpis.length > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center">
+                <div className="grid gap-2">
+                  <CardTitle>KPI chờ duyệt</CardTitle>
+                  <CardDescription>
+                    Danh sách các KPI đang chờ được phê duyệt.
+                  </CardDescription>
+                </div>
+                <Button asChild size="sm" className="ml-auto gap-1">
+                  <Link href="/employee/kpis">
+                    Xem tất cả
+                    <ArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[200px]">KPI</TableHead>
-                      <TableHead className="w-[120px]">Mục tiêu</TableHead>
-                      <TableHead className="w-[120px]">Thực tế</TableHead>
-                      <TableHead className="w-[100px]">Tiến độ</TableHead>
-                      <TableHead className="w-[100px]">Trạng thái</TableHead>
+                      <TableHead>Tên KPI</TableHead>
+                      <TableHead>Tiến độ</TableHead>
+                      <TableHead>Trạng thái</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {kpiData.map((kpi) => (
-                      <TableRow 
-                        key={kpi.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => handleKpiRowClick(kpi)}
-                      >
-                        <TableCell className="font-medium">
-                          {kpi.kpis?.name || 'KPI'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {kpi.targetFormatted}
-                        </TableCell>
-                        <TableCell className="text-sm font-medium">
-                          {kpi.actualFormatted}
-                        </TableCell>
+                    {pendingKpis.map((kpi) => (
+                      <TableRow key={kpi.id}>
+                        <TableCell className="font-medium">{kpi.title}</TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            <Progress value={kpi.completionPercentage} className="h-2" />
-                            <span className="text-xs text-muted-foreground">
-                              {kpi.completionPercentage}%
-                            </span>
+                          <div className="flex items-center gap-2">
+                            <Progress value={kpi.progress} className="h-2 w-24" />
+                            <span className="text-xs text-muted-foreground">{kpi.progress}%</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={kpi.status === 'completed' ? 'default' : kpi.status === 'pending_approval' ? 'secondary' : 'outline'} className="text-xs">
-                            {kpi.status === 'completed' ? 'Hoàn thành' : 
-                             kpi.status === 'pending_approval' ? 'Chờ duyệt' : 
-                             kpi.status === 'overdue' ? 'Quá hạn' : 'Đang thực hiện'}
-                          </Badge>
+                          <Badge variant="secondary">{kpi.status}</Badge>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Chưa có KPI nào được giao</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
+              </CardContent>
+            </Card>
+          )}
         </main>
       </div>
 
@@ -681,150 +825,6 @@ export default function EmployeeDashboardPage() {
         </DialogContent>
       </Dialog>
 
-      {/* KPI Detail Modal */}
-      <Dialog open={isKpiDetailModalOpen && !!selectedKpi} onOpenChange={setKpiDetailModalOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Chi tiết KPI
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              {selectedKpi?.kpis?.name || 'KPI'}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-6 py-4">
-            {/* KPI Basic Information */}
-            <div className="space-y-4">
-              <div className="p-4 bg-muted/30 rounded-lg border">
-                <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Target className="h-5 w-5 text-primary" />
-                  Thông tin cơ bản
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Tên KPI</Label>
-                    <p className="text-base font-semibold text-foreground mt-1">
-                      {selectedKpi?.kpis?.name || 'Chưa có tên'}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Đơn vị</Label>
-                    <p className="text-base font-semibold text-foreground mt-1">
-                      {selectedKpi?.kpis?.unit || 'Chưa có đơn vị'}
-                    </p>
-                  </div>
-                </div>
-                {selectedKpi?.kpis?.description && (
-                  <div className="mt-4">
-                    <Label className="text-sm font-medium text-muted-foreground">Mô tả</Label>
-                    <p className="text-sm text-foreground mt-1 leading-relaxed">
-                      {selectedKpi.kpis.description}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Performance Metrics */}
-              <div className="p-4 bg-muted/30 rounded-lg border">
-                <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  Chỉ số hiệu suất
-                </h3>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <Label className="text-sm font-medium text-muted-foreground">Mục tiêu</Label>
-                    <p className="text-xl font-bold text-foreground mt-1">
-                      {selectedKpi?.targetFormatted || 'Chưa có'}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <Label className="text-sm font-medium text-muted-foreground">Thực tế</Label>
-                    <p className="text-xl font-bold text-primary mt-1">
-                      {selectedKpi?.actualFormatted || 'Chưa có'}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <Label className="text-sm font-medium text-muted-foreground">Tiến độ</Label>
-                    <p className="text-xl font-bold text-primary mt-1">
-                      {selectedKpi?.completionPercentage || 0}%
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <Progress value={selectedKpi?.completionPercentage || 0} className="h-3" />
-                </div>
-              </div>
-
-              {/* Status and Period */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-muted/30 rounded-lg border">
-                  <Label className="text-sm font-medium text-muted-foreground">Trạng thái</Label>
-                  <div className="mt-2">
-                    <Badge 
-                      variant={selectedKpi?.status === 'completed' ? 'default' : 
-                               selectedKpi?.status === 'pending_approval' ? 'secondary' : 'outline'} 
-                      className="text-sm"
-                    >
-                      {selectedKpi?.status === 'completed' ? 'Hoàn thành' : 
-                     selectedKpi?.status === 'pending_approval' ? 'Chờ duyệt' : 
-                     selectedKpi?.status === 'overdue' ? 'Quá hạn' : 'Đang thực hiện'}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="p-4 bg-muted/30 rounded-lg border">
-                  <Label className="text-sm font-medium text-muted-foreground">Kỳ đánh giá</Label>
-                  <p className="text-sm font-semibold text-foreground mt-2">
-                    {selectedKpi?.period || 'Chưa có'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Feedback Section */}
-            <div className="pt-4 border-t border-border">
-              <Label className="text-sm font-medium text-muted-foreground mb-3 block">Feedback</Label>
-              <div className="max-h-[200px] overflow-y-auto space-y-3">
-                {selectedKpi?.feedback && selectedKpi.feedback.length > 0 ? (
-                  selectedKpi.feedback.map((fb: any, index: number) => (
-                    <div key={index} className="space-y-1 rounded-md bg-muted/50 p-3 border">
-                      <p className="text-sm font-semibold text-foreground">{fb.author}</p>
-                      <p className="text-sm text-muted-foreground">{fb.comment}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Chưa có feedback nào</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 pt-4 border-t">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setKpiDetailModalOpen(false);
-                  handleSubmitClick(selectedKpi!);
-                }}
-                disabled={selectedKpi?.status === 'pending_approval' || selectedKpi?.status === 'completed'}
-                className="flex-1"
-              >
-                <FileCheck className="h-4 w-4 mr-2" />
-                Nộp
-              </Button>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setKpiDetailModalOpen(false)}>
-              Đóng
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

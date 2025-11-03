@@ -1,5 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { notificationManager } from './notification-service';
+import {
+  validateBonusPenaltyRecord,
+  sanitizeString,
+  type BonusPenaltyRecordValidationData
+} from '@/lib/validation';
+import { employeeService } from './supabase-service';
 
 export interface BonusPenaltyRecord {
   id: string;
@@ -130,15 +136,51 @@ class BonusPenaltyService {
 
   // Create a new bonus/penalty record (simplified version)
   async createRecord(record: CreateBonusPenaltyRecord): Promise<BonusPenaltyRecord> {
-    // Prepare the record data, handling kpi_id properly
-    const recordData = {
-      employee_id: record.employee_id,
+    // Convert string IDs to numbers
+    const employeeId = typeof record.employee_id === 'string' ? Number(record.employee_id) : record.employee_id;
+    const kpiId = record.kpi_id && record.kpi_id !== '' ? (typeof record.kpi_id === 'string' ? Number(record.kpi_id) : record.kpi_id) : null;
+    const createdBy = record.created_by ? (typeof record.created_by === 'string' ? Number(record.created_by) : record.created_by) : null;
+
+    // Validate record data
+    const validation = validateBonusPenaltyRecord({
+      employee_id: employeeId,
       type: record.type,
       amount: record.amount,
       reason: record.reason,
-      period: record.period,
-      created_by: record.created_by,
-      kpi_id: record.kpi_id && record.kpi_id !== '' ? record.kpi_id : null,
+      period: record.period
+    } as BonusPenaltyRecordValidationData);
+
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Dữ liệu bonus/penalty record không hợp lệ');
+    }
+
+    // Validate foreign keys
+    const employee = await employeeService.getById(employeeId);
+    if (!employee) {
+      throw new Error(`Employee với ID ${employeeId} không tồn tại`);
+    }
+
+    if (kpiId) {
+      // Note: We'd need to import kpiService here if we want to validate KPI
+      // For now, let the database constraint handle it
+    }
+
+    if (createdBy) {
+      const creator = await employeeService.getById(createdBy);
+      if (!creator) {
+        throw new Error(`Employee với ID ${createdBy} không tồn tại`);
+      }
+    }
+
+    // Prepare the record data, handling kpi_id properly
+    const recordData = {
+      employee_id: employeeId,
+      type: record.type,
+      amount: record.amount,
+      reason: sanitizeString(record.reason),
+      period: sanitizeString(record.period),
+      created_by: createdBy,
+      kpi_id: kpiId,
     };
 
     console.log('Creating record with data:', recordData);

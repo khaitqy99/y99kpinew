@@ -2,7 +2,6 @@
 
 import React, { useContext, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
   Bell, 
@@ -77,11 +76,6 @@ export function EmployeeNotificationSummary() {
             {unreadCount > 0 ? `Bạn có ${unreadCount} thông báo chưa đọc` : 'Tất cả thông báo đã được đọc'}
           </CardDescription>
         </div>
-        {unreadCount > 0 && (
-          <Badge variant="destructive" className="text-xs">
-            {unreadCount} mới
-          </Badge>
-        )}
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -106,17 +100,9 @@ export function EmployeeNotificationSummary() {
                     <h4 className="font-medium text-foreground truncate">
                       {notification.title}
                     </h4>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Badge 
-                        variant="outline" 
-                        className={cn("text-xs", priorityColors[notification.priority] || priorityColors.medium)}
-                      >
-                        {notification.priority}
-                      </Badge>
-                      {!notification.read && (
-                        <div className="h-2 w-2 rounded-full bg-primary" />
-                      )}
-                    </div>
+                    {!notification.read && (
+                      <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                    )}
                   </div>
                   <p className="text-sm mt-1 text-muted-foreground line-clamp-2">
                     {notification.message}

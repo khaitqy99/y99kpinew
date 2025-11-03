@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getPeriodLabel } from '@/lib/period-utils';
+import { getFrequencyLabel } from '@/lib/utils';
 import type { Kpi } from '@/services/supabase-service';
 
 interface KpiProgressChartProps {
@@ -60,11 +61,11 @@ const KpiProgressChart: React.FC<KpiProgressChartProps> = ({ open, onOpenChange,
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Mục tiêu:</span>
-                  <p className="font-medium">{kpi.target}{kpi.unit}</p>
+                  <p className="font-medium">{kpi.target} {kpi.unit}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Tần suất:</span>
-                  <p className="font-medium">{kpi.frequency}</p>
+                  <p className="font-medium">{getFrequencyLabel(kpi.frequency)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Phòng ban:</span>
@@ -134,8 +135,8 @@ const KpiProgressChart: React.FC<KpiProgressChartProps> = ({ open, onOpenChange,
                         />
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Thực tế: {data.actual}{kpi.unit}</span>
-                        <span>Mục tiêu: {data.target}{kpi.unit}</span>
+                        <span>Thực tế: {data.actual} {kpi.unit}</span>
+                        <span>Mục tiêu: {data.target} {kpi.unit}</span>
                       </div>
                     </div>
                   ))}

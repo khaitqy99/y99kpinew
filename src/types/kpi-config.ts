@@ -132,7 +132,6 @@ export interface User extends BaseEntity {
   salary: number;
   hireDate: string;
   avatar: string;
-  phone?: string;
   position: string;
 }
 
@@ -151,8 +150,6 @@ export interface KPI extends BaseEntity {
   target: number;
   unit: string;
   frequency: 'monthly' | 'quarterly' | 'annually';
-  category: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth';
-  weight: number;
   status: 'active' | 'inactive' | 'paused' | 'archived';
   rewardPenaltyConfig: string;
   createdBy: string;

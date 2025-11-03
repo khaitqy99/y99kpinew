@@ -8,18 +8,20 @@ import {
   kpiRecordService, 
   notificationService,
   dailyKpiProgressService,
-  companyService,
   roleService,
+  kpiSubmissionService,
   type Employee,
   type Department,
   type Kpi,
   type KpiRecord,
   type Notification,
-  type DailyKpiProgress
+  type DailyKpiProgress,
+  type KpiSubmissionItemInsert
 } from '@/services/supabase-service';
 import { notificationManager } from '@/services/notification-service';
 import { notificationScheduler } from '@/services/notification-scheduler';
 import { SessionContext } from './SessionContext';
+import { supabase } from '@/lib/supabase';
 
 // Type definitions
 export type KpiStatus = KpiRecord['status'];
@@ -40,8 +42,8 @@ type SupabaseDataContextType = {
   dailyKpiProgress: DailyKpiProgress[];
   notifications: Notification[];
   departments: Department[];
-  companies: any[];
   roles: any[];
+  kpiSubmissions: any[];
 
   // Loading states
   loading: {
@@ -51,8 +53,8 @@ type SupabaseDataContextType = {
     dailyKpiProgress: boolean;
     notifications: boolean;
     departments: boolean;
-    companies: boolean;
     roles: boolean;
+    kpiSubmissions: boolean;
   };
 
   // Actions
@@ -70,17 +72,17 @@ type SupabaseDataContextType = {
   deleteDailyKpiProgress: (progressId: string) => Promise<void>;
   updateKpiRecordActual: (recordId: string, actual: number) => Promise<void>;
   submitKpiRecord: (recordId: string, submission: { actual: number; submissionDetails: string; attachment: string | null }) => Promise<void>;
+  submitMultiKpiSubmission: (employeeId: number, items: Array<{ kpiRecordId: number; actual: number; notes?: string }>, submissionDetails: string, attachment: string | null) => Promise<void>;
+  approveKpiSubmission: (submissionId: number, approvedBy: number) => Promise<void>;
+  rejectKpiSubmission: (submissionId: number, rejectedBy: number, reason: string) => Promise<void>;
   updateKpiRecordStatus: (recordId: string, status: KpiStatus, feedback?: Feedback) => Promise<void>;
   addKpiFeedback: (recordId: string, feedback: Omit<Feedback, 'id' | 'createdAt'>) => Promise<void>;
   markNotificationAsRead: (notificationId: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
   addNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  addDepartment: (department: Omit<Department, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => Promise<void>;
+  addDepartment: (department: Omit<Department, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateDepartment: (departmentId: string, updatedDepartment: Partial<Department>) => Promise<void>;
   deleteDepartment: (departmentId: string) => Promise<void>;
-  addCompany: (company: any) => Promise<void>;
-  updateCompany: (companyId: string, updatedCompany: any) => Promise<void>;
-  deleteCompany: (companyId: string) => Promise<void>;
   addRole: (role: any) => Promise<void>;
   updateRole: (roleId: string, updatedRole: any) => Promise<void>;
   deleteRole: (roleId: string) => Promise<void>;
@@ -89,7 +91,6 @@ type SupabaseDataContextType = {
   getDepartments: () => Department[];
   getDepartmentNames: () => string[];
   getFrequencies: () => string[];
-  getKpiCategories: () => string[];
   getKpiStatuses: () => string[];
   getNotificationTypes: () => string[];
   getNotificationPriorities: () => string[];
@@ -102,8 +103,8 @@ type SupabaseDataContextType = {
   refreshDailyKpiProgress: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
   refreshDepartments: () => Promise<void>;
-  refreshCompanies: () => Promise<void>;
   refreshRoles: () => Promise<void>;
+  refreshKpiSubmissions: () => Promise<void>;
 };
 
 // Context creation
@@ -118,8 +119,8 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   const [dailyKpiProgress, setDailyKpiProgress] = useState<DailyKpiProgress[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [companies, setCompanies] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
+  const [kpiSubmissions, setKpiSubmissions] = useState<any[]>([]);
 
   const [loading, setLoading] = useState({
     users: false,
@@ -128,8 +129,8 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     dailyKpiProgress: false,
     notifications: false,
     departments: false,
-    companies: false,
     roles: false,
+    kpiSubmissions: false,
   });
 
   // Load data functions
@@ -161,7 +162,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     setLoading(prev => ({ ...prev, kpiRecords: true }));
     try {
       const data = await kpiRecordService.getAll();
-      setKpiRecords(data);
+      // Đảm bảo feedback luôn là array cho mỗi record
+      const transformedData = data.map(record => ({
+        ...record,
+        feedback: Array.isArray((record as any).feedback) ? (record as any).feedback : []
+      }));
+      setKpiRecords(transformedData as any);
     } catch (error) {
       console.error('Error loading kpi records:', error);
     } finally {
@@ -193,6 +199,18 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  const loadKpiSubmissions = useCallback(async () => {
+    setLoading(prev => ({ ...prev, kpiSubmissions: true }));
+    try {
+      const data = await kpiSubmissionService.getAll();
+      setKpiSubmissions(data);
+    } catch (error) {
+      console.error('Error loading KPI submissions:', error);
+    } finally {
+      setLoading(prev => ({ ...prev, kpiSubmissions: false }));
+    }
+  }, []);
+
   const loadDepartments = useCallback(async () => {
     setLoading(prev => ({ ...prev, departments: true }));
     try {
@@ -202,18 +220,6 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error loading departments:', error);
     } finally {
       setLoading(prev => ({ ...prev, departments: false }));
-    }
-  }, []);
-
-  const loadCompanies = useCallback(async () => {
-    setLoading(prev => ({ ...prev, companies: true }));
-    try {
-      const data = await companyService.getAll();
-      setCompanies(data);
-    } catch (error) {
-      console.error('Error loading companies:', error);
-    } finally {
-      setLoading(prev => ({ ...prev, companies: false }));
     }
   }, []);
 
@@ -237,17 +243,211 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     loadDailyKpiProgress();
     loadNotifications();
     loadDepartments();
-    loadCompanies();
     loadRoles();
+    loadKpiSubmissions();
     
     // Khởi động notification scheduler
     notificationScheduler.startScheduler();
     
+    // Set up realtime subscriptions
+    const subscriptions: Array<{ unsubscribe: () => void }> = [];
+
+    // Subscribe to notifications for real-time updates
+    const notificationChannel = supabase
+      .channel('notifications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('Notification realtime update:', payload);
+          loadNotifications();
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => notificationChannel.unsubscribe() });
+
+    // Subscribe to KPI records for real-time updates
+    const kpiRecordsChannel = supabase
+      .channel('kpi-records-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kpi_records',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('KPI records realtime update:', payload);
+          loadKpiRecords();
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => kpiRecordsChannel.unsubscribe() });
+
+    // Subscribe to daily KPI progress for real-time updates
+    const dailyKpiProgressChannel = supabase
+      .channel('daily-kpi-progress-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'daily_kpi_progress',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('Daily KPI progress realtime update:', payload);
+          loadDailyKpiProgress();
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => dailyKpiProgressChannel.unsubscribe() });
+
+    // Subscribe to KPIs for real-time updates
+    const kpisChannel = supabase
+      .channel('kpis-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kpis',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('KPIs realtime update:', payload);
+          loadKpis();
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => kpisChannel.unsubscribe() });
+
+    // Subscribe to departments for real-time updates
+    const departmentsChannel = supabase
+      .channel('departments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'departments',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('Departments realtime update:', payload);
+          loadDepartments();
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => departmentsChannel.unsubscribe() });
+
+    // Subscribe to employees for real-time updates
+    const employeesChannel = supabase
+      .channel('employees-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'employees',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('Employees realtime update:', payload);
+          loadUsers();
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => employeesChannel.unsubscribe() });
+
+    // Subscribe to roles for real-time updates
+    const rolesChannel = supabase
+      .channel('roles-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'roles',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('Roles realtime update:', payload);
+          loadRoles();
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => rolesChannel.unsubscribe() });
+
+    // Subscribe to KPI submissions for real-time updates
+    const kpiSubmissionsChannel = supabase
+      .channel('kpi-submissions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'kpi_submissions',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('KPI submissions realtime update:', payload);
+          loadKpiSubmissions();
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => kpiSubmissionsChannel.unsubscribe() });
+
+    // Subscribe to bonus_penalty_records for real-time updates
+    const bonusPenaltyChannel = supabase
+      .channel('bonus-penalty-records-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bonus_penalty_records',
+          filter: `is_active=eq.true`
+        },
+        (payload) => {
+          console.log('Bonus/Penalty records realtime update:', payload);
+          // Note: bonus_penalty_records không có trong context state, nhưng có thể cần refresh trong components
+        }
+      )
+      .subscribe();
+
+    subscriptions.push({ unsubscribe: () => bonusPenaltyChannel.unsubscribe() });
+    
     // Cleanup khi component unmount
     return () => {
       notificationScheduler.stopScheduler();
+      // Unsubscribe from all realtime channels
+      subscriptions.forEach(sub => sub.unsubscribe());
     };
-  }, []);
+  }, [
+    loadUsers,
+    loadKpis,
+    loadKpiRecords,
+    loadDailyKpiProgress,
+    loadNotifications,
+    loadDepartments,
+    loadRoles,
+    loadKpiSubmissions
+  ]);
 
   // Action functions
   const addUser = async (userData: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => {
@@ -270,34 +470,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addDepartment = async (deptData: Omit<Department, 'id' | 'created_at' | 'updated_at' | 'company_id'>) => {
+  const addDepartment = async (deptData: Omit<Department, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      // Lấy company_id mặc định
-      const company = await companyService.getDefault();
-      if (!company) {
-        throw new Error('Không tìm thấy company mặc định');
-      }
-      
-      // Thêm company_id vào dữ liệu department
-      const departmentWithCompany = {
-        ...deptData,
-        company_id: company.id
-      };
-      
-      await departmentService.create(departmentWithCompany);
+      await departmentService.create(deptData);
       await loadDepartments();
     } catch (error) {
       console.error('Error adding department:', error);
-      throw error;
-    }
-  };
-
-  const addCompany = async (companyData: any) => {
-    try {
-      await companyService.create(companyData);
-      await loadCompanies();
-    } catch (error) {
-      console.error('Error adding company:', error);
       throw error;
     }
   };
@@ -332,26 +510,6 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateCompany = async (companyId: string, updatedCompanyData: any) => {
-    try {
-      await companyService.update(companyId, updatedCompanyData);
-      await loadCompanies();
-    } catch (error) {
-      console.error('Error updating company:', error);
-      throw error;
-    }
-  };
-
-  const deleteCompany = async (companyId: string) => {
-    try {
-      await companyService.delete(companyId);
-      await loadCompanies();
-    } catch (error) {
-      console.error('Error deleting company:', error);
-      throw error;
-    }
-  };
-
   const updateRole = async (roleId: string, updatedRoleData: any) => {
     try {
       await roleService.update(roleId, updatedRoleData);
@@ -374,12 +532,6 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
 
   const addKpi = async (kpiData: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      // Get default company for KPI
-      const company = await companyService.getDefault();
-      if (!company) {
-        throw new Error('Không tìm thấy công ty mặc định');
-      }
-
       // Find department by name to get department_id
       const departmentName = (kpiData as any).department;
       const department = departments.find(d => d.name === departmentName);
@@ -389,15 +541,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
 
       // Map UI fields to DB columns; avoid sending unknown fields
       const payload: any = {
-        company_id: company.id,
         name: (kpiData as any).name,
         description: (kpiData as any).description || null,
         department_id: department.id, // Use department_id instead of department name
         target: Number((kpiData as any).target) || null,
         unit: (kpiData as any).unit || null,
         frequency: (kpiData as any).frequency || null,
-        category: (kpiData as any).category || 'performance',
-        weight: Number((kpiData as any).weight) || 1,
         status: (kpiData as any).status || 'active',
         reward_penalty_config: (kpiData as any).rewardPenaltyConfig || null,
         created_by: null, // Will be set by current user context
@@ -430,8 +579,6 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         target: Number((updatedKpiData as any).target) || null,
         unit: (updatedKpiData as any).unit || null,
         frequency: (updatedKpiData as any).frequency || null,
-        category: (updatedKpiData as any).category || 'performance',
-        weight: Number((updatedKpiData as any).weight) || 1,
         status: (updatedKpiData as any).status || 'active',
         reward_penalty_config: (updatedKpiData as any).rewardPenaltyConfig || null,
       }
@@ -469,8 +616,9 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
       await loadKpiRecords();
       
       // Tạo thông báo cho người được giao KPI
+      const assigneeId = recordData.employee_id || recordData.department_id;
       const assigneeInfo = {
-        id: recordData.employee_id || recordData.department_id || '',
+        id: assigneeId ? String(assigneeId) : '',
         name: recordData.employee_id ? 
           users.find(u => u.id === recordData.employee_id)?.name || 'Nhân viên' :
           departments.find(d => d.id === recordData.department_id)?.name || 'Phòng ban',
@@ -480,7 +628,7 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
       console.log('Assignee info:', assigneeInfo);
       
       // Chỉ gửi thông báo nếu có assignee hợp lệ
-      if (assigneeInfo.id && assigneeInfo.id !== '') {
+      if (assigneeInfo.id && assigneeInfo.id !== '' && assigneeId) {
         const kpiInfo = kpis.find(k => k.id === recordData.kpi_id);
         const notificationData = {
           ...createdRecord,
@@ -508,32 +656,111 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
 
   const updateKpiRecordActual = async (recordId: string, actual: number) => {
     try {
-      const record = await kpiRecordService.getById(recordId);
-      if (!record) throw new Error('Record not found');
+      // Convert string ID to number
+      const numericId = parseInt(recordId, 10);
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid record ID: ${recordId}`);
+      }
+
+      const record = await kpiRecordService.getById(numericId);
+      if (!record) {
+        throw new Error(`KPI record với ID ${recordId} không tồn tại`);
+      }
       
-      const progress = Math.min(100, Math.max(0, Math.round((actual / record.target) * 100)));
+      // Calculate progress, allow > 100% if actual exceeds target
+      const calculatedProgress = (actual / record.target) * 100;
+      const progress = Math.max(0, Math.round(calculatedProgress * 100) / 100); // Round to 2 decimal places
       const newStatus = record.status === 'not_started' ? 'in_progress' : record.status;
       
-      await kpiRecordService.update(recordId, {
+      await kpiRecordService.update(numericId, {
         actual,
         progress,
         status: newStatus,
       });
       await loadKpiRecords();
-    } catch (error) {
+
+      // Thông báo cho admin khi nhân viên cập nhật tiến độ
+      try {
+        // Lấy thông tin employee và KPI để tạo thông báo
+        const employee = record.employee_id ? await employeeService.getById(record.employee_id) : null;
+        const kpi = record.kpi_id ? await kpiService.getById(record.kpi_id) : null;
+        
+        if (employee && kpi) {
+          const employeeInfo = {
+            id: employee.id.toString(),
+            name: employee.name
+          };
+          
+          const kpiRecordForNotification = {
+            id: record.id,
+            kpi_id: kpi.id,
+            kpi_name: kpi.name,
+            unit: kpi.unit || '',
+            period: record.period
+          };
+          
+          await notificationManager.notifyKpiProgressUpdated(
+            kpiRecordForNotification,
+            employeeInfo,
+            actual,
+            progress
+          );
+        }
+      } catch (notificationError) {
+        // Log error nhưng không throw để không ảnh hưởng đến việc cập nhật tiến độ
+        console.error('Error creating progress update notification:', notificationError);
+      }
+    } catch (error: any) {
       console.error('Error updating kpi record actual:', error);
-      throw error;
+      console.error('Error details:', {
+        recordId,
+        actual,
+        numericId: parseInt(recordId, 10),
+        errorType: typeof error,
+        errorKeys: error ? Object.keys(error) : [],
+        errorString: String(error),
+        errorMessage: error?.message,
+        errorCode: error?.code,
+        errorDetails: error?.details,
+        errorHint: error?.hint,
+      });
+      
+      // Provide better error message
+      let errorMessage = 'Không thể cập nhật tiến độ KPI';
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.details) {
+        errorMessage = error.details;
+      } else if (error?.hint) {
+        errorMessage = error.hint;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        errorMessage = JSON.stringify(error);
+      }
+      
+      throw new Error(errorMessage);
     }
   };
   
   const submitKpiRecord = async (recordId: string, submission: { actual: number; submissionDetails: string; attachment: string | null }) => {
     try {
-      const record = await kpiRecordService.getById(recordId);
-      if (!record) throw new Error('Record not found');
+      // Convert string ID to number
+      const numericId = parseInt(recordId, 10);
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid record ID: ${recordId}`);
+      }
+
+      const record = await kpiRecordService.getById(numericId);
+      if (!record) {
+        throw new Error(`KPI record với ID ${recordId} không tồn tại`);
+      }
       
-      const progress = Math.min(100, Math.max(0, Math.round((submission.actual / record.target) * 100)));
+      // Calculate progress, allow > 100% if actual exceeds target
+      const calculatedProgress = (submission.actual / record.target) * 100;
+      const progress = Math.max(0, Math.round(calculatedProgress * 100) / 100); // Round to 2 decimal places
       
-      await kpiRecordService.update(recordId, {
+      await kpiRecordService.update(numericId, {
         actual: submission.actual,
         progress,
         submission_details: submission.submissionDetails,
@@ -544,26 +771,30 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
       await loadKpiRecords();
       
       // Tạo thông báo cho admin khi submit
-      const submitterInfo = {
-        id: record.employee_id || '',
-        name: users.find(u => u.id === record.employee_id)?.name || 'Nhân viên'
-      };
-      
-      const kpiInfo = kpis.find(k => k.id === record.kpi_id);
-      const notificationData = {
-        ...record,
-        kpi_name: kpiInfo?.name || 'KPI',
-        unit: kpiInfo?.unit || '',
-        period: record.period || '',
-        employee_name: submitterInfo.name,
-        actual: submission.actual
-      };
-      
-      try {
-        await notificationManager.notifyKpiSubmitted(notificationData, submitterInfo);
-      } catch (notificationError) {
-        console.warn('Failed to send notification:', notificationError);
-        // Không throw error để không làm gián đoạn việc submit KPI
+      if (record.employee_id) {
+        const submitterInfo = {
+          id: String(record.employee_id),
+          name: users.find(u => u.id === record.employee_id)?.name || 'Nhân viên'
+        };
+        
+        const kpiInfo = kpis.find(k => k.id === record.kpi_id);
+        const notificationData = {
+          ...record,
+          kpi_name: kpiInfo?.name || 'KPI',
+          unit: kpiInfo?.unit || '',
+          period: record.period || '',
+          employee_name: submitterInfo.name,
+          actual: submission.actual
+        };
+        
+        try {
+          await notificationManager.notifyKpiSubmitted(notificationData, submitterInfo);
+        } catch (notificationError) {
+          console.warn('Failed to send notification:', notificationError);
+          // Không throw error để không làm gián đoạn việc submit KPI
+        }
+      } else {
+        console.warn('Cannot send notification: employee_id is missing');
       }
     } catch (error) {
       console.error('Error submitting kpi record:', error);
@@ -579,17 +810,28 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   
   const updateKpiRecordStatus = async (recordId: string, status: KpiStatus, feedback?: Feedback) => {
     try {
-      const record = await kpiRecordService.getById(recordId);
+      // Convert recordId to number if it's a string
+      const id = typeof recordId === 'string' ? parseInt(recordId, 10) : recordId;
+      if (isNaN(id)) throw new Error('Invalid record ID');
+      
+      const record = await kpiRecordService.getById(id);
       if (!record) throw new Error('Record not found');
       
-      const newFeedback = feedback ? [...record.feedback, feedback] : record.feedback;
+      // Đảm bảo feedback luôn là array (xử lý trường hợp null, undefined, hoặc không phải array)
+      const currentFeedback = Array.isArray((record as any).feedback) ? (record as any).feedback : [];
+      const newFeedback = feedback ? [...currentFeedback, feedback] : currentFeedback;
       const approvalDate = (status === 'approved' || status === 'rejected') ? new Date().toISOString() : record.approval_date;
       
-      await kpiRecordService.update(recordId, {
+      // Chỉ update feedback nếu có cột feedback trong database
+      const updateData: any = {
         status,
-        feedback: newFeedback,
         approval_date: approvalDate,
-      });
+      };
+      
+      // Chỉ thêm feedback nếu database hỗ trợ (có thể comment lại nếu database chưa có cột feedback)
+      // updateData.feedback = newFeedback;
+      
+      await kpiRecordService.update(id, updateData);
       await loadKpiRecords();
       
       // Tạo thông báo cho nhân viên khi approve/reject
@@ -633,8 +875,19 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
 
   const addKpiFeedback = async (recordId: string, feedback: Omit<Feedback, 'id' | 'createdAt'>) => {
     try {
-      const record = await kpiRecordService.getById(recordId);
-      if (!record) throw new Error('Record not found');
+      // Convert string ID to number
+      const numericId = parseInt(recordId, 10);
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid record ID: ${recordId}`);
+      }
+
+      const record = await kpiRecordService.getById(numericId);
+      if (!record) {
+        throw new Error(`KPI record với ID ${recordId} không tồn tại`);
+      }
+      
+      // Đảm bảo feedback luôn là array (xử lý trường hợp null, undefined, hoặc không phải array)
+      const currentFeedback = Array.isArray((record as any).feedback) ? (record as any).feedback : [];
       
       const newFeedback: Feedback = {
         id: `fb-${Date.now()}`,
@@ -642,9 +895,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         createdAt: new Date().toISOString(),
       };
       
-      await kpiRecordService.update(recordId, {
-        feedback: [...record.feedback, newFeedback],
-      });
+      const updateData: any = {};
+      
+      // Chỉ thêm feedback nếu database hỗ trợ (có thể comment lại nếu database chưa có cột feedback)
+      // updateData.feedback = [...currentFeedback, newFeedback];
+      
+      await kpiRecordService.update(numericId, updateData);
       await loadKpiRecords();
     } catch (error) {
       console.error('Error adding kpi feedback:', error);
@@ -669,9 +925,15 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
 
   const editKpiRecord = async (recordId: string, updatedRecordData: Omit<KpiRecord, 'id' | 'created_at' | 'updated_at' | 'last_updated'>) => {
     try {
-      console.log('Editing KPI record:', recordId, 'with data:', updatedRecordData);
+      // Convert string ID to number
+      const numericId = parseInt(recordId, 10);
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid record ID: ${recordId}`);
+      }
+
+      console.log('Editing KPI record:', numericId, 'with data:', updatedRecordData);
       
-      await kpiRecordService.update(recordId, updatedRecordData);
+      await kpiRecordService.update(numericId, updatedRecordData);
       await loadKpiRecords();
     } catch (error) {
       console.error('Error editing kpi record:', error);
@@ -682,13 +944,113 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteKpiRecord = async (recordId: string) => {
     try {
-      await kpiRecordService.delete(recordId);
+      await kpiRecordService.delete(Number(recordId));
       await loadKpiRecords();
     } catch (error) {
       console.error('Error deleting kpi record:', error);
       throw error;
     }
   };
+
+  const submitMultiKpiSubmission = async (
+    employeeId: number,
+    items: Array<{ kpiRecordId: number; actual: number; notes?: string }>,
+    submissionDetails: string,
+    attachment: string | null
+  ) => {
+    try {
+      if (!items || items.length === 0) {
+        throw new Error('Vui lòng chọn ít nhất một KPI để báo cáo');
+      }
+
+      // Prepare submission items
+      const submissionItems: Omit<KpiSubmissionItemInsert, 'submission_id'>[] = items.map(item => {
+        // Get KPI record to calculate progress
+        const record = kpiRecords.find(r => r.id === item.kpiRecordId);
+        if (!record) {
+          throw new Error(`KPI record với ID ${item.kpiRecordId} không tồn tại`);
+        }
+
+        // Calculate progress, allow > 100% if actual exceeds target
+        const calculatedProgress = (item.actual / record.target) * 100;
+        const progress = Math.max(0, Math.round(calculatedProgress * 100) / 100); // Round to 2 decimal places
+
+        return {
+          kpi_record_id: item.kpiRecordId,
+          actual: item.actual,
+          progress,
+          notes: item.notes || null,
+        };
+      });
+
+      // Create submission
+      const submission = await kpiSubmissionService.create(
+        {
+          employee_id: employeeId,
+          submission_details: submissionDetails,
+          attachment: attachment || null,
+          status: 'pending_approval',
+        },
+        submissionItems
+      );
+
+      await loadKpiRecords();
+      await loadKpiSubmissions();
+
+      // Create notification for admin
+      const submitterInfo = {
+        id: String(employeeId),
+        name: users.find(u => u.id === employeeId)?.name || 'Nhân viên'
+      };
+
+      try {
+        const kpiNames = items.map(item => {
+          const record = kpiRecords.find(r => r.id === item.kpiRecordId);
+          const kpi = kpis.find(k => k.id === record?.kpi_id);
+          return kpi?.name || 'KPI';
+        }).join(', ');
+
+        await notificationManager.notifyKpiSubmitted(
+          {
+            id: submission.id,
+            kpi_name: kpiNames,
+            unit: '',
+            period: '',
+            employee_name: submitterInfo.name,
+            actual: items.reduce((sum, item) => sum + item.actual, 0),
+          },
+          submitterInfo
+        );
+      } catch (notificationError) {
+        console.warn('Failed to send notification:', notificationError);
+      }
+    } catch (error) {
+      console.error('Error submitting multi KPI submission:', error);
+      throw error;
+    }
+  };
+
+  const approveKpiSubmission = useCallback(async (submissionId: number, approvedBy: number) => {
+    try {
+      await kpiSubmissionService.approve(submissionId, approvedBy);
+      await loadKpiSubmissions();
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error approving KPI submission:', error);
+      throw error;
+    }
+  }, [loadKpiSubmissions, loadKpiRecords]);
+
+  const rejectKpiSubmission = useCallback(async (submissionId: number, rejectedBy: number, reason: string) => {
+    try {
+      await kpiSubmissionService.reject(submissionId, rejectedBy, reason);
+      await loadKpiSubmissions();
+      await loadKpiRecords();
+    } catch (error) {
+      console.error('Error rejecting KPI submission:', error);
+      throw error;
+    }
+  }, [loadKpiSubmissions, loadKpiRecords]);
 
   const addDailyKpiProgress = async (progressData: Omit<DailyKpiProgress, 'id' | 'created_at' | 'updated_at'>) => {
     try {
@@ -730,7 +1092,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   
   const markNotificationAsRead = async (notificationId: string) => {
     try {
-      await notificationService.markAsRead(notificationId);
+      // Convert string ID to number if needed
+      const numericId = typeof notificationId === 'string' ? parseInt(notificationId, 10) : notificationId;
+      if (isNaN(numericId) || !isFinite(numericId)) {
+        throw new Error(`Invalid notification ID: ${notificationId}`);
+      }
+      await notificationService.markAsRead(numericId);
       await loadNotifications();
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -770,7 +1137,6 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     // Always return all supported frequencies
     return allSupportedFrequencies;
   }, [kpis]);
-  const getKpiCategories = useCallback(() => [...new Set(kpis.map(k => k.category))].sort(), [kpis]);
   const getKpiStatuses = useCallback(() => [...new Set(kpiRecords.map(r => r.status))].sort(), [kpiRecords]);
   const getNotificationTypes = useCallback(() => [...new Set(notifications.map(n => n.type))].sort(), [notifications]);
   const getNotificationPriorities = useCallback(() => [...new Set(notifications.map(n => n.priority))].sort(), [notifications]);
@@ -784,8 +1150,8 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     dailyKpiProgress,
     notifications,
     departments,
-    companies,
     roles,
+    kpiSubmissions,
     loading,
     addUser,
     updateUser,
@@ -801,6 +1167,9 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     deleteDailyKpiProgress,
     updateKpiRecordActual,
     submitKpiRecord,
+    submitMultiKpiSubmission,
+    approveKpiSubmission,
+    rejectKpiSubmission,
     updateKpiRecordStatus,
     addKpiFeedback,
     markNotificationAsRead,
@@ -809,16 +1178,12 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     addDepartment,
     updateDepartment,
     deleteDepartment,
-    addCompany,
-    updateCompany,
-    deleteCompany,
     addRole,
     updateRole,
     deleteRole,
     getDepartments,
     getDepartmentNames,
     getFrequencies,
-    getKpiCategories,
     getKpiStatuses,
     getNotificationTypes,
     getNotificationPriorities,
@@ -829,8 +1194,8 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     refreshDailyKpiProgress: loadDailyKpiProgress,
     refreshNotifications: loadNotifications,
     refreshDepartments: loadDepartments,
-    refreshCompanies: loadCompanies,
     refreshRoles: loadRoles,
+    refreshKpiSubmissions: loadKpiSubmissions,
   };
 
   return (

@@ -29,6 +29,17 @@ import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { Kpi } from '@/services/supabase-service';
 import Link from 'next/link';
+import { getFrequencyLabel } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // Lazy load heavy components
 const KpiDialog = React.lazy(() => import('./KpiDialog'));
@@ -45,16 +56,16 @@ const LoadingSpinner = () => (
 // Memoized TableRow component for better performance
 const KpiTableRow = React.memo(({ kpi, onRowClick }: { kpi: Kpi; onRowClick: (kpi: Kpi) => void }) => (
   <TableRow onClick={() => onRowClick(kpi)} className="cursor-pointer hover:bg-muted/50">
-    <TableCell className="font-medium">{kpi.name}</TableCell>
-    <TableCell>{kpi.department}</TableCell>
-    <TableCell>{`${kpi.target}${kpi.unit}`}</TableCell>
-    <TableCell>{kpi.frequency}</TableCell>
-    <TableCell>
+    <TableCell className="font-medium w-[25%]">{kpi.name}</TableCell>
+    <TableCell className="w-[20%]">{kpi.department}</TableCell>
+    <TableCell className="w-[15%]">{`${kpi.target} ${kpi.unit}`}</TableCell>
+    <TableCell className="w-[15%]">{getFrequencyLabel(kpi.frequency)}</TableCell>
+    <TableCell className="w-[15%]">
       <Badge variant={kpi.status === 'active' ? 'default' : 'secondary'}>
         {kpi.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
       </Badge>
     </TableCell>
-    <TableCell>
+    <TableCell className="w-[10%]">
       {/* Actions are now in the detail dialog */}
     </TableCell>
   </TableRow>
@@ -68,6 +79,8 @@ export default function KpiListPage() {
   const [isDetailDialogOpen, setDetailDialogOpen] = useState(false);
   const [kpiToEdit, setKpiToEdit] = useState<Kpi | null>(null);
   const [kpiToView, setKpiToView] = useState<Kpi | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [kpiToDelete, setKpiToDelete] = useState<Kpi | null>(null);
   const { toast } = useToast();
 
   // Memoize expensive operations
@@ -85,14 +98,34 @@ export default function KpiListPage() {
   }, []);
 
   const handleDeleteClick = useCallback((kpiId: string) => {
-    setDetailDialogOpen(false);
-    deleteKpi(kpiId);
-    toast({
-      variant: 'destructive',
-      title: 'Đã xóa',
-      description: 'Đã xóa KPI khỏi hệ thống.',
-    });
-  }, [deleteKpi]);
+    const kpi = kpis.find(k => k.id === kpiId);
+    if (kpi) {
+      setDetailDialogOpen(false);
+      setKpiToDelete(kpi);
+      setIsDeleteDialogOpen(true);
+    }
+  }, [kpis]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!kpiToDelete) return;
+    
+    try {
+      await deleteKpi(kpiToDelete.id);
+      toast({
+        variant: 'destructive',
+        title: 'Đã xóa',
+        description: 'Đã xóa KPI khỏi hệ thống.',
+      });
+      setIsDeleteDialogOpen(false);
+      setKpiToDelete(null);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Lỗi',
+        description: error?.message || 'Không thể xóa KPI',
+      });
+    }
+  }, [kpiToDelete, deleteKpi, toast]);
 
   const handleOpenEditDialog = useCallback((isOpen: boolean) => {
     if (!isOpen) {
@@ -107,9 +140,6 @@ export default function KpiListPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="space-y-1.5">
             <CardTitle>Quản lý KPI</CardTitle>
-            <CardDescription>
-              Xem, tạo và quản lý các chỉ số hiệu suất chính.
-            </CardDescription>
           </div>
           <div className="flex gap-2">
             <Link href="/admin/bonus-calculation">
@@ -131,12 +161,12 @@ export default function KpiListPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tên KPI</TableHead>
-                <TableHead>Phòng ban</TableHead>
-                <TableHead>Mục tiêu</TableHead>
-                <TableHead>Tần suất</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>
+                <TableHead className="w-[25%]">Tên KPI</TableHead>
+                <TableHead className="w-[20%]">Phòng ban</TableHead>
+                <TableHead className="w-[15%]">Mục tiêu</TableHead>
+                <TableHead className="w-[15%]">Tần suất</TableHead>
+                <TableHead className="w-[15%]">Trạng thái</TableHead>
+                <TableHead className="w-[10%]">
                   <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
@@ -169,6 +199,24 @@ export default function KpiListPage() {
           onDelete={() => kpiToView && handleDeleteClick(kpiToView.id)}
         />
       </Suspense>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa KPI</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa KPI "{kpiToDelete?.name}"? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

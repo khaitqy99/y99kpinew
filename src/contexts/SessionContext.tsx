@@ -23,6 +23,9 @@ type SessionContextType = {
   logout: () => void;
   setLanguage: (language: string) => void;
   isLoading: boolean;
+  isLoggingOut: boolean;
+  isLoggingIn: boolean;
+  setIsLoggingIn: (value: boolean) => void;
 };
 
 export const SessionContext = createContext<SessionContextType>({
@@ -32,12 +35,17 @@ export const SessionContext = createContext<SessionContextType>({
   logout: () => {},
   setLanguage: () => {},
   isLoading: true,
+  isLoggingOut: false,
+  isLoggingIn: false,
+  setIsLoggingIn: () => {},
 });
 
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [language, setLanguage] = useState('vi');
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
   
   useEffect(() => {
@@ -69,10 +77,22 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    await AuthService.logout();
-    setUser(null);
-    // The redirection is now handled in the AppLayout component
-    router.push('/login');
+    setIsLoggingOut(true);
+    try {
+      await AuthService.logout();
+      setUser(null);
+      // The redirection is now handled in the AppLayout component
+      // Delay redirect to show splash screen longer
+      setTimeout(() => {
+        router.push('/login');
+        // Reset logging out state after redirect
+        setTimeout(() => {
+          setIsLoggingOut(false);
+        }, 300);
+      }, 1000);
+    } catch (error) {
+      setIsLoggingOut(false);
+    }
   };
 
   const handleSetLanguage = (lang: string) => {
@@ -86,6 +106,9 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
       logout,
       setLanguage: handleSetLanguage,
       isLoading,
+      isLoggingOut,
+      isLoggingIn,
+      setIsLoggingIn,
   }
 
   return (

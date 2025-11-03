@@ -57,7 +57,7 @@ import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { KpiRecord as KpiRecordType, Kpi as KpiType } from '@/services/supabase-service';
 import { useToast } from '@/hooks/use-toast';
 import { uploadFile } from '@/ai/flows/upload-file';
-import { getCurrentQuarterLabel, generatePeriodOptions, getPeriodLabel } from '@/lib/period-utils';
+import { getCurrentQuarterLabel, generatePeriodOptions, getPeriodLabel, getDefaultPeriod } from '@/lib/period-utils';
 import { bonusPenaltyService, BonusPenaltyRecord } from '@/services/bonus-penalty-service';
 
 type MappedKpi = KpiRecordType & {
@@ -240,8 +240,8 @@ export default function EmployeeKpiBonusPenaltyPage() {
           ...record,
           name: kpi.name || 'N/A',
           description: kpi.description || 'Không có mô tả',
-          targetFormatted: `${kpi.target}${kpi.unit}`,
-          actualFormatted: `${record.actual}${kpi.unit}`,
+          targetFormatted: `${kpi.target} ${kpi.unit}`,
+          actualFormatted: `${record.actual} ${kpi.unit}`,
           unit: kpi.unit || '',
           completionPercentage: progress > 100 ? 100 : progress,
       }
@@ -407,126 +407,92 @@ export default function EmployeeKpiBonusPenaltyPage() {
 
   return (
     <>
-      <div className="flex min-h-screen w-full flex-col">
-        <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-          {/* Page Header */}
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold tracking-tight">KPI & Thưởng Phạt</h1>
-            <p className="text-muted-foreground">
-              Quản lý KPI và theo dõi thưởng phạt của bạn
-            </p>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>Thưởng & Phạt</CardTitle>
+            <CardDescription>
+              Theo dõi các khoản thưởng và phạt dựa trên hiệu suất KPI của bạn
+            </CardDescription>
           </div>
-
-          {/* Filters */}
-          <div className="flex gap-4 mb-6">
-            <div className="space-y-2">
-              <Label htmlFor="period-filter">Thời kỳ</Label>
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger id="period-filter" className="w-[200px]">
-                  <SelectValue placeholder="Chọn thời kỳ" />
-                </SelectTrigger>
-                <SelectContent>
-                  {periods.map(period => (
-                    <SelectItem key={period.value} value={period.label}>
-                      {period.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Chọn thời kỳ" />
+            </SelectTrigger>
+            <SelectContent>
+              {periods.map(period => (
+                <SelectItem key={period.value} value={period.label}>
+                  {period.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          {isLoadingBonus ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
+              <div className="text-sm">Đang tải dữ liệu...</div>
             </div>
-          </div>
-
-          {/* Bonus & Penalty Section */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Thưởng & Phạt
-              </CardTitle>
-              <CardDescription>
-                Theo dõi các khoản thưởng và phạt dựa trên hiệu suất KPI của bạn
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingBonus ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <div className="text-sm">Đang tải dữ liệu...</div>
-                </div>
-              ) : (
-                <>
-                  {/* Summary Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-green-600" />
-                          Tổng thưởng
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold text-green-600">
-                          {bonusPenaltySummary.totalBonus.toLocaleString('vi-VN')} VND
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {bonusPenaltySummary.bonusCount} khoản thưởng
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <TrendingDown className="h-4 w-4 text-red-600" />
-                          Tổng phạt
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold text-red-600">
-                          {bonusPenaltySummary.totalPenalty.toLocaleString('vi-VN')} VND
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {bonusPenaltySummary.penaltyCount} khoản phạt
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <DollarSign className="h-4 w-4 text-purple-600" />
-                          Số dư ròng
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className={`text-2xl font-bold ${bonusPenaltySummary.netAmount >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
-                          {bonusPenaltySummary.netAmount.toLocaleString('vi-VN')} VND
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Thưởng - Phạt
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Award className="h-4 w-4 text-blue-600" />
-                          Tổng bản ghi
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">
-                          {bonusPenaltySummary.totalRecords}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Trong {selectedPeriod}
-                        </div>
-                      </CardContent>
-                    </Card>
+          ) : bonusPenaltyRecords.length > 0 ? (
+            <>
+              {/* Summary Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-muted-foreground">Tổng thưởng</span>
                   </div>
-                  
-                  {/* Records Table */}
-                  <Table>
+                  <div className="text-2xl font-bold text-green-600">
+                    {bonusPenaltySummary.totalBonus.toLocaleString('vi-VN')} VND
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {bonusPenaltySummary.bonusCount} khoản
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                    <span className="text-sm font-medium text-muted-foreground">Tổng phạt</span>
+                  </div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {bonusPenaltySummary.totalPenalty.toLocaleString('vi-VN')} VND
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {bonusPenaltySummary.penaltyCount} khoản
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-muted-foreground">Số dư ròng</span>
+                  </div>
+                  <div className={`text-2xl font-bold ${bonusPenaltySummary.netAmount >= 0 ? 'text-primary' : 'text-red-600'}`}>
+                    {bonusPenaltySummary.netAmount.toLocaleString('vi-VN')} VND
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Thưởng - Phạt
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Award className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-muted-foreground">Tổng bản ghi</span>
+                  </div>
+                  <div className="text-2xl font-bold text-primary">
+                    {bonusPenaltySummary.totalRecords}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {selectedPeriod}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Records Table */}
+              <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>KPI</TableHead>
@@ -538,7 +504,7 @@ export default function EmployeeKpiBonusPenaltyPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {bonusPenaltyRecords.length > 0 ? bonusPenaltyRecords.map((record) => (
+                      {bonusPenaltyRecords.map((record) => (
                         <TableRow key={record.id}>
                           <TableCell className="text-sm">
                             {record.kpis?.name ? (
@@ -579,87 +545,25 @@ export default function EmployeeKpiBonusPenaltyPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center h-24">
-                            <div className="flex flex-col items-center justify-center">
-                              <Award className="h-8 w-8 text-muted-foreground mb-2" />
-                              <p className="text-muted-foreground">Chưa có dữ liệu thưởng/phạt nào</p>
-                              <p className="text-sm text-muted-foreground">Dữ liệu sẽ hiển thị khi admin thêm thưởng/phạt</p>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      ))}
                     </TableBody>
                   </Table>
-                </>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* KPI Section */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Target className="h-5 w-5" />
-                KPI Cá Nhân
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {kpiData.length > 0 ? (
-                <div className="space-y-3">
-                  {kpiData.map((kpi) => (
-                    <div key={kpi.id} className="p-4 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-base">{kpi.name}</h3>
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                            <span>{kpi.targetFormatted}</span>
-                            <span>→</span>
-                            <span className="font-medium">{kpi.actualFormatted}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={kpi.status === 'completed' ? 'default' : kpi.status === 'pending_approval' ? 'secondary' : 'outline'} className="text-xs">
-                            {kpi.status === 'completed' ? 'Hoàn thành' : 
-                             kpi.status === 'pending_approval' ? 'Chờ duyệt' : 
-                             kpi.status === 'overdue' ? 'Quá hạn' : 'Đang thực hiện'}
-                          </Badge>
-                          <span className="text-sm font-bold text-primary">
-                            {kpi.completionPercentage}%
-                          </span>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Progress value={kpi.completionPercentage} className="h-2" />
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleFeedbackClick(kpi)} className="h-7 px-2">
-                            <MessageSquare className="h-3 w-3 mr-1" />
-                            Feedback
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleUpdateClick(kpi)} disabled={kpi.status === 'pending_approval' || kpi.status === 'completed'} className="h-7 px-2">
-                            <RefreshCw className="h-3 w-3 mr-1" />
-                            Cập nhật
-                          </Button>
-                          <Button size="sm" onClick={() => handleSubmitClick(kpi)} disabled={kpi.status === 'pending_approval' || kpi.status === 'completed'} className="h-7 px-2">
-                            <FileCheck className="h-3 w-3 mr-1" />
-                            Nộp
-                          </Button>
-                        </div>
-                      </div>
+                  {bonusPenaltyRecords.length > 0 && (
+                    <div className="mt-4 text-sm text-muted-foreground text-center">
+                      Hiển thị {bonusPenaltyRecords.length} bản ghi trong {selectedPeriod}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Chưa có KPI nào được giao</p>
+                  <Award className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-muted-foreground">Chưa có dữ liệu thưởng/phạt nào</p>
+                  <p className="text-sm text-muted-foreground mt-1">Dữ liệu sẽ hiển thị khi admin thêm thưởng/phạt</p>
                 </div>
               )}
             </CardContent>
           </Card>
-        </main>
-      </div>
 
       {/* Update Progress Modal */}
       <Dialog open={isUpdateModalOpen && !!selectedKpi} onOpenChange={setUpdateModalOpen}>

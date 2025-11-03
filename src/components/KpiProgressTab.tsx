@@ -54,9 +54,19 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
-import { formatDateToLocal } from '@/lib/utils';
+import { formatDateToLocal, getFrequencyLabel } from '@/lib/utils';
 import { getPeriodLabel } from '@/lib/period-utils';
 import type { Kpi, KpiRecord } from '@/services/supabase-service';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // Lazy load components
 const KpiProgressDialog = React.lazy(() => import('./KpiProgressDialog'));
@@ -96,6 +106,8 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
     actualResult: '',
     notes: '',
   });
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
   // Mock data for demonstration - replace with actual API calls
   const mockKpiRecords: KpiRecord[] = useMemo(() => [
@@ -277,13 +289,22 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
     setIsDailyFormOpen(true);
   }, []);
 
-  const handleDeleteDailyRecord = useCallback(async (recordId: string) => {
+  const handleDeleteDailyRecord = useCallback((recordId: string) => {
+    setRecordToDelete(recordId);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const confirmDeleteDailyRecord = useCallback(async () => {
+    if (!recordToDelete) return;
+    
     try {
-      await deleteDailyKpiProgress(recordId);
+      await deleteDailyKpiProgress(recordToDelete);
       toast({
         title: 'Đã xóa',
         description: 'Đã xóa bản ghi tiến độ hàng ngày.'
       });
+      setIsDeleteDialogOpen(false);
+      setRecordToDelete(null);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -291,7 +312,7 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
         description: error?.message || 'Không thể xóa bản ghi tiến độ'
       });
     }
-  }, [deleteDailyKpiProgress, toast]);
+  }, [recordToDelete, deleteDailyKpiProgress, toast]);
 
   return (
     <div className="space-y-6">
@@ -567,7 +588,7 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
                           <div className="space-y-1">
                             <CardTitle className="text-sm font-medium">{kpi.name}</CardTitle>
                             <CardDescription className="text-xs">
-                              {kpi.department} • {kpi.frequency}
+                              {kpi.department} • {getFrequencyLabel(kpi.frequency)}
                             </CardDescription>
                           </div>
                           <div className="flex gap-1">
@@ -594,7 +615,7 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-muted-foreground">Mục tiêu:</span>
-                            <span className="font-medium">{kpi.target}{kpi.unit}</span>
+                            <span className="font-medium">{kpi.target} {kpi.unit}</span>
                           </div>
                           
                           {latestRecord && (
@@ -675,8 +696,8 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
                         </TableCell>
                         <TableCell>{kpi?.department || 'N/A'}</TableCell>
                         <TableCell>{getPeriodLabel(record.period)}</TableCell>
-                        <TableCell>{record.target}{kpi?.unit || ''}</TableCell>
-                        <TableCell>{record.actual}{kpi?.unit || ''}</TableCell>
+                        <TableCell>{record.target} {kpi?.unit || ''}</TableCell>
+                        <TableCell>{record.actual} {kpi?.unit || ''}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Progress value={record.progress} className="w-16 h-2" />
@@ -786,6 +807,24 @@ const KpiProgressTab: React.FC<KpiProgressTabProps> = ({ kpis }) => {
           kpi={selectedKpi}
         />
       </React.Suspense>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa bản ghi</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa bản ghi tiến độ hàng ngày này? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteDailyRecord} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

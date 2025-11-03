@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { getFrequencyLabel } from '@/lib/utils';
 import type { Kpi, KpiRecord } from '@/services/supabase-service';
 
 interface KpiProgressDialogProps {
@@ -147,8 +148,8 @@ const KpiProgressDialog: React.FC<KpiProgressDialogProps> = ({
             </div>
             <div className="text-sm text-muted-foreground">
               <p>Phòng ban: {kpi.department}</p>
-              <p>Mục tiêu: {kpi.target}{kpi.unit}</p>
-              <p>Tần suất: {kpi.frequency}</p>
+              <p>Mục tiêu: {kpi.target} {kpi.unit}</p>
+              <p>Tần suất: {getFrequencyLabel(kpi.frequency)}</p>
             </div>
           </div>
 
@@ -204,8 +205,8 @@ const KpiProgressDialog: React.FC<KpiProgressDialogProps> = ({
               </div>
               <Progress value={progress} className="h-2" />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Mục tiêu: {kpi.target}{kpi.unit}</span>
-                <span>Thực tế: {actual}{kpi.unit}</span>
+                <span>Mục tiêu: {kpi.target} {kpi.unit}</span>
+                <span>Thực tế: {actual} {kpi.unit}</span>
               </div>
             </div>
           )}

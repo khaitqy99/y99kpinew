@@ -20,7 +20,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useContext(SessionContext);
+  const { login, setIsLoggingIn } = useContext(SessionContext);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -61,25 +61,33 @@ export default function LoginPage() {
         }
 
         login(response.user);
+        setIsLoading(false); // Tắt loading state của login page
+        setIsLoggingIn(true); // Bật logging in state để layout hiển thị splash screen
         
-        // Redirect based on role
-        if (response.user.role === 'admin') {
-          router.push('/admin/dashboard');
-        } else {
-          router.push('/employee/dashboard');
-        }
+        // Delay redirect to show splash screen longer (3 seconds)
+        setTimeout(() => {
+          // Redirect based on role
+          if (response.user.role === 'admin') {
+            router.push('/admin/dashboard');
+          } else {
+            router.push('/employee/dashboard');
+          }
+          
+          // Tắt logging in state sau khi redirect (sau một chút để đảm bảo trang load xong)
+          setTimeout(() => {
+            setIsLoggingIn(false);
+          }, 500);
+        }, 3000);
       } else {
         setError(response.error || 'Đăng nhập thất bại');
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('Login error:', error);
       setError('Có lỗi xảy ra khi đăng nhập');
-    } finally {
       setIsLoading(false);
     }
   };
-
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">

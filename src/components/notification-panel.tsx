@@ -9,7 +9,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Bell, FileCheck, Gift, AlertTriangle, CalendarCheck, Clock, DollarSign, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from './ui/separator';
@@ -123,13 +122,8 @@ export function NotificationPanel() {
       </SheetTrigger>
       <SheetContent className="w-[400px] sm:w-[540px] flex flex-col">
         <SheetHeader className="pb-4">
-          <SheetTitle className="flex items-center justify-between">
-            <span>Thông báo</span>
-            {unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {unreadCount} mới
-              </Badge>
-            )}
+          <SheetTitle>
+            Thông báo
           </SheetTitle>
           <div className="text-sm">
             <p className="text-muted-foreground">
@@ -147,27 +141,6 @@ export function NotificationPanel() {
             </div>
           </div>
         </SheetHeader>
-        <Separator />
-        
-        {/* Category Filter */}
-        <div className="flex gap-2 py-3 overflow-x-auto">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(category)}
-              className="whitespace-nowrap"
-            >
-              {category === 'all' ? 'Tất cả' : 
-               category === 'kpi' ? 'KPI' :
-               category === 'bonus' ? 'Thưởng phạt' :
-               category === 'system' ? 'Hệ thống' :
-               category === 'reminder' ? 'Nhắc nhở' : category}
-            </Button>
-          ))}
-        </div>
-        
         <Separator />
         
         <div className="flex-1 overflow-y-auto -mx-6 px-6">
@@ -192,14 +165,6 @@ export function NotificationPanel() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-semibold text-foreground truncate">{notification.title}</p>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <Badge 
-                        variant="outline" 
-                        className={cn("text-xs", priorityColors[notification.priority] || priorityColors.medium)}
-                      >
-                        {notification.priority}
-                      </Badge>
-                    </div>
                   </div>
                   <p className={cn("mt-1", !notification.read ? "text-foreground/80" : "text-muted-foreground")}>
                     {notification.message}

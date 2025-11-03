@@ -48,6 +48,8 @@ const adminNavItems = [
 
 const employeeNavItems = [
   { href: '/employee/dashboard', icon: LayoutDashboard, label: 'Dashboard của tôi' },
+  { href: '/employee/kpis', icon: Target, label: 'Tất cả KPI' },
+  { href: '/employee/kpi-bonus-penalty', icon: DollarSign, label: 'Thưởng & Phạt' },
   { href: '/employee/account', icon: User, label: 'Quản lý tài khoản' },
 ];
 

@@ -10,7 +10,6 @@ import {
   Users,
   Building,
   X,
-  Search,
   Clock,
 } from 'lucide-react';
 
@@ -32,11 +31,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -51,6 +52,16 @@ import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import { formatDateToLocal } from '@/lib/utils';
 import type { Kpi, DailyKpiProgress } from '@/services/supabase-service';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function DailyKpiProgressPage() {
   const { toast } = useToast();
@@ -67,8 +78,10 @@ export default function DailyKpiProgressPage() {
   
   const [loading, setLoading] = useState(false);
   const [isDailyFormOpen, setIsDailyFormOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterEmployee, setFilterEmployee] = useState('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<DailyKpiProgress | null>(null);
 
   // Debug logging for real data
   React.useEffect(() => {
@@ -90,16 +103,15 @@ export default function DailyKpiProgressPage() {
     notes: '',
   });
 
-  // Filter and search data
-  const filteredProgress = dailyKpiProgress.filter(record => {
-    const matchesSearch = 
-      record.department_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.responsible_person.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.kpi_name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+  // Filter data
+  const filteredProgress = (dailyKpiProgress || []).filter(record => {
     const matchesDepartment = !filterDepartment || filterDepartment === 'all' || record.department_name === filterDepartment;
     
-    return matchesSearch && matchesDepartment;
+    // Filter by employee
+    const matchesEmployee = !filterEmployee || filterEmployee === 'all' || 
+      record.employee_id?.toString() === filterEmployee;
+    
+    return matchesDepartment && matchesEmployee;
   });
 
   // Daily progress handlers
@@ -218,13 +230,25 @@ export default function DailyKpiProgressPage() {
     setIsDailyFormOpen(true);
   }, []);
 
-  const handleDeleteDailyRecord = useCallback(async (recordId: string) => {
+  const handleDeleteDailyRecord = useCallback((recordId: string) => {
+    const record = (dailyKpiProgress || []).find(r => r.id === recordId);
+    if (record) {
+      setRecordToDelete(record);
+      setIsDeleteDialogOpen(true);
+    }
+  }, [dailyKpiProgress]);
+
+  const confirmDeleteDailyRecord = useCallback(async () => {
+    if (!recordToDelete) return;
+    
     try {
-      await deleteDailyKpiProgress(recordId);
+      await deleteDailyKpiProgress(recordToDelete.id);
       toast({
         title: 'Đã xóa',
         description: 'Đã xóa bản ghi tiến độ hàng ngày.'
       });
+      setIsDeleteDialogOpen(false);
+      setRecordToDelete(null);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -232,7 +256,7 @@ export default function DailyKpiProgressPage() {
         description: error?.message || 'Không thể xóa bản ghi tiến độ'
       });
     }
-  }, [deleteDailyKpiProgress, toast]);
+  }, [recordToDelete, deleteDailyKpiProgress, toast]);
 
   // Show loading state if context is still loading
   if (contextLoading.dailyKpiProgress || contextLoading.users || contextLoading.departments || contextLoading.kpis) {
@@ -245,189 +269,15 @@ export default function DailyKpiProgressPage() {
 
   return (
     <div className="space-y-6">
-      {/* Main Content */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Form Section */}
-          <div className="lg:col-span-1">
-            <Card className="border-0 shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold">Nhập tiến độ</CardTitle>
-                <CardDescription>
-                  Thêm bản ghi tiến độ KPI mới
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {!isDailyFormOpen ? (
-                  <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">Chưa có form nhập</p>
-                    <Button 
-                      onClick={() => setIsDailyFormOpen(true)}
-                      className="w-full"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Bắt đầu nhập
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="date" className="text-sm font-medium">Ngày *</Label>
-                        <Input
-                          id="date"
-                          type="date"
-                          value={dailyFormData.date}
-                          onChange={(e) => setDailyFormData(prev => ({ ...prev, date: e.target.value }))}
-                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="department" className="text-sm font-medium">Bộ phận *</Label>
-                        <Select 
-                          value={dailyFormData.department} 
-                          onValueChange={(value) => setDailyFormData(prev => ({ ...prev, department: value }))}
-                        >
-                          <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                            <SelectValue placeholder="Chọn bộ phận" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departments.map(dept => (
-                              <SelectItem key={dept.id} value={dept.name}>
-                                <div className="flex items-center gap-2">
-                                  <Building className="h-4 w-4" />
-                                  {dept.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="responsiblePerson" className="text-sm font-medium">Người chịu trách nhiệm *</Label>
-                        <Select 
-                          value={dailyFormData.responsiblePerson} 
-                          onValueChange={(value) => setDailyFormData(prev => ({ ...prev, responsiblePerson: value }))}
-                        >
-                          <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                            <SelectValue placeholder="Chọn người chịu trách nhiệm" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {users.map(user => (
-                              <SelectItem key={user.id} value={user.name}>
-                                <div className="flex items-center gap-2">
-                                  <Users className="h-4 w-4" />
-                                  {user.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="kpiName" className="text-sm font-medium">Tên KPI *</Label>
-                        <Select 
-                          value={dailyFormData.kpiName} 
-                          onValueChange={(value) => setDailyFormData(prev => ({ ...prev, kpiName: value }))}
-                        >
-                          <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                            <SelectValue placeholder="Chọn KPI" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {kpis.map(kpi => (
-                              <SelectItem key={kpi.id} value={kpi.name}>
-                                <div className="flex items-center gap-2">
-                                  <Target className="h-4 w-4" />
-                                  {kpi.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="actualResult" className="text-sm font-medium">Kết quả thực tế *</Label>
-                        <Input
-                          id="actualResult"
-                          type="number"
-                          value={dailyFormData.actualResult}
-                          onChange={(e) => setDailyFormData(prev => ({ ...prev, actualResult: e.target.value }))}
-                          placeholder="Nhập kết quả thực tế"
-                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="notes" className="text-sm font-medium">Ghi chú</Label>
-                        <Textarea
-                          id="notes"
-                          value={dailyFormData.notes}
-                          onChange={(e) => setDailyFormData(prev => ({ ...prev, notes: e.target.value }))}
-                          placeholder="Ghi chú về tiến độ thực hiện..."
-                          rows={3}
-                          className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 pt-4">
-                      <Button 
-                        onClick={handleDailyFormSubmit} 
-                        disabled={loading}
-                        className="flex-1 bg-blue-600 hover:bg-blue-700"
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Đang lưu...
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Lưu tiến độ
-                          </>
-                        )}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setIsDailyFormOpen(false)}
-                        disabled={loading}
-                        className="border-gray-300 hover:bg-gray-50"
-                      >
-                        Hủy
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Records Section */}
-          <div className="lg:col-span-2">
+      {/* Records Section */}
+      <div>
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg font-semibold">Bản ghi tiến độ</CardTitle>
-                    <CardDescription>
-                      Danh sách các bản ghi tiến độ hàng ngày
-                    </CardDescription>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <Input
-                        placeholder="Tìm kiếm..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-64 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                      />
-                    </div>
+                  <div className="flex gap-2 items-center">
                     <Select value={filterDepartment} onValueChange={setFilterDepartment}>
                       <SelectTrigger className="w-48 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                         <SelectValue placeholder="Lọc theo phòng ban" />
@@ -441,6 +291,37 @@ export default function DailyKpiProgressPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                      <SelectTrigger className="w-48 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <SelectValue placeholder="Lọc theo nhân viên" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả nhân viên</SelectItem>
+                        {users && users.length > 0 ? users.map(user => (
+                          <SelectItem key={user.id} value={user.id.toString()}>
+                            {user.name}
+                          </SelectItem>
+                        )) : (
+                          <SelectItem value="no-users" disabled>Chưa có nhân viên</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      onClick={() => {
+                        setDailyFormData({
+                          date: formatDateToLocal(new Date()),
+                          department: '',
+                          responsiblePerson: '',
+                          kpiName: '',
+                          actualResult: '',
+                          notes: '',
+                        });
+                        setIsDailyFormOpen(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Thêm tiến độ
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -538,8 +419,171 @@ export default function DailyKpiProgressPage() {
                 </div>
               </CardContent>
             </Card>
+      </div>
+
+      {/* Dialog for adding/editing progress */}
+      <Dialog open={isDailyFormOpen} onOpenChange={setIsDailyFormOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              {dailyFormData.kpiName ? 'Sửa tiến độ' : 'Thêm tiến độ'}
+            </DialogTitle>
+            <DialogDescription>
+              {dailyFormData.kpiName ? 'Cập nhật thông tin tiến độ KPI' : 'Thêm bản ghi tiến độ KPI mới'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="date" className="text-sm font-medium">Ngày *</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={dailyFormData.date}
+                  onChange={(e) => setDailyFormData(prev => ({ ...prev, date: e.target.value }))}
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="department" className="text-sm font-medium">Bộ phận *</Label>
+                <Select 
+                  value={dailyFormData.department} 
+                  onValueChange={(value) => setDailyFormData(prev => ({ ...prev, department: value }))}
+                >
+                  <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <SelectValue placeholder="Chọn bộ phận" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map(dept => (
+                      <SelectItem key={dept.id} value={dept.name}>
+                        <div className="flex items-center gap-2">
+                          <Building className="h-4 w-4" />
+                          {dept.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="responsiblePerson" className="text-sm font-medium">Người chịu trách nhiệm *</Label>
+                <Select 
+                  value={dailyFormData.responsiblePerson} 
+                  onValueChange={(value) => setDailyFormData(prev => ({ ...prev, responsiblePerson: value }))}
+                >
+                  <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <SelectValue placeholder="Chọn người chịu trách nhiệm" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map(user => (
+                      <SelectItem key={user.id} value={user.name}>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          {user.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="kpiName" className="text-sm font-medium">Tên KPI *</Label>
+                <Select 
+                  value={dailyFormData.kpiName} 
+                  onValueChange={(value) => setDailyFormData(prev => ({ ...prev, kpiName: value }))}
+                >
+                  <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <SelectValue placeholder="Chọn KPI" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {kpis.map(kpi => (
+                      <SelectItem key={kpi.id} value={kpi.name}>
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          {kpi.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="actualResult" className="text-sm font-medium">Kết quả thực tế *</Label>
+                <Input
+                  id="actualResult"
+                  type="number"
+                  value={dailyFormData.actualResult}
+                  onChange={(e) => setDailyFormData(prev => ({ ...prev, actualResult: e.target.value }))}
+                  placeholder="Nhập kết quả thực tế"
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm font-medium">Ghi chú</Label>
+                <Textarea
+                  id="notes"
+                  value={dailyFormData.notes}
+                  onChange={(e) => setDailyFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Ghi chú về tiến độ thực hiện..."
+                  rows={3}
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDailyFormOpen(false)}
+              disabled={loading}
+            >
+              Hủy
+            </Button>
+            <Button 
+              onClick={handleDailyFormSubmit} 
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Đang lưu...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Lưu tiến độ
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa bản ghi</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa bản ghi tiến độ hàng ngày này? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteDailyRecord} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

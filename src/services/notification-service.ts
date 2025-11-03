@@ -1,11 +1,12 @@
 'use client';
 
 import { notificationService } from './supabase-service';
+import { employeeService } from './supabase-service';
 import { SessionContext } from '@/contexts/SessionContext';
 import { useContext } from 'react';
 
 export interface NotificationData {
-  user_id: string;
+  user_id: string | number;
   type: 'assigned' | 'submitted' | 'approved' | 'rejected' | 'reminder' | 'reward' | 'penalty' | 'deadline';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   category: 'kpi' | 'bonus' | 'system' | 'reminder';
@@ -45,28 +46,132 @@ export class NotificationManager {
     this.currentUser = user;
   }
 
+  // Helper function to convert user_id to number or null
+  private normalizeUserId(userId: string | number | null | undefined): number | null {
+    if (userId === null || userId === undefined || userId === '') {
+      return null;
+    }
+    if (typeof userId === 'number') {
+      return userId;
+    }
+    if (typeof userId === 'string') {
+      // Handle special cases
+      if (userId === 'admin' || userId === 'all') {
+        return null;
+      }
+      // Try to parse as number
+      const parsed = Number(userId);
+      if (!isNaN(parsed) && isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return null;
+  }
+
+  // Helper function to determine user_type based on user_id
+  private getUserType(userId: string | number | null | undefined): 'employee' | 'admin' | 'all' {
+    if (userId === null || userId === undefined || userId === '' || userId === 'all') {
+      return 'all';
+    }
+    if (typeof userId === 'string' && userId === 'admin') {
+      return 'admin';
+    }
+    return 'employee';
+  }
+
+  // Helper function to get all admin user IDs
+  private async getAdminUserIds(): Promise<number[]> {
+    try {
+      const employees = await employeeService.getAll();
+      // Admins are employees with level >= 4
+      return employees
+        .filter(emp => emp.level >= 4 && emp.is_active)
+        .map(emp => emp.id);
+    } catch (error) {
+      console.error('Error getting admin users:', error);
+      return [];
+    }
+  }
+
   async createNotification(notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'>) {
     try {
-      // Xử lý user_id đặc biệt - giữ nguyên để có thể filter theo role
-      let userId = notificationData.user_id;
+      const userId = notificationData.user_id;
       
-      // Chỉ lấy các field có trong database schema
-      const dbNotification = {
-        user_id: userId,
-        type: notificationData.type,
-        priority: notificationData.priority,
-        category: notificationData.category,
-        title: notificationData.title,
-        message: notificationData.message,
-        read: notificationData.read,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // Handle special cases: 'admin' and 'all'
+      if (userId === 'admin') {
+        // Find all admin users and create notifications for each
+        const adminIds = await this.getAdminUserIds();
+        if (adminIds.length === 0) {
+          console.warn('No admin users found, skipping notification');
+          return null;
+        }
+        
+        const results = [];
+        for (const adminId of adminIds) {
+          const dbNotification = {
+            user_id: adminId,
+            user_type: 'admin' as const,
+            type: notificationData.type,
+            priority: notificationData.priority,
+            category: notificationData.category,
+            title: notificationData.title,
+            message: notificationData.message,
+            read: notificationData.read,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          try {
+            const notification = await notificationService.create(dbNotification);
+            results.push(notification);
+          } catch (error) {
+            console.error(`Error creating notification for admin ${adminId}:`, error);
+          }
+        }
+        return results.length > 0 ? results[0] : null;
+      } else if (userId === 'all' || userId === null || userId === undefined || userId === '') {
+        // Create notification for all users (user_id = null, user_type = 'all')
+        const dbNotification = {
+          user_id: null,
+          user_type: 'all' as const,
+          type: notificationData.type,
+          priority: notificationData.priority,
+          category: notificationData.category,
+          title: notificationData.title,
+          message: notificationData.message,
+          read: notificationData.read,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        return await notificationService.create(dbNotification);
+      } else {
+        // Normal user notification - convert to number
+        const normalizedUserId = this.normalizeUserId(userId);
+        const userType = this.getUserType(userId);
+        
+        if (normalizedUserId === null) {
+          throw new Error(`Invalid user_id: ${userId}. Must be a number or 'admin' or 'all'`);
+        }
 
-      console.log('Creating notification with data:', dbNotification);
-      const notification = await notificationService.create(dbNotification);
-      return notification;
+        const dbNotification = {
+          user_id: normalizedUserId,
+          user_type: userType,
+          type: notificationData.type,
+          priority: notificationData.priority,
+          category: notificationData.category,
+          title: notificationData.title,
+          message: notificationData.message,
+          read: notificationData.read,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        console.log('Creating notification with data:', dbNotification);
+        const notification = await notificationService.create(dbNotification);
+        return notification;
+      }
     } catch (error) {
       console.error('Error creating notification:', error);
       console.error('Notification data:', notificationData);
@@ -217,6 +322,35 @@ export class NotificationManager {
     return await this.createNotification(notificationData);
   }
 
+  // Thông báo khi nhân viên cập nhật tiến độ KPI
+  async notifyKpiProgressUpdated(kpiRecord: any, employeeInfo: { id: string; name: string }, actual: number, progress: number) {
+    // Thông báo cho admin/manager
+    const adminNotificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
+      user_id: 'admin', // Thông báo cho tất cả admin
+      type: 'reminder',
+      priority: 'low',
+      category: 'kpi',
+      title: 'KPI đã được cập nhật tiến độ',
+      message: `${employeeInfo.name} đã cập nhật tiến độ KPI "${kpiRecord.kpi_name || 'KPI'}" - Kết quả: ${actual} ${kpiRecord.unit || ''} (${progress.toFixed(1)}%)`,
+      read: false,
+      actor: {
+        id: employeeInfo.id,
+        name: employeeInfo.name,
+        avatar: '/default-avatar.png'
+      },
+      target: 'Quản lý',
+      action: 'Xem chi tiết',
+      actionUrl: `/admin/assign`,
+      metadata: {
+        kpiId: kpiRecord.kpi_id,
+        recordId: kpiRecord.id,
+        period: kpiRecord.period
+      }
+    };
+
+    return await this.createNotification(adminNotificationData);
+  }
+
   // Thông báo bonus/penalty
   async notifyBonusPenalty(kpiRecord: any, bonusAmount?: number, penaltyAmount?: number) {
     const isBonus = bonusAmount && bonusAmount > 0;
@@ -365,9 +499,13 @@ export class NotificationManager {
   }
 
   // Đánh dấu đã đọc
-  async markAsRead(notificationId: string) {
+  async markAsRead(notificationId: string | number) {
     try {
-      return await notificationService.markAsRead(notificationId);
+      const numericId = typeof notificationId === 'string' ? Number(notificationId) : notificationId;
+      if (isNaN(numericId) || !isFinite(numericId)) {
+        throw new Error(`Invalid notification ID: ${notificationId}`);
+      }
+      return await notificationService.markAsRead(numericId);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       throw error;
@@ -375,9 +513,13 @@ export class NotificationManager {
   }
 
   // Đánh dấu tất cả đã đọc
-  async markAllAsRead(userId: string) {
+  async markAllAsRead(userId: string | number) {
     try {
-      return await notificationService.markAllAsRead(userId);
+      const numericId = typeof userId === 'string' ? Number(userId) : userId;
+      if (isNaN(numericId) || !isFinite(numericId)) {
+        throw new Error(`Invalid user ID: ${userId}`);
+      }
+      return await notificationService.markAllAsRead(numericId);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       throw error;

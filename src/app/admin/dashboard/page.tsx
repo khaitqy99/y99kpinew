@@ -70,15 +70,6 @@ const calculateMonthlyCompletionRate = (records: any[], targetMonth: number, tar
 export default function AdminDashboardPage() {
   const { kpiRecords, users, kpis, loading } = useContext(SupabaseDataContext);
 
-  // Show loading state while data is being fetched
-  if (loading.kpiRecords || loading.users || loading.kpis) {
-    return (
-      <div className="flex min-h-screen w-full flex-col items-center justify-center">
-        <div className="text-lg">Đang tải dữ liệu...</div>
-      </div>
-    );
-  }
-
   // Ensure arrays are defined before using filter
   const safeKpiRecords = kpiRecords || [];
   const safeUsers = users || [];
@@ -115,6 +106,15 @@ export default function AdminDashboardPage() {
     return chartData;
   }, [safeKpiRecords]);
 
+  // Show loading state while data is being fetched - AFTER all hooks
+  if (loading.kpiRecords || loading.users || loading.kpis) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center">
+        <div className="text-lg">Đang tải dữ liệu...</div>
+      </div>
+    );
+  }
+
   const pendingKpis = safeKpiRecords.filter(r => r.status === 'pending_approval').slice(0,3).map(record => {
     const employee = safeUsers.find(e => e.id === record.employee_id);
     const kpi = safeKpis.find(k => k.id === record.kpi_id);
@@ -135,7 +135,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <main className="flex flex-1 flex-col gap-4">
-        <div className="grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Tổng KPI</CardTitle>
@@ -143,25 +143,25 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalKpis}</div>
-              <p className="text-xs text-muted-foreground">
-                {safeKpis.length > 0 ? `${safeKpis.length} KPI được định nghĩa` : 'Chưa có KPI nào'}
+              <p className="text-xs text-muted-foreground mt-1">
+                {safeKpis.length} KPI được định nghĩa
               </p>
             </CardContent>
           </Card>
+          
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Đang chờ duyệt
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Đang chờ duyệt</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{pendingCount}</div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-1">
                 {pendingCount > 0 ? 'Cần được duyệt' : 'Không có KPI chờ duyệt'}
               </p>
             </CardContent>
           </Card>
+          
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Nhân viên</CardTitle>
@@ -169,22 +169,21 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{employeeCount}</div>
-              <p className="text-xs text-muted-foreground">
-                {employeeCount > 0 ? 'Nhân viên trong hệ thống' : 'Chưa có nhân viên nào'}
+              <p className="text-xs text-muted-foreground mt-1">
+                Nhân viên trong hệ thống
               </p>
             </CardContent>
           </Card>
+          
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Tỷ lệ hoàn thành
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Tỷ lệ hoàn thành</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{completionRate.toFixed(1)}%</div>
-              <p className="text-xs text-muted-foreground">
-                {completionRate > 0 ? `${completedCount}/${totalKpis} KPI hoàn thành` : 'Chưa có KPI nào hoàn thành'}
+              <p className="text-xs text-muted-foreground mt-1">
+                {completedCount}/{totalKpis} KPI hoàn thành
               </p>
             </CardContent>
           </Card>

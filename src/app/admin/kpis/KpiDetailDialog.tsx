@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { Kpi } from '@/services/supabase-service';
+import { getFrequencyLabel } from '@/lib/utils';
 
 const KpiDetailDialog: React.FC<{
     kpi: Kpi | null;
@@ -37,19 +38,11 @@ const KpiDetailDialog: React.FC<{
                         </div>
                         <div>
                             <p className="font-medium text-muted-foreground">Mục tiêu</p>
-                            <p className='font-semibold'>{kpi.target}{kpi.unit}</p>
+                            <p className='font-semibold'>{kpi.target} {kpi.unit}</p>
                         </div>
                         <div>
                             <p className="font-medium text-muted-foreground">Tần suất</p>
-                            <p className='font-semibold'>{kpi.frequency}</p>
-                        </div>
-                        <div>
-                            <p className="font-medium text-muted-foreground">Loại</p>
-                            <p className='font-semibold'>{(kpi as any).category || 'performance'}</p>
-                        </div>
-                        <div>
-                            <p className="font-medium text-muted-foreground">Trọng số</p>
-                            <p className='font-semibold'>{(kpi as any).weight || 1}</p>
+                            <p className='font-semibold'>{getFrequencyLabel(kpi.frequency)}</p>
                         </div>
                         <div>
                             <p className="font-medium text-muted-foreground">Trạng thái</p>
@@ -73,7 +66,11 @@ const KpiDetailDialog: React.FC<{
                     {(kpi as any).reward_penalty_config && (
                         <div className="space-y-1">
                             <p className="font-medium text-muted-foreground text-sm">Cấu hình Thưởng/Phạt</p>
-                            <p className="text-sm p-3 bg-muted rounded-md">{(kpi as any).reward_penalty_config}</p>
+                            <p className="text-sm p-3 bg-muted rounded-md whitespace-pre-wrap break-words">
+                                {typeof (kpi as any).reward_penalty_config === 'string' 
+                                    ? (kpi as any).reward_penalty_config 
+                                    : JSON.stringify((kpi as any).reward_penalty_config, null, 2)}
+                            </p>
                         </div>
                     )}
                 </div>

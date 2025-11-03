@@ -110,3 +110,35 @@
     @apply bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-md;
   }
 }
+
+/* Splash screen animations */
+@keyframes scale-in {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.6s ease-out;
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+.animate-fade-in-delayed {
+  animation: fade-in 0.5s ease-out 0.3s both;
+  animation-fill-mode: forwards;
+}

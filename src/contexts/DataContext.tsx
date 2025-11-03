@@ -46,7 +46,6 @@ type DataContextType = {
   getDepartments: () => Department[];
   getDepartmentNames: () => string[];
   getFrequencies: () => string[];
-  getKpiCategories: () => string[];
   getKpiStatuses: () => string[];
   getNotificationTypes: () => string[];
   getNotificationPriorities: () => string[];
@@ -246,10 +245,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const frequencies = [...new Set(kpis.map(k => k.frequency))].sort();
     return frequencies.length > 0 ? frequencies : ['monthly', 'quarterly', 'annually'];
   }, [kpis]);
-  const getKpiCategories = useCallback(() => {
-    const categories = [...new Set(kpis.map(k => k.category))].sort();
-    return categories.length > 0 ? categories : ['performance', 'quality', 'efficiency', 'compliance', 'growth'];
-  }, [kpis]);
   const getKpiStatuses = useCallback(() => {
     const statuses = [...new Set(kpiRecords.map(r => r.status))].sort();
     return statuses.length > 0 ? statuses : ['not_started', 'in_progress', 'completed', 'pending_approval', 'approved', 'rejected', 'overdue'];
@@ -291,7 +286,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     getDepartments,
     getDepartmentNames,
     getFrequencies,
-    getKpiCategories,
     getKpiStatuses,
     getNotificationTypes,
     getNotificationPriorities,

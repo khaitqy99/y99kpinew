@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/table';
 import { SessionContext } from '@/contexts/SessionContext';
 import { bonusPenaltyService, BonusPenaltyRecord } from '@/services/bonus-penalty-service';
-import { getCurrentQuarterLabel } from '@/lib/period-utils';
+import { getCurrentQuarterLabel, getDefaultPeriod, getPeriodLabel } from '@/lib/period-utils';
 
 interface EmployeeBonusPenaltySummaryProps {
   className?: string;
@@ -47,6 +47,7 @@ export function EmployeeBonusPenaltySummary({ className }: EmployeeBonusPenaltyS
   const [bonusPenaltyRecords, setBonusPenaltyRecords] = useState<BonusPenaltyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(getDefaultPeriod());
 
   // Load bonus/penalty records for current user
   const loadRecords = useCallback(async () => {
@@ -54,14 +55,15 @@ export function EmployeeBonusPenaltySummary({ className }: EmployeeBonusPenaltyS
     
     try {
       setIsLoading(true);
-      const records = await bonusPenaltyService.getRecordsByEmployee(user.id, getCurrentQuarterLabel());
+      // Use period format (Q4-2025) instead of label format
+      const records = await bonusPenaltyService.getRecordsByEmployee(user.id, selectedPeriod);
       setBonusPenaltyRecords(records);
     } catch (error) {
       console.error('Error loading bonus/penalty records:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, selectedPeriod]);
 
   // Load records when component mounts
   React.useEffect(() => {
@@ -195,7 +197,7 @@ export function EmployeeBonusPenaltySummary({ className }: EmployeeBonusPenaltyS
             </div>
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center text-muted-foreground flex flex-col items-center justify-center min-h-[280px]">
             <Award className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">Chưa có thưởng/phạt nào</p>
             <p className="text-xs mt-1">Dữ liệu sẽ hiển thị khi admin thêm</p>

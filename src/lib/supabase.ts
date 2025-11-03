@@ -6,80 +6,37 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOi
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Database types cho schema đầy đủ và nhất quán
+// Tất cả ID dùng BIGINT (number) thay vì UUID (string) để dễ đọc và quản lý
 export type Database = {
   public: {
     Tables: {
-      companies: {
-        Row: {
-          id: string
-          name: string
-          code: string
-          description?: string
-          email?: string
-          phone?: string
-          address?: string
-          logo_url?: string
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          code: string
-          description?: string
-          email?: string
-          phone?: string
-          address?: string
-          logo_url?: string
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          code?: string
-          description?: string
-          email?: string
-          phone?: string
-          address?: string
-          logo_url?: string
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
       departments: {
         Row: {
-          id: string
-          company_id: string
+          id: number  // BIGSERIAL → number
           name: string
           code: string
           description?: string
-          manager_id?: string
+          manager_id?: number  // BIGINT → number
           is_active: boolean
           created_at: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          company_id: string
+          id?: number
           name: string
           code: string
           description?: string
-          manager_id?: string
+          manager_id?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          company_id?: string
+          id?: number
           name?: string
           code?: string
           description?: string
-          manager_id?: string
+          manager_id?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -87,8 +44,7 @@ export type Database = {
       }
       roles: {
         Row: {
-          id: string
-          company_id: string
+          id: number  // BIGSERIAL → number
           name: string
           code: string
           description?: string
@@ -99,8 +55,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
-          company_id: string
+          id?: number
           name: string
           code: string
           description?: string
@@ -111,8 +66,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          id?: string
-          company_id?: string
+          id?: number
           name?: string
           code?: string
           description?: string
@@ -125,19 +79,15 @@ export type Database = {
       }
       employees: {
         Row: {
-          id: string
-          company_id: string
+          id: number  // BIGSERIAL → number
           employee_code: string
           name: string
           email: string
-          phone?: string
           avatar_url?: string
-          role_id: string
-          department_id: string
-          manager_id?: string
+          role_id: number  // BIGINT → number
+          department_id: number  // BIGINT → number
           position: string
           level: number
-          salary: number
           currency: string
           hire_date: string
           contract_type: string
@@ -151,16 +101,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
-          company_id: string
+          id?: number
           employee_code: string
           name: string
           email: string
-          phone?: string
           avatar_url?: string
-          role_id: string
-          department_id: string
-          manager_id?: string
+          role_id: number
+          department_id: number
+          manager_id?: number
           position: string
           level?: number
           salary?: number
@@ -177,16 +125,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          id?: string
-          company_id?: string
+          id?: number
           employee_code?: string
           name?: string
           email?: string
-          phone?: string
           avatar_url?: string
-          role_id?: string
-          department_id?: string
-          manager_id?: string
+          role_id?: number
+          department_id?: number
+          manager_id?: number
           position?: string
           level?: number
           salary?: number
@@ -205,52 +151,46 @@ export type Database = {
       }
       kpis: {
         Row: {
-          id: string
+          id: number  // BIGSERIAL → number
           name: string
           description: string
-          department_id: string
+          department_id: number  // BIGINT → number
           target: number
           unit: string
           frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-          category: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth'
-          weight: number
           status: 'active' | 'inactive' | 'paused' | 'archived'
-          reward_penalty_config: string
-          created_by: string
+          reward_penalty_config: string | any  // JSONB → string hoặc parsed object
+          created_by?: number  // BIGINT → number (optional)
           is_active: boolean
           created_at: string
           updated_at: string
         }
         Insert: {
-          id?: string
+          id?: number
           name: string
           description: string
-          department_id: string
+          department_id: number
           target: number
           unit: string
           frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-          category: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth'
-          weight: number
           status?: 'active' | 'inactive' | 'paused' | 'archived'
-          reward_penalty_config: string
-          created_by: string
+          reward_penalty_config: string | any  // JSONB → string hoặc object
+          created_by?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
         }
         Update: {
-          id?: string
+          id?: number
           name?: string
           description?: string
-          department_id?: string
+          department_id?: number
           target?: number
           unit?: string
           frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-          category?: 'performance' | 'quality' | 'efficiency' | 'compliance' | 'growth'
-          weight?: number
           status?: 'active' | 'inactive' | 'paused' | 'archived'
-          reward_penalty_config?: string
-          created_by?: string
+          reward_penalty_config?: string | any
+          created_by?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -258,10 +198,10 @@ export type Database = {
       }
       kpi_records: {
         Row: {
-          id: string
-          kpi_id: string
-          employee_id?: string
-          department_id?: string
+          id: number  // BIGSERIAL → number
+          kpi_id: number  // BIGINT → number
+          employee_id?: number  // BIGINT → number
+          department_id?: number  // BIGINT → number
           period: string
           target: number
           actual: number
@@ -271,7 +211,7 @@ export type Database = {
           end_date: string
           submission_date?: string
           approval_date?: string
-          approved_by?: string
+          approved_by?: number  // BIGINT → number
           submission_details: string
           attachment?: string
           bonus_amount?: number
@@ -283,10 +223,10 @@ export type Database = {
           last_updated: string
         }
         Insert: {
-          id?: string
-          kpi_id: string
-          employee_id?: string
-          department_id?: string
+          id?: number
+          kpi_id: number
+          employee_id?: number
+          department_id?: number
           period: string
           target: number
           actual: number
@@ -296,7 +236,7 @@ export type Database = {
           end_date: string
           submission_date?: string
           approval_date?: string
-          approved_by?: string
+          approved_by?: number
           submission_details: string
           attachment?: string
           bonus_amount?: number
@@ -308,10 +248,10 @@ export type Database = {
           last_updated?: string
         }
         Update: {
-          id?: string
-          kpi_id?: string
-          employee_id?: string
-          department_id?: string
+          id?: number
+          kpi_id?: number
+          employee_id?: number
+          department_id?: number
           period?: string
           target?: number
           actual?: number
@@ -321,7 +261,7 @@ export type Database = {
           end_date?: string
           submission_date?: string
           approval_date?: string
-          approved_by?: string
+          approved_by?: number
           submission_details?: string
           attachment?: string
           bonus_amount?: number
@@ -335,49 +275,169 @@ export type Database = {
       }
       daily_kpi_progress: {
         Row: {
-          id: string
+          id: number  // BIGSERIAL → number
           date: string
-          department_id?: string
+          department_id?: number  // BIGINT → number
           department_name: string
-          employee_id?: string
+          employee_id?: number  // BIGINT → number
           responsible_person: string
-          kpi_id?: string
+          kpi_id?: number  // BIGINT → number
           kpi_name: string
           actual_result: number
           notes?: string
-          created_by?: string
+          created_by?: number  // BIGINT → number
           is_active: boolean
           created_at: string
           updated_at: string
         }
         Insert: {
-          id?: string
+          id?: number
           date: string
-          department_id?: string
+          department_id?: number
           department_name: string
-          employee_id?: string
+          employee_id?: number
           responsible_person: string
-          kpi_id?: string
+          kpi_id?: number
           kpi_name: string
           actual_result: number
           notes?: string
-          created_by?: string
+          created_by?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
         }
         Update: {
-          id?: string
+          id?: number
           date?: string
-          department_id?: string
+          department_id?: number
           department_name?: string
-          employee_id?: string
+          employee_id?: number
           responsible_person?: string
-          kpi_id?: string
+          kpi_id?: number
           kpi_name?: string
           actual_result?: number
           notes?: string
-          created_by?: string
+          created_by?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      bonus_penalty_records: {
+        Row: {
+          id: number  // BIGSERIAL → number
+          employee_id: number  // BIGINT → number
+          kpi_id?: number  // BIGINT → number
+          type: 'bonus' | 'penalty'
+          amount: number
+          reason: string
+          period: string
+          created_by?: number  // BIGINT → number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          employee_id: number
+          kpi_id?: number
+          type: 'bonus' | 'penalty'
+          amount: number
+          reason: string
+          period: string
+          created_by?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          employee_id?: number
+          kpi_id?: number
+          type?: 'bonus' | 'penalty'
+          amount?: number
+          reason?: string
+          period?: string
+          created_by?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      kpi_submissions: {
+        Row: {
+          id: number  // BIGSERIAL → number
+          employee_id: number  // BIGINT → number
+          submission_date: string
+          submission_details: string
+          attachment?: string
+          status: 'pending_approval' | 'approved' | 'rejected'
+          approval_date?: string
+          approved_by?: number  // BIGINT → number
+          rejection_reason?: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          employee_id: number
+          submission_date?: string
+          submission_details?: string
+          attachment?: string
+          status?: 'pending_approval' | 'approved' | 'rejected'
+          approval_date?: string
+          approved_by?: number
+          rejection_reason?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          employee_id?: number
+          submission_date?: string
+          submission_details?: string
+          attachment?: string
+          status?: 'pending_approval' | 'approved' | 'rejected'
+          approval_date?: string
+          approved_by?: number
+          rejection_reason?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      kpi_submission_items: {
+        Row: {
+          id: number  // BIGSERIAL → number
+          submission_id: number  // BIGINT → number
+          kpi_record_id: number  // BIGINT → number
+          actual: number
+          progress: number
+          notes?: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          submission_id: number
+          kpi_record_id: number
+          actual: number
+          progress: number
+          notes?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          submission_id?: number
+          kpi_record_id?: number
+          actual?: number
+          progress?: number
+          notes?: string
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -385,11 +445,12 @@ export type Database = {
       }
       notifications: {
         Row: {
-          id: string
-          user_id: string
-          type: string
-          priority: string
-          category: string
+          id: number  // BIGSERIAL → number
+          user_id?: number  // BIGINT → number (NULL nếu gửi cho 'all')
+          user_type: 'employee' | 'admin' | 'all'
+          type: 'assigned' | 'submitted' | 'approved' | 'rejected' | 'reminder' | 'reward' | 'penalty' | 'deadline' | 'system'
+          priority: 'low' | 'medium' | 'high' | 'urgent'
+          category: 'kpi' | 'bonus' | 'system' | 'reminder' | 'approval'
           title: string
           message: string
           read: boolean
@@ -398,11 +459,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          type: string
-          priority: string
-          category: string
+          id?: number
+          user_id?: number  // NULL nếu user_type = 'all'
+          user_type?: 'employee' | 'admin' | 'all'
+          type: 'assigned' | 'submitted' | 'approved' | 'rejected' | 'reminder' | 'reward' | 'penalty' | 'deadline' | 'system'
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          category?: 'kpi' | 'bonus' | 'system' | 'reminder' | 'approval'
           title: string
           message: string
           read?: boolean
@@ -411,11 +473,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          type?: string
-          priority?: string
-          category?: string
+          id?: number
+          user_id?: number
+          user_type?: 'employee' | 'admin' | 'all'
+          type?: 'assigned' | 'submitted' | 'approved' | 'rejected' | 'reminder' | 'reward' | 'penalty' | 'deadline' | 'system'
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          category?: 'kpi' | 'bonus' | 'system' | 'reminder' | 'approval'
           title?: string
           message?: string
           read?: boolean

@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { Kpi } from '@/services/supabase-service';
+import { getFrequencyLabel } from '@/lib/utils';
 
 export function KpiManagementTab() {
   const { toast } = useToast();
@@ -60,8 +61,6 @@ export function KpiManagementTab() {
         target: Number(kpiTarget),
         unit: kpiUnit,
         frequency: kpiFrequency as 'monthly' | 'quarterly' | 'annually',
-        category: 'performance',
-        weight: 1,
         status: 'active',
         reward_penalty_config: kpiRewardPenalty,
         created_by: 'admin', // This should be the current user ID
@@ -130,7 +129,7 @@ export function KpiManagementTab() {
               </SelectTrigger>
               <SelectContent>
               {kpiFrequencies.map(freq => (
-                <SelectItem key={freq} value={freq}>{freq}</SelectItem>
+                <SelectItem key={freq} value={freq}>{getFrequencyLabel(freq)}</SelectItem>
               ))}
               </SelectContent>
             </Select>

@@ -1,4 +1,26 @@
 import { supabase, Database } from '@/lib/supabase'
+import {
+  validateKpiRecord,
+  validateBonusPenaltyRecord,
+  validateKpi,
+  validateEmployee,
+  validatePeriod,
+  validateDateRange,
+  validatePositiveNumber,
+  validateNonNegativeNumber,
+  validateRange,
+  validateEnum,
+  sanitizeString,
+  sanitizeNumber,
+  VALID_STATUSES,
+  VALID_KPI_STATUSES,
+  VALID_FREQUENCIES,
+  VALID_EMPLOYEE_STATUSES,
+  type KpiRecordValidationData,
+  type BonusPenaltyRecordValidationData,
+  type KpiValidationData,
+  type EmployeeValidationData
+} from '@/lib/validation'
 
 // Type aliases for easier use
 type Employee = Database['public']['Tables']['employees']['Row']
@@ -25,12 +47,22 @@ type DailyKpiProgress = Database['public']['Tables']['daily_kpi_progress']['Row'
 type DailyKpiProgressInsert = Database['public']['Tables']['daily_kpi_progress']['Insert']
 type DailyKpiProgressUpdate = Database['public']['Tables']['daily_kpi_progress']['Update']
 
+type KpiSubmission = Database['public']['Tables']['kpi_submissions']['Row']
+type KpiSubmissionInsert = Database['public']['Tables']['kpi_submissions']['Insert']
+type KpiSubmissionUpdate = Database['public']['Tables']['kpi_submissions']['Update']
+
+type KpiSubmissionItem = Database['public']['Tables']['kpi_submission_items']['Row']
+type KpiSubmissionItemInsert = Database['public']['Tables']['kpi_submission_items']['Insert']
+type KpiSubmissionItemUpdate = Database['public']['Tables']['kpi_submission_items']['Update']
+
 export type { Employee, EmployeeInsert, EmployeeUpdate }
 export type { Department, DepartmentInsert, DepartmentUpdate }
 export type { Kpi, KpiInsert, KpiUpdate }
 export type { KpiRecord, KpiRecordInsert, KpiRecordUpdate }
 export type { Notification, NotificationInsert, NotificationUpdate }
 export type { DailyKpiProgress, DailyKpiProgressInsert, DailyKpiProgressUpdate }
+export type { KpiSubmission, KpiSubmissionInsert, KpiSubmissionUpdate }
+export type { KpiSubmissionItem, KpiSubmissionItemInsert, KpiSubmissionItemUpdate }
 
 // Employee operations
 export const employeeService = {
@@ -49,7 +81,7 @@ export const employeeService = {
     return data || []
   },
 
-  async getById(id: string): Promise<any | null> {
+  async getById(id: number): Promise<any | null> {
     const { data, error } = await supabase
       .from('employees')
       .select(`
@@ -65,19 +97,86 @@ export const employeeService = {
   },
 
   async create(employee: EmployeeInsert): Promise<Employee> {
+    // Validate employee data
+    const validation = validateEmployee(employee as EmployeeValidationData)
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Dữ liệu nhân viên không hợp lệ')
+    }
+
+    // Validate foreign keys
+    if (employee.role_id) {
+      const role = await roleService.getById(employee.role_id)
+      if (!role) {
+        throw new Error(`Role với ID ${employee.role_id} không tồn tại`)
+      }
+    }
+
+    if (employee.department_id) {
+      const department = await departmentService.getById(employee.department_id)
+      if (!department) {
+        throw new Error(`Department với ID ${employee.department_id} không tồn tại`)
+      }
+    }
+
+    // Sanitize string fields
+    const sanitizedEmployee = {
+      ...employee,
+      employee_code: sanitizeString(employee.employee_code),
+      name: sanitizeString(employee.name),
+      email: sanitizeString(employee.email).toLowerCase(),
+      position: sanitizeString(employee.position)
+    }
+
     const { data, error } = await supabase
       .from('employees')
-      .insert(employee)
+      .insert(sanitizedEmployee)
       .select()
     
     if (error) throw error
     return Array.isArray(data) ? (data[0] as any) : (data as any)
   },
 
-  async update(id: string, updates: EmployeeUpdate): Promise<Employee> {
+  async update(id: number, updates: EmployeeUpdate): Promise<Employee> {
+    // Get existing employee to merge updates
+    const existing = await this.getById(id)
+    if (!existing) {
+      throw new Error(`Employee với ID ${id} không tồn tại`)
+    }
+
+    // Validate updated data
+    const updatedData = { ...existing, ...updates }
+    const validation = validateEmployee(updatedData as EmployeeValidationData)
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Dữ liệu nhân viên không hợp lệ')
+    }
+
+    // Validate foreign keys if updated
+    if (updates.role_id !== undefined) {
+      const role = await roleService.getById(updates.role_id)
+      if (!role) {
+        throw new Error(`Role với ID ${updates.role_id} không tồn tại`)
+      }
+    }
+
+    if (updates.department_id !== undefined) {
+      const department = await departmentService.getById(updates.department_id)
+      if (!department) {
+        throw new Error(`Department với ID ${updates.department_id} không tồn tại`)
+      }
+    }
+
+    // Sanitize string fields
+    const sanitizedUpdates = {
+      ...updates,
+      employee_code: updates.employee_code ? sanitizeString(updates.employee_code) : undefined,
+      name: updates.name ? sanitizeString(updates.name) : undefined,
+      email: updates.email ? sanitizeString(updates.email).toLowerCase() : undefined,
+      position: updates.position ? sanitizeString(updates.position) : undefined
+    }
+
     const { data, error } = await supabase
       .from('employees')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update({ ...sanitizedUpdates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single()
@@ -86,7 +185,7 @@ export const employeeService = {
     return data
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('employees')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -146,7 +245,7 @@ export const roleService = {
     return data
   },
 
-  async ensureRoleForLevel(level: number, companyId: string): Promise<any> {
+  async ensureRoleForLevel(level: number): Promise<any> {
     // Try to get existing role
     const existing = await this.getByLevel(level)
     if (existing) return existing
@@ -160,7 +259,6 @@ export const roleService = {
     }
     const meta = roleNames[level] || { name: `Role${level}`, code: `ROLE_${level}` }
     return await this.create({
-      company_id: companyId,
       name: meta.name,
       code: meta.code,
       level,
@@ -169,7 +267,7 @@ export const roleService = {
     })
   },
 
-  async update(id: string, updates: any): Promise<any> {
+  async update(id: number, updates: any): Promise<any> {
     const { data, error } = await supabase
       .from('roles')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -181,107 +279,9 @@ export const roleService = {
     return data
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('roles')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-    
-    if (error) throw error
-  }
-}
-
-// Company operations
-export const companyService = {
-  async getAll(): Promise<any[]> {
-    const { data, error } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-    
-    if (error) throw error
-    return data || []
-  },
-
-  async create(company: any): Promise<any> {
-    const { data, error } = await supabase
-      .from('companies')
-      .insert(company)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
-  },
-
-  async getDefault(): Promise<{ id: string } | null> {
-    try {
-      // Thử lấy company hiện có
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('is_active', true)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .single()
-      
-      if (data) {
-        return data;
-      }
-
-      // Nếu không có, tạo company mặc định
-      if (error && (error as any).code === 'PGRST116') { // No rows found
-        const { data: newCompany, error: createError } = await supabase
-          .from('companies')
-          .insert({
-            id: '550e8400-e29b-41d4-a716-446655440000',
-            name: 'Y99 Company',
-            code: 'Y99',
-            description: 'Công ty Y99',
-            email: 'contact@y99.vn',
-            is_active: true
-          })
-          .select('id')
-          .single();
-
-        if (createError) throw createError;
-        return newCompany;
-      }
-
-      throw error;
-    } catch (error) {
-      console.error('Error getting default company:', error);
-      throw error;
-    }
-  },
-
-  async getById(id: string): Promise<any | null> {
-    const { data, error } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle()
-    
-    if (error) throw error
-    return data
-  },
-
-  async update(id: string, updates: any): Promise<any> {
-    const { data, error } = await supabase
-      .from('companies')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
-  },
-
-  async delete(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('companies')
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('id', id)
     
@@ -302,7 +302,7 @@ export const departmentService = {
     return data || []
   },
 
-  async getById(id: string): Promise<Department | null> {
+  async getById(id: number): Promise<Department | null> {
     const { data, error } = await supabase
       .from('departments')
       .select('*')
@@ -324,7 +324,7 @@ export const departmentService = {
     return data
   },
 
-  async update(id: string, updates: DepartmentUpdate): Promise<Department> {
+  async update(id: number, updates: DepartmentUpdate): Promise<Department> {
     const { data, error } = await supabase
       .from('departments')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -336,7 +336,7 @@ export const departmentService = {
     return data
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('departments')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -381,7 +381,7 @@ export const kpiService = {
     return transformedData
   },
 
-  async getById(id: string): Promise<Kpi | null> {
+  async getById(id: number): Promise<Kpi | null> {
     const { data, error } = await supabase
       .from('kpis')
       .select(`
@@ -405,9 +405,38 @@ export const kpiService = {
   },
 
   async create(kpi: KpiInsert): Promise<Kpi> {
+    // Validate KPI data
+    const validation = validateKpi(kpi as KpiValidationData)
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Dữ liệu KPI không hợp lệ')
+    }
+
+    // Validate foreign key
+    if (kpi.department_id) {
+      const department = await departmentService.getById(kpi.department_id)
+      if (!department) {
+        throw new Error(`Department với ID ${kpi.department_id} không tồn tại`)
+      }
+    }
+
+    // Validate created_by if provided
+    if (kpi.created_by) {
+      const creator = await employeeService.getById(kpi.created_by)
+      if (!creator) {
+        throw new Error(`Employee với ID ${kpi.created_by} không tồn tại`)
+      }
+    }
+
+    // Sanitize string fields
+    const sanitizedKpi = {
+      ...kpi,
+      name: sanitizeString(kpi.name),
+      description: sanitizeString(kpi.description)
+    }
+
     const { data, error } = await supabase
       .from('kpis')
-      .insert(kpi)
+      .insert(sanitizedKpi)
       .select()
       .single()
     
@@ -415,10 +444,38 @@ export const kpiService = {
     return data
   },
 
-  async update(id: string, updates: KpiUpdate): Promise<Kpi> {
+  async update(id: number, updates: KpiUpdate): Promise<Kpi> {
+    // Get existing KPI to merge updates
+    const existing = await this.getById(id)
+    if (!existing) {
+      throw new Error(`KPI với ID ${id} không tồn tại`)
+    }
+
+    // Validate updated data
+    const updatedData = { ...existing, ...updates }
+    const validation = validateKpi(updatedData as KpiValidationData)
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Dữ liệu KPI không hợp lệ')
+    }
+
+    // Validate foreign key if updated
+    if (updates.department_id !== undefined) {
+      const department = await departmentService.getById(updates.department_id)
+      if (!department) {
+        throw new Error(`Department với ID ${updates.department_id} không tồn tại`)
+      }
+    }
+
+    // Sanitize string fields
+    const sanitizedUpdates = {
+      ...updates,
+      name: updates.name ? sanitizeString(updates.name) : undefined,
+      description: updates.description ? sanitizeString(updates.description) : undefined
+    }
+
     const { data, error } = await supabase
       .from('kpis')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update({ ...sanitizedUpdates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single()
@@ -427,7 +484,7 @@ export const kpiService = {
     return data
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('kpis')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -467,7 +524,7 @@ export const kpiRecordService = {
     return data || []
   },
 
-  async getByEmployeeId(employeeId: string): Promise<KpiRecord[]> {
+  async getByEmployeeId(employeeId: number): Promise<KpiRecord[]> {
     const { data, error } = await supabase
       .from('kpi_records')
       .select('*')
@@ -479,7 +536,7 @@ export const kpiRecordService = {
     return data || []
   },
 
-  async getById(id: string): Promise<KpiRecord | null> {
+  async getById(id: number): Promise<KpiRecord | null> {
     const { data, error } = await supabase
       .from('kpi_records')
       .select('*')
@@ -491,16 +548,91 @@ export const kpiRecordService = {
   },
 
   async create(kpiRecord: KpiRecordInsert): Promise<KpiRecord> {
-    // Đảm bảo có đầy đủ các field required
-    const recordData = {
-      ...kpiRecord,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_updated: new Date().toISOString(),
-    };
+    // Validate KPI record data
+    const validation = validateKpiRecord(kpiRecord as KpiRecordValidationData)
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Dữ liệu KPI record không hợp lệ')
+    }
 
-    console.log('Creating KPI record with data:', recordData);
+    // Validate foreign keys
+    if (kpiRecord.kpi_id) {
+      const kpi = await kpiService.getById(kpiRecord.kpi_id)
+      if (!kpi) {
+        throw new Error(`KPI với ID ${kpiRecord.kpi_id} không tồn tại`)
+      }
+    }
+
+    if (kpiRecord.employee_id) {
+      const employee = await employeeService.getById(kpiRecord.employee_id)
+      if (!employee) {
+        throw new Error(`Employee với ID ${kpiRecord.employee_id} không tồn tại`)
+      }
+    }
+
+    if (kpiRecord.department_id) {
+      const department = await departmentService.getById(kpiRecord.department_id)
+      if (!department) {
+        throw new Error(`Department với ID ${kpiRecord.department_id} không tồn tại`)
+      }
+    }
+
+    if (kpiRecord.approved_by) {
+      const approver = await employeeService.getById(kpiRecord.approved_by)
+      if (!approver) {
+        throw new Error(`Employee với ID ${kpiRecord.approved_by} không tồn tại`)
+      }
+    }
+
+    // Check for duplicate assignment
+    if (kpiRecord.employee_id && kpiRecord.period && kpiRecord.kpi_id) {
+      const existing = await supabase
+        .from('kpi_records')
+        .select('id')
+        .eq('kpi_id', kpiRecord.kpi_id)
+        .eq('employee_id', kpiRecord.employee_id)
+        .eq('period', kpiRecord.period)
+        .eq('is_active', true)
+        .maybeSingle()
+      
+      if (existing.data) {
+        throw new Error(`KPI này đã được giao cho employee này trong kỳ ${kpiRecord.period}`)
+      }
+    }
+
+    if (kpiRecord.department_id && kpiRecord.period && kpiRecord.kpi_id) {
+      const existing = await supabase
+        .from('kpi_records')
+        .select('id')
+        .eq('kpi_id', kpiRecord.kpi_id)
+        .eq('department_id', kpiRecord.department_id)
+        .eq('period', kpiRecord.period)
+        .eq('is_active', true)
+        .maybeSingle()
+      
+      if (existing.data) {
+        throw new Error(`KPI này đã được giao cho department này trong kỳ ${kpiRecord.period}`)
+      }
+    }
+
+    // Đảm bảo có đầy đủ các field required
+    // Loại bỏ các field không hợp lệ như feedback, và các field có DEFAULT trong database
+    const { feedback, created_at, updated_at, last_updated, ...cleanRecord } = kpiRecord as any;
+    
+    // Chỉ set is_active nếu được truyền vào, không thì để database tự set DEFAULT
+    const recordData: any = { ...cleanRecord };
+    if ('is_active' in kpiRecord) {
+      recordData.is_active = (kpiRecord as any).is_active;
+    }
+
+    // Sanitize string fields
+    if (recordData.period) {
+      recordData.period = sanitizeString(recordData.period)
+    }
+    if (recordData.submission_details !== undefined) {
+      recordData.submission_details = sanitizeString(recordData.submission_details)
+    }
+
+    console.log('Creating KPI record with data:', JSON.stringify(recordData, null, 2));
 
     const { data, error } = await supabase
       .from('kpi_records')
@@ -510,25 +642,102 @@ export const kpiRecordService = {
     
     if (error) {
       console.error('Error creating KPI record:', error);
-      console.error('Record data:', recordData);
-      throw error;
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('Record data:', JSON.stringify(recordData, null, 2));
+      
+      // Tạo error message rõ ràng hơn
+      const errorMessage = (error as any)?.message || (error as any)?.details || (error as any)?.hint || 'Không thể tạo bản ghi KPI';
+      const enrichedError = new Error(
+        `Tạo bản ghi KPI thất bại: ${errorMessage}${(error as any)?.code ? ` (code: ${(error as any).code})` : ''}`
+      ) as Error & { code?: string; details?: string; hint?: string };
+      
+      enrichedError.code = (error as any)?.code;
+      enrichedError.details = (error as any)?.details;
+      enrichedError.hint = (error as any)?.hint;
+      
+      throw enrichedError;
     }
     return data
   },
 
-  async update(id: string, updates: KpiRecordUpdate): Promise<KpiRecord> {
+  async update(id: number, updates: KpiRecordUpdate): Promise<KpiRecord> {
+    // Get existing record to merge updates
+    const existing = await this.getById(id)
+    if (!existing) {
+      throw new Error(`KPI record với ID ${id} không tồn tại`)
+    }
+
+    // Only validate if updating critical fields, skip validation for simple updates like actual/progress
+    const needsFullValidation = updates.kpi_id !== undefined || updates.employee_id !== undefined || 
+                                 updates.department_id !== undefined || updates.period !== undefined;
+    
+    if (needsFullValidation) {
+      // Merge updates and validate
+      const updatedData = { ...existing, ...updates }
+      const validation = validateKpiRecord(updatedData as KpiRecordValidationData)
+      if (!validation.valid) {
+        throw new Error(validation.error || 'Dữ liệu KPI record không hợp lệ')
+      }
+    }
+
+    // Validate foreign keys if updated
+    if (updates.kpi_id !== undefined) {
+      const kpi = await kpiService.getById(updates.kpi_id)
+      if (!kpi) {
+        throw new Error(`KPI với ID ${updates.kpi_id} không tồn tại`)
+      }
+    }
+
+    if (updates.employee_id !== undefined && updates.employee_id !== null) {
+      const employee = await employeeService.getById(updates.employee_id)
+      if (!employee) {
+        throw new Error(`Employee với ID ${updates.employee_id} không tồn tại`)
+      }
+    }
+
+    if (updates.department_id !== undefined && updates.department_id !== null) {
+      const department = await departmentService.getById(updates.department_id)
+      if (!department) {
+        throw new Error(`Department với ID ${updates.department_id} không tồn tại`)
+      }
+    }
+
+    if (updates.approved_by !== undefined && updates.approved_by !== null) {
+      const approver = await employeeService.getById(updates.approved_by)
+      if (!approver) {
+        throw new Error(`Employee với ID ${updates.approved_by} không tồn tại`)
+      }
+    }
+
+    // Sanitize string fields
+    const sanitizedUpdates = {
+      ...updates,
+      period: updates.period ? sanitizeString(updates.period) : undefined,
+      submission_details: updates.submission_details !== undefined ? sanitizeString(updates.submission_details) : undefined
+    }
+
     const { data, error } = await supabase
       .from('kpi_records')
-      .update({ ...updates, updated_at: new Date().toISOString(), last_updated: new Date().toISOString() })
+      .update({ ...sanitizedUpdates, updated_at: new Date().toISOString(), last_updated: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      // Create a better error message
+      const errorMessage = error.message || error.details || error.hint || 'Unknown error';
+      const enrichedError = new Error(
+        `Supabase kpi_records.update failed: ${errorMessage}${error.code ? ` (code: ${error.code})` : ''}`
+      ) as Error & { code?: string; details?: string; hint?: string };
+      enrichedError.code = error.code;
+      enrichedError.details = error.details;
+      enrichedError.hint = error.hint;
+      throw enrichedError;
+    }
     return data
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('kpi_records')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -559,11 +768,18 @@ export const notificationService = {
     return data || []
   },
 
-  async getByUserId(userId: string): Promise<Notification[]> {
+  async getByUserId(userId: number | string): Promise<Notification[]> {
+    // Convert string to number if needed
+    const numericUserId = typeof userId === 'string' ? Number(userId) : userId;
+    
+    if (isNaN(numericUserId) || !isFinite(numericUserId)) {
+      throw new Error(`Invalid user_id: ${userId}. Must be a number.`);
+    }
+    
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', numericUserId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
     
@@ -582,7 +798,7 @@ export const notificationService = {
     return data
   },
 
-  async markAsRead(id: string): Promise<Notification> {
+  async markAsRead(id: number): Promise<Notification> {
     const { data, error } = await supabase
       .from('notifications')
       .update({ read: true, updated_at: new Date().toISOString() })
@@ -594,7 +810,7 @@ export const notificationService = {
     return data
   },
 
-  async markAllAsRead(userId: string): Promise<void> {
+  async markAllAsRead(userId: number): Promise<void> {
     const { error } = await supabase
       .from('notifications')
       .update({ read: true, updated_at: new Date().toISOString() })
@@ -604,7 +820,7 @@ export const notificationService = {
     if (error) throw error
   },
 
-  async getById(id: string): Promise<Notification | null> {
+  async getById(id: number): Promise<Notification | null> {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
@@ -615,7 +831,7 @@ export const notificationService = {
     return data
   },
 
-  async update(id: string, updates: NotificationUpdate): Promise<Notification> {
+  async update(id: number, updates: NotificationUpdate): Promise<Notification> {
     const { data, error } = await supabase
       .from('notifications')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -627,7 +843,7 @@ export const notificationService = {
     return data
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('notifications')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -671,7 +887,7 @@ export const dailyKpiProgressService = {
     return data || []
   },
 
-  async getByDepartment(departmentId: string): Promise<DailyKpiProgress[]> {
+  async getByDepartment(departmentId: number): Promise<DailyKpiProgress[]> {
     const { data, error } = await supabase
       .from('daily_kpi_progress')
       .select('*')
@@ -683,7 +899,7 @@ export const dailyKpiProgressService = {
     return data || []
   },
 
-  async getByEmployee(employeeId: string): Promise<DailyKpiProgress[]> {
+  async getByEmployee(employeeId: number): Promise<DailyKpiProgress[]> {
     const { data, error } = await supabase
       .from('daily_kpi_progress')
       .select('*')
@@ -695,7 +911,7 @@ export const dailyKpiProgressService = {
     return data || []
   },
 
-  async getById(id: string): Promise<DailyKpiProgress | null> {
+  async getById(id: number): Promise<DailyKpiProgress | null> {
     const { data, error } = await supabase
       .from('daily_kpi_progress')
       .select('*')
@@ -720,7 +936,7 @@ export const dailyKpiProgressService = {
     return data
   },
 
-  async update(id: string, updates: DailyKpiProgressUpdate): Promise<DailyKpiProgress> {
+  async update(id: number, updates: DailyKpiProgressUpdate): Promise<DailyKpiProgress> {
     const { data, error } = await supabase
       .from('daily_kpi_progress')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -732,7 +948,7 @@ export const dailyKpiProgressService = {
     return data
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('daily_kpi_progress')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -759,5 +975,343 @@ export const dailyKpiProgressService = {
     
     if (error) throw error
     return data || []
+  }
+}
+
+// KPI Submission operations
+export const kpiSubmissionService = {
+  async getAll(): Promise<any[]> {
+    try {
+      // First, try to get submissions with basic info
+      const { data, error } = await supabase
+        .from('kpi_submissions')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        // If table doesn't exist, return empty array
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          console.warn('Table kpi_submissions does not exist yet. Please run the migration.');
+          return [];
+        }
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        return [];
+      }
+
+      // Then get items for each submission
+      const submissionsWithItems = await Promise.all(
+        data.map(async (submission) => {
+          try {
+            // Get items
+            const { data: items, error: itemsError } = await supabase
+              .from('kpi_submission_items')
+              .select('*')
+              .eq('submission_id', submission.id)
+              .eq('is_active', true);
+
+            if (itemsError) {
+              console.warn(`Error loading items for submission ${submission.id}:`, itemsError);
+              return { ...submission, items: [] };
+            }
+
+            // Get employee info
+            let employee = null;
+            if (submission.employee_id) {
+              try {
+                const emp = await employeeService.getById(submission.employee_id);
+                employee = emp ? { id: emp.id, name: emp.name, email: emp.email } : null;
+              } catch (e) {
+                console.warn(`Error loading employee ${submission.employee_id}:`, e);
+              }
+            }
+
+            // Get approved_by info
+            let approvedByEmployee = null;
+            if (submission.approved_by) {
+              try {
+                const emp = await employeeService.getById(submission.approved_by);
+                approvedByEmployee = emp ? { id: emp.id, name: emp.name, email: emp.email } : null;
+              } catch (e) {
+                console.warn(`Error loading approved_by employee ${submission.approved_by}:`, e);
+              }
+            }
+
+            // Get KPI record details for each item
+            const itemsWithDetails = await Promise.all(
+              (items || []).map(async (item) => {
+                try {
+                  const record = await kpiRecordService.getById(item.kpi_record_id);
+                  if (record) {
+                    const kpi = await kpiService.getById(record.kpi_id);
+                    const emp = record.employee_id ? await employeeService.getById(record.employee_id) : null;
+                    return {
+                      ...item,
+                      kpi_records: {
+                        ...record,
+                        kpis: kpi ? { id: kpi.id, name: kpi.name, unit: kpi.unit } : null,
+                        employees: emp ? { id: emp.id, name: emp.name } : null,
+                      },
+                    };
+                  }
+                  return item;
+                } catch (e) {
+                  console.warn(`Error loading KPI record ${item.kpi_record_id}:`, e);
+                  return item;
+                }
+              })
+            );
+
+            return {
+              ...submission,
+              employees: employee,
+              approved_by_employee: approvedByEmployee,
+              items: itemsWithDetails,
+            };
+          } catch (e) {
+            console.warn(`Error processing submission ${submission.id}:`, e);
+            return { ...submission, items: [] };
+          }
+        })
+      );
+
+      return submissionsWithItems;
+    } catch (error) {
+      console.error('Error in kpiSubmissionService.getAll:', error);
+      // Return empty array instead of throwing if table doesn't exist
+      if (error && typeof error === 'object' && 'code' in error) {
+        if (error.code === '42P01' || (error as any).message?.includes('does not exist')) {
+          console.warn('Table kpi_submissions does not exist yet. Please run the migration.');
+          return [];
+        }
+      }
+      throw error;
+    }
+  },
+
+  async getById(id: number): Promise<any | null> {
+    const { data, error } = await supabase
+      .from('kpi_submissions')
+      .select(`
+        *,
+        employees:employee_id(id, name, email),
+        approved_by_employee:approved_by(id, name, email),
+        items:kpi_submission_items(
+          *,
+          kpi_records:kpi_record_id(
+            *,
+            kpis:kpi_id(id, name, unit),
+            employees:employee_id(id, name)
+          )
+        )
+      `)
+      .eq('id', id)
+      .eq('is_active', true)
+      .maybeSingle()
+    
+    if (error) throw error
+    return data
+  },
+
+  async getByEmployeeId(employeeId: number): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('kpi_submissions')
+      .select(`
+        *,
+        items:kpi_submission_items(
+          *,
+          kpi_records:kpi_record_id(
+            *,
+            kpis:kpi_id(id, name, unit)
+          )
+        )
+      `)
+      .eq('employee_id', employeeId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async create(submission: KpiSubmissionInsert, items: Omit<KpiSubmissionItemInsert, 'submission_id'>[]): Promise<KpiSubmission> {
+    // Create submission first
+    const { data: submissionData, error: submissionError } = await supabase
+      .from('kpi_submissions')
+      .insert({
+        ...submission,
+        submission_date: submission.submission_date || new Date().toISOString(),
+        submission_details: submission.submission_details || '',
+        status: submission.status || 'pending_approval',
+        is_active: true,
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+    
+    if (submissionError) throw submissionError
+    if (!submissionData) throw new Error('Failed to create submission')
+
+    // Create submission items
+    if (items && items.length > 0) {
+      const itemsToInsert = items.map(item => ({
+        ...item,
+        submission_id: submissionData.id,
+        is_active: true,
+        updated_at: new Date().toISOString()
+      }))
+
+      const { error: itemsError } = await supabase
+        .from('kpi_submission_items')
+        .insert(itemsToInsert)
+      
+      if (itemsError) {
+        // Rollback: delete submission if items creation fails
+        await supabase.from('kpi_submissions').delete().eq('id', submissionData.id)
+        throw itemsError
+      }
+
+      // Update KPI records with actual values
+      for (const item of items) {
+        const kpiRecordId = item.kpi_record_id
+        const actual = item.actual
+        
+        // Get KPI record to calculate progress
+        const { data: kpiRecord } = await supabase
+          .from('kpi_records')
+          .select('target')
+          .eq('id', kpiRecordId)
+          .single()
+        
+        if (kpiRecord) {
+          // Calculate progress, allow > 100% if actual exceeds target
+          const calculatedProgress = (actual / kpiRecord.target) * 100;
+          const progress = Math.max(0, Math.round(calculatedProgress * 100) / 100); // Round to 2 decimal places
+          
+          await supabase
+            .from('kpi_records')
+            .update({
+              actual,
+              progress,
+              status: 'pending_approval',
+              submission_date: submissionData.submission_date,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', kpiRecordId)
+        }
+      }
+    }
+
+    return submissionData
+  },
+
+  async update(id: number, submission: KpiSubmissionUpdate): Promise<KpiSubmission> {
+    const { data, error } = await supabase
+      .from('kpi_submissions')
+      .update({
+        ...submission,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    if (!data) throw new Error(`Submission với ID ${id} không tồn tại`)
+    return data
+  },
+
+  async approve(id: number, approvedBy: number): Promise<KpiSubmission> {
+    // Get submission with items
+    const submission = await this.getById(id)
+    if (!submission) throw new Error(`Submission với ID ${id} không tồn tại`)
+
+    // Update submission status
+    const { data, error } = await supabase
+      .from('kpi_submissions')
+      .update({
+        status: 'approved',
+        approval_date: new Date().toISOString(),
+        approved_by: approvedBy,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    if (!data) throw new Error(`Submission với ID ${id} không tồn tại`)
+
+    // Update KPI records status to approved
+    if (submission.items && Array.isArray(submission.items)) {
+      for (const item of submission.items) {
+        if (item.kpi_records) {
+          await supabase
+            .from('kpi_records')
+            .update({
+              status: 'approved',
+              approval_date: new Date().toISOString(),
+              approved_by: approvedBy,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', item.kpi_records.id)
+        }
+      }
+    }
+
+    return data
+  },
+
+  async reject(id: number, rejectedBy: number, reason: string): Promise<KpiSubmission> {
+    const { data, error } = await supabase
+      .from('kpi_submissions')
+      .update({
+        status: 'rejected',
+        rejection_reason: reason,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    if (!data) throw new Error(`Submission với ID ${id} không tồn tại`)
+
+    // Update KPI records status to rejected
+    const submission = await this.getById(id)
+    if (submission && submission.items && Array.isArray(submission.items)) {
+      for (const item of submission.items) {
+        if (item.kpi_records) {
+          await supabase
+            .from('kpi_records')
+            .update({
+              status: 'rejected',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', item.kpi_records.id)
+        }
+      }
+    }
+
+    return data
+  },
+
+  async delete(id: number): Promise<void> {
+    // Delete items first (due to foreign key constraint)
+    await supabase
+      .from('kpi_submission_items')
+      .delete()
+      .eq('submission_id', id)
+    
+    // Delete submission
+    const { error } = await supabase
+      .from('kpi_submissions')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
   }
 }

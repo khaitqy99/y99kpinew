@@ -31,10 +31,9 @@ import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
-import { formatDateToLocal } from '@/lib/utils';
+import { formatDateToLocal, getRoleLabel } from '@/lib/utils';
 import type { Employee } from '@/services/supabase-service';
 import { roleService } from '@/services/supabase-service';
-import { companyService } from '@/services/supabase-service';
 
 export function UsersDepartmentsTab() {
   const { toast } = useToast();
@@ -125,29 +124,19 @@ export function UsersDepartmentsTab() {
           level = 1;
       }
       
-      // Lấy company mặc định (đảm bảo tồn tại để tránh lỗi FK)
-      const company = await companyService.getDefault();
-      if (!company) {
-        throw new Error('Không tìm thấy công ty mặc định. Vui lòng tạo công ty trước.');
-      }
-
       // Lấy role_id từ database dựa trên level (tự động tạo nếu chưa có)
-      const role = await roleService.ensureRoleForLevel(level, company.id);
+      const role = await roleService.ensureRoleForLevel(level);
       roleId = role.id;
       
       const newUser: Omit<Employee, 'id' | 'created_at' | 'updated_at'> = {
-        company_id: company.id,
         employee_code: employeeCode,
         name: newUserName,
         email: newUserEmail,
-        phone: '',
         avatar_url: `https://picsum.photos/seed/${employeeCount + 10}/40/40`,
         role_id: roleId,
         department_id: selectedDept.id,
-        manager_id: null,
         position: newUserPosition || 'Nhân viên',
         level: level,
-        salary: 0,
         currency: 'VND',
         hire_date: formatDateToLocal(new Date()), // Format YYYY-MM-DD using local timezone
         contract_type: 'full_time',
@@ -191,7 +180,6 @@ export function UsersDepartmentsTab() {
         <Card>
           <CardHeader>
             <CardTitle>Quản lý phòng ban</CardTitle>
-            <CardDescription>Tạo và xem danh sách các phòng ban.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="space-y-3">
@@ -248,7 +236,6 @@ export function UsersDepartmentsTab() {
         <Card>
           <CardHeader>
             <CardTitle>Quản lý người dùng</CardTitle>
-            <CardDescription>Tạo và quản lý tài khoản nhân viên.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -322,7 +309,7 @@ export function UsersDepartmentsTab() {
                               <TableCell className="font-medium">{user.name}</TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell>{user.departments?.name || 'N/A'}</TableCell>
-                              <TableCell>{user.roles?.name || 'N/A'}</TableCell>
+                              <TableCell>{getRoleLabel(user.roles?.name)}</TableCell>
                               <TableCell>{user.position}</TableCell>
                           </TableRow>
                       )) : (

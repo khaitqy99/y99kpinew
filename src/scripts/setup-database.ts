@@ -25,8 +25,6 @@ export class DatabaseSetup {
       // Check if all required tables exist
       await this.checkTables();
       
-      // Ensure default company exists
-      await this.ensureDefaultCompany();
       
       // Print summary
       this.printSummary();
@@ -75,57 +73,6 @@ export class DatabaseSetup {
     }
   }
 
-  private async ensureDefaultCompany() {
-    console.log('\n🏢 Ensuring default company exists...');
-    
-    try {
-      // Check if default company exists
-      const { data: existingCompany, error: checkError } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('is_active', true)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      
-      if (checkError && checkError.code !== 'PGRST116') {
-        this.addResult('default_company', false, checkError.message);
-        return;
-      }
-
-      if (existingCompany) {
-        this.addResult('default_company', true);
-        console.log(`   Default company exists: ${existingCompany.id}`);
-        return;
-      }
-
-      // Create default company if it doesn't exist
-      const { data: newCompany, error: createError } = await supabase
-        .from('companies')
-        .insert({
-          id: '550e8400-e29b-41d4-a716-446655440000',
-          name: 'Y99 Company',
-          code: 'Y99',
-          description: 'Công ty Y99 - Công ty mặc định',
-          email: 'contact@y99.vn',
-          phone: '+84 123 456 789',
-          address: 'Việt Nam',
-          is_active: true
-        })
-        .select('id')
-        .single();
-
-      if (createError) {
-        this.addResult('default_company', false, createError.message);
-      } else {
-        this.addResult('default_company', true);
-        console.log(`   Created default company: ${newCompany.id}`);
-      }
-      
-    } catch (error: any) {
-      this.addResult('default_company', false, error.message);
-    }
-  }
 
   private printSummary() {
     console.log('\n📊 Setup Summary:');

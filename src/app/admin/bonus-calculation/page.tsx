@@ -53,7 +53,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
-import { getDefaultPeriod, getCurrentQuarterLabel, generatePeriodOptions } from '@/lib/period-utils';
+import { getDefaultPeriod, getCurrentQuarterLabel, generatePeriodOptions, getPeriodLabel } from '@/lib/period-utils';
+import { formatCurrency, parseCurrency } from '@/lib/utils';
 import { 
   RoleCode,
   ROLE_CODES 
@@ -67,16 +68,55 @@ const AddBonusPenaltyDialog: React.FC<{
   onSave: (record: CreateBonusPenaltyRecord) => Promise<void>;
   employees: any[];
   kpis: any[];
+  kpiRecords: any[];
   periods: any[];
-}> = ({ open, onOpenChange, onSave, employees, kpis, periods }) => {
+}> = ({ open, onOpenChange, onSave, employees, kpis, kpiRecords, periods }) => {
   const [formData, setFormData] = useState({
     employeeId: '',
     kpiId: 'none',
     type: 'bonus' as 'bonus' | 'penalty',
     amount: '',
     reason: '',
-    period: getCurrentQuarterLabel(),
+    period: getDefaultPeriod(),
   });
+
+  // Filter KPIs that are assigned to the selected employee
+  const assignedKpis = useMemo(() => {
+    if (!formData.employeeId || !kpiRecords || !kpis) {
+      return [];
+    }
+    
+    // Get all KPI IDs assigned to this employee
+    const assignedKpiIds = new Set(
+      kpiRecords
+        .filter(record => record.employee_id === formData.employeeId)
+        .map(record => record.kpi_id)
+    );
+    
+    // Return only KPIs that are assigned to this employee
+    return kpis.filter(kpi => assignedKpiIds.has(kpi.id));
+  }, [formData.employeeId, kpiRecords, kpis]);
+
+  // Reset KPI selection when employee changes
+  React.useEffect(() => {
+    if (formData.employeeId) {
+      setFormData(prev => ({ ...prev, kpiId: 'none' }));
+    }
+  }, [formData.employeeId]);
+
+  // Reset form when dialog closes
+  React.useEffect(() => {
+    if (!open) {
+      setFormData({
+        employeeId: '',
+        kpiId: 'none',
+        type: 'bonus',
+        amount: '',
+        reason: '',
+        period: getDefaultPeriod(),
+      });
+    }
+  }, [open]);
 
   const handleSave = async () => {
     if (!formData.employeeId || !formData.amount || !formData.reason) {
@@ -86,25 +126,27 @@ const AddBonusPenaltyDialog: React.FC<{
     try {
       await onSave({
         employee_id: formData.employeeId,
-        kpi_id: formData.kpiId || undefined,
+        kpi_id: formData.kpiId === 'none' ? undefined : formData.kpiId,
         type: formData.type,
-        amount: parseFloat(formData.amount),
+        amount: parseCurrency(formData.amount),
         reason: formData.reason,
         period: formData.period,
       });
 
-      // Reset form
+      // Reset form only on success
       setFormData({
         employeeId: '',
         kpiId: 'none',
         type: 'bonus',
         amount: '',
         reason: '',
-        period: getCurrentQuarterLabel(),
+        period: getDefaultPeriod(),
       });
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving record:', error);
+      // Error is already handled in onSave (handleAddRecord)
+      // Don't reset form on error
     }
   };
 
@@ -140,17 +182,33 @@ const AddBonusPenaltyDialog: React.FC<{
 
           <div className="space-y-2">
             <Label htmlFor="kpi">KPI (Tùy chọn)</Label>
-            <Select value={formData.kpiId} onValueChange={(value) => setFormData(prev => ({ ...prev, kpiId: value === 'none' ? '' : value }))}>
+            <Select 
+              value={formData.kpiId} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, kpiId: value }))}
+              disabled={!formData.employeeId}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Chọn KPI (không bắt buộc)" />
+                <SelectValue placeholder={
+                  !formData.employeeId 
+                    ? "Vui lòng chọn nhân viên trước" 
+                    : assignedKpis.length === 0 
+                      ? "Nhân viên chưa được giao KPI nào" 
+                      : "Chọn KPI (không bắt buộc)"
+                } />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Không chọn KPI</SelectItem>
-                {kpis.map(kpi => (
-                  <SelectItem key={kpi.id} value={kpi.id}>
-                    {kpi.name} - {kpi.unit || 'N/A'}
+                {assignedKpis.length > 0 ? (
+                  assignedKpis.map(kpi => (
+                    <SelectItem key={kpi.id} value={kpi.id}>
+                      {kpi.name} - {kpi.unit || 'N/A'}
+                    </SelectItem>
+                  ))
+                ) : formData.employeeId ? (
+                  <SelectItem value="" disabled>
+                    Không có KPI nào được giao cho nhân viên này
                   </SelectItem>
-                ))}
+                ) : null}
               </SelectContent>
             </Select>
           </div>
@@ -172,10 +230,22 @@ const AddBonusPenaltyDialog: React.FC<{
             <Label htmlFor="amount">Số tiền (VND)</Label>
             <Input
               id="amount"
-              type="number"
+              type="text"
               placeholder="Nhập số tiền"
               value={formData.amount}
-              onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+              onChange={(e) => {
+                // Remove all non-digit characters except comma
+                let value = e.target.value.replace(/[^\d,]/g, '');
+                // Remove commas to parse, then format
+                const numValue = parseCurrency(value);
+                if (value === '' || numValue === 0) {
+                  setFormData(prev => ({ ...prev, amount: '' }));
+                } else {
+                  // Format with commas
+                  const formatted = formatCurrency(numValue);
+                  setFormData(prev => ({ ...prev, amount: formatted }));
+                }
+              }}
             />
           </div>
 
@@ -183,11 +253,13 @@ const AddBonusPenaltyDialog: React.FC<{
             <Label htmlFor="period">Thời kỳ</Label>
             <Select value={formData.period} onValueChange={(value) => setFormData(prev => ({ ...prev, period: value }))}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {getPeriodLabel(formData.period)}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {periods.map(period => (
-                  <SelectItem key={period.value} value={period.label}>
+                  <SelectItem key={period.value} value={period.value}>
                     {period.label}
                   </SelectItem>
                 ))}
@@ -222,9 +294,9 @@ const AddBonusPenaltyDialog: React.FC<{
 };
 
 export default function BonusCalculationPage() {
-  const { users, departments, roles, kpis, loading } = useContext(SupabaseDataContext);
+  const { users, departments, roles, kpis, kpiRecords, loading } = useContext(SupabaseDataContext);
   const [bonusPenaltyRecords, setBonusPenaltyRecords] = useState<BonusPenaltyRecord[]>([]);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>(getCurrentQuarterLabel());
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(getDefaultPeriod());
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -298,13 +370,16 @@ export default function BonusCalculationPage() {
         title: 'Thành công',
         description: `Đã thêm ${recordData.type === 'bonus' ? 'thưởng' : 'phạt'} cho nhân viên`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding record:', error);
+      const errorMessage = error?.message || 'Không thể thêm bản ghi thưởng/phạt';
       toast({
         variant: 'destructive',
         title: 'Lỗi',
-        description: 'Không thể thêm bản ghi thưởng/phạt',
+        description: errorMessage,
       });
+      // Re-throw to prevent form reset on error
+      throw error;
     }
   };
 
@@ -365,19 +440,32 @@ export default function BonusCalculationPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="space-y-1.5">
             <CardTitle>Quản lý thưởng phạt</CardTitle>
-            <CardDescription>
-              Nhập và quản lý thưởng phạt cho nhân viên theo thời kỳ.
-            </CardDescription>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Thêm thưởng/phạt
-            </Button>
-            <Button variant="outline" onClick={handleExportData}>
-              <Download className="h-4 w-4 mr-2" />
-              Xuất dữ liệu
-            </Button>
+          <div className="flex items-center gap-4">
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Chọn thời kỳ">
+                  {getPeriodLabel(selectedPeriod)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {periods.map(period => (
+                  <SelectItem key={period.value} value={period.value}>
+                    {period.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" onClick={handleExportData}>
+                <Download className="h-4 w-4 mr-2" />
+                Xuất dữ liệu
+              </Button>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Thêm thưởng/phạt
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -388,24 +476,6 @@ export default function BonusCalculationPage() {
             </div>
           ) : (
             <>
-              {/* Filters */}
-              <div className="flex gap-4 mb-6">
-                <div className="space-y-2">
-                  <Label htmlFor="period-filter">Thời kỳ</Label>
-                  <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                    <SelectTrigger id="period-filter" className="w-[200px]">
-                      <SelectValue placeholder="Chọn thời kỳ" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {periods.map(period => (
-                        <SelectItem key={period.value} value={period.label}>
-                          {period.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
               
               {/* Summary Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -546,6 +616,7 @@ export default function BonusCalculationPage() {
         onSave={handleAddRecord}
         employees={employees}
         kpis={kpis || []}
+        kpiRecords={kpiRecords || []}
         periods={periods}
       />
     </>

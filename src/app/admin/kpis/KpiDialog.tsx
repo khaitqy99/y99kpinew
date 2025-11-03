@@ -26,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { Kpi } from '@/services/supabase-service';
+import { getFrequencyLabel } from '@/lib/utils';
 
 const KpiDialog: React.FC<{
   open: boolean;
@@ -97,8 +98,6 @@ const KpiDialog: React.FC<{
       target: Number(target),
       unit,
       frequency,
-      category: 'performance', // Default category
-      weight: 1, // Default weight
       rewardPenaltyConfig,
       status,
       createdBy: 'admin', // Default creator
@@ -180,7 +179,7 @@ const KpiDialog: React.FC<{
                 </SelectTrigger>
                 <SelectContent>
                   {frequencies.map(freq => (
-                    <SelectItem key={freq} value={freq}>{freq}</SelectItem>
+                    <SelectItem key={freq} value={freq}>{getFrequencyLabel(freq)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
