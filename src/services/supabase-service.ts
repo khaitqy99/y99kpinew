@@ -208,6 +208,17 @@ export const roleService = {
     return data || []
   },
 
+  async getById(id: number): Promise<any | null> {
+    const { data, error } = await supabase
+      .from('roles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    
+    if (error) throw error
+    return data
+  },
+
   async getByLevel(level: number): Promise<any | null> {
     const { data, error } = await supabase
       .from('roles')

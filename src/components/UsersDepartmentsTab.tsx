@@ -110,7 +110,7 @@ export function UsersDepartmentsTab() {
       const employeeCode = `EMP${String(employeeCount).padStart(4, '0')}`;
       
       // Xác định role_id dựa trên role level
-      let roleId: string;
+      let roleId: number;
       let level: number;
       
       switch (newUserRole) {
@@ -207,18 +207,23 @@ export function UsersDepartmentsTab() {
                         <TableHead>Tên phòng ban</TableHead>
                         <TableHead>Mã phòng ban</TableHead>
                         <TableHead>Mô tả</TableHead>
+                        <TableHead>Nhân viên</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {departments.length > 0 ? departments.map(dept => (
-                        <TableRow key={dept.id}>
-                            <TableCell className="font-medium">{dept.name}</TableCell>
-                            <TableCell>{dept.code || 'N/A'}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{dept.description || 'N/A'}</TableCell>
-                        </TableRow>
-                    )) : (
+                    {departments.length > 0 ? departments.map(dept => {
+                        const employeeCount = users.filter(user => user.department_id === dept.id).length;
+                        return (
+                            <TableRow key={dept.id}>
+                                <TableCell className="font-medium">{dept.name}</TableCell>
+                                <TableCell>{dept.code || 'N/A'}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">{dept.description || 'N/A'}</TableCell>
+                                <TableCell className="text-center">{employeeCount}</TableCell>
+                            </TableRow>
+                        );
+                    }) : (
                         <TableRow>
-                            <TableCell colSpan={3} className="text-center h-24">
+                            <TableCell colSpan={4} className="text-center h-24">
                                 <div className="flex flex-col items-center justify-center">
                                     <PlusCircle className="h-8 w-8 text-muted-foreground mb-2" />
                                     <p className="text-muted-foreground">Chưa có phòng ban nào</p>
