@@ -115,6 +115,9 @@ export default function AssignKpiPage() {
   // Date range filter states (similar to assign dialog)
   const [filterStartDate, setFilterStartDate] = React.useState<Date | undefined>(undefined);
   const [filterEndDate, setFilterEndDate] = React.useState<Date | undefined>(undefined);
+  
+  // State to control KPI selection Popover
+  const [isKpiPopoverOpen, setIsKpiPopoverOpen] = React.useState(false);
 
   // Calculate period from date range (format: yyyy-MM-dd to yyyy-MM-dd)
   const calculatePeriodFromDate = (startDate: Date, endDate: Date): string => {
@@ -902,7 +905,14 @@ export default function AssignKpiPage() {
                 {/* KPI Multi-Select */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Chọn KPI</label>
-                  <Popover>
+                  <Popover 
+                    open={isKpiPopoverOpen} 
+                    onOpenChange={(open) => {
+                      // Only close if explicitly requested (click outside or ESC)
+                      // Don't close when clicking inside the popover content
+                      setIsKpiPopoverOpen(open);
+                    }}
+                  >
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-between" disabled={filteredKpis.length === 0}>
                         <span className='truncate'>
@@ -915,8 +925,30 @@ export default function AssignKpiPage() {
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0" align="start">
-                      <div className="p-2">
+                    <PopoverContent 
+                      className="w-80 p-0" 
+                      align="start"
+                      onPointerDownOutside={(e) => {
+                        // Only close if clicking outside the popover
+                        // This is the default behavior, so we don't need to prevent it
+                      }}
+                    >
+                      <div 
+                        className="p-2"
+                        onPointerDown={(e) => {
+                          // Prevent popover from closing when clicking inside content
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          // Prevent popover from closing when clicking inside content
+                          e.stopPropagation();
+                        }}
+                        onMouseDown={(e) => {
+                          // Prevent popover from closing when clicking inside content
+                          e.stopPropagation();
+                        }}
+                      >
                         {filteredKpis.length > 0 ? (
                           <div className="space-y-2 max-h-[300px] overflow-y-auto">
                             {filteredKpis.map((kpi: any) => {
@@ -925,7 +957,9 @@ export default function AssignKpiPage() {
                                 <div
                                   key={kpi.id}
                                   className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent cursor-pointer"
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Toggle selection when clicking anywhere on the item
                                     if (isSelected) {
                                       setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
                                     } else {
@@ -942,8 +976,21 @@ export default function AssignKpiPage() {
                                         setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
                                       }
                                     }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                    }}
                                   />
-                                  <label className="text-sm font-normal cursor-pointer flex-1">
+                                  <label 
+                                    className="text-sm font-normal cursor-pointer flex-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (isSelected) {
+                                        setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
+                                      } else {
+                                        setSelectedKpis(prev => [...prev, kpi]);
+                                      }
+                                    }}
+                                  >
                                     {kpi.name}
                                   </label>
                                 </div>
