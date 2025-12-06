@@ -116,8 +116,8 @@ export default function AssignKpiPage() {
   const [filterStartDate, setFilterStartDate] = React.useState<Date | undefined>(undefined);
   const [filterEndDate, setFilterEndDate] = React.useState<Date | undefined>(undefined);
   
-  // State to control KPI selection Popover
-  const [isKpiPopoverOpen, setIsKpiPopoverOpen] = React.useState(false);
+  // State to control KPI selection Dialog
+  const [isKpiDialogOpen, setIsKpiDialogOpen] = React.useState(false);
 
   // Calculate period from date range (format: yyyy-MM-dd to yyyy-MM-dd)
   const calculatePeriodFromDate = (startDate: Date, endDate: Date): string => {
@@ -905,110 +905,21 @@ export default function AssignKpiPage() {
                 {/* KPI Multi-Select */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Chọn KPI</label>
-                  <Popover 
-                    open={isKpiPopoverOpen} 
-                    onOpenChange={(open) => {
-                      // Only close if explicitly requested (click outside or ESC)
-                      // Don't close when clicking inside the popover content
-                      setIsKpiPopoverOpen(open);
-                    }}
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-between" 
+                    disabled={filteredKpis.length === 0}
+                    onClick={() => setIsKpiDialogOpen(true)}
                   >
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between" disabled={filteredKpis.length === 0}>
-                        <span className='truncate'>
-                          {selectedKpis.length === 0 
-                            ? 'Chọn KPI' 
-                            : selectedKpis.length === 1 
-                            ? selectedKpis[0].name 
-                            : `Đã chọn ${selectedKpis.length} KPI`}
-                        </span>
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent 
-                      className="w-80 p-0" 
-                      align="start"
-                      onPointerDownOutside={(e) => {
-                        // Only close if clicking outside the popover
-                        // This is the default behavior, so we don't need to prevent it
-                      }}
-                    >
-                      <div 
-                        className="p-2"
-                        onPointerDown={(e) => {
-                          // Prevent popover from closing when clicking inside content
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        onClick={(e) => {
-                          // Prevent popover from closing when clicking inside content
-                          e.stopPropagation();
-                        }}
-                        onMouseDown={(e) => {
-                          // Prevent popover from closing when clicking inside content
-                          e.stopPropagation();
-                        }}
-                      >
-                        {filteredKpis.length > 0 ? (
-                          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                            {filteredKpis.map((kpi: any) => {
-                              const isSelected = selectedKpis.some((sk: any) => sk.id === kpi.id);
-                              return (
-                                <div
-                                  key={kpi.id}
-                                  className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Toggle selection when clicking anywhere on the item
-                                    if (isSelected) {
-                                      setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
-                                    } else {
-                                      setSelectedKpis(prev => [...prev, kpi]);
-                                    }
-                                  }}
-                                >
-                                  <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        setSelectedKpis(prev => [...prev, kpi]);
-                                      } else {
-                                        setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
-                                      }
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                    }}
-                                  />
-                                  <label 
-                                    className="text-sm font-normal cursor-pointer flex-1"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (isSelected) {
-                                        setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
-                                      } else {
-                                        setSelectedKpis(prev => [...prev, kpi]);
-                                      }
-                                    }}
-                                  >
-                                    {kpi.name}
-                                  </label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="p-2 text-sm text-muted-foreground text-center">
-                            {assignmentType === 'department' && !selectedDepartmentId
-                              ? 'Vui lòng chọn phòng ban trước'
-                              : assignmentType === 'employee' && !selectedEmployee
-                              ? 'Vui lòng chọn nhân viên trước'
-                              : 'Không có KPI nào cho phòng ban này'}
-                          </div>
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                    <span className='truncate'>
+                      {selectedKpis.length === 0 
+                        ? 'Chọn KPI' 
+                        : selectedKpis.length === 1 
+                        ? selectedKpis[0].name 
+                        : `Đã chọn ${selectedKpis.length} KPI`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
                   {selectedKpis.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedKpis.map((kpi: any) => (
@@ -1130,6 +1041,108 @@ export default function AssignKpiPage() {
               disabled={safeUsers.length === 0 || safeKpis.length === 0}
             >
               Giao KPI
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* KPI Selection Dialog */}
+      <Dialog open={isKpiDialogOpen} onOpenChange={setIsKpiDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chọn KPI</DialogTitle>
+            <DialogDescription>
+              {assignmentType === 'department' && selectedDepartmentId
+                ? `Chọn KPI để giao cho phòng ban ${safeDepartments.find((d: any) => d.id === selectedDepartmentId)?.name || ''}`
+                : assignmentType === 'employee' && selectedEmployee
+                ? `Chọn KPI để giao cho ${selectedEmployee?.name || ''}`
+                : 'Chọn một hoặc nhiều KPI để giao'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {filteredKpis.length > 0 ? (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {filteredKpis.map((kpi: any) => {
+                  const isSelected = selectedKpis.some((sk: any) => sk.id === kpi.id);
+                  return (
+                    <div
+                      key={kpi.id}
+                      className="flex items-center space-x-2 p-3 rounded-md border hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() => {
+                        // Toggle selection when clicking anywhere on the item
+                        if (isSelected) {
+                          setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
+                        } else {
+                          setSelectedKpis(prev => [...prev, kpi]);
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedKpis(prev => [...prev, kpi]);
+                          } else {
+                            setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
+                          }
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                      />
+                      <div className="flex-1">
+                        <label 
+                          className="text-sm font-medium cursor-pointer block"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isSelected) {
+                              setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
+                            } else {
+                              setSelectedKpis(prev => [...prev, kpi]);
+                            }
+                          }}
+                        >
+                          {kpi.name}
+                        </label>
+                        {kpi.description && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {kpi.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          <span>Mục tiêu: {kpi.target} {kpi.unit}</span>
+                          {kpi.department && (
+                            <span>• {kpi.department}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {assignmentType === 'department' && !selectedDepartmentId
+                  ? 'Vui lòng chọn phòng ban trước'
+                  : assignmentType === 'employee' && !selectedEmployee
+                  ? 'Vui lòng chọn nhân viên trước'
+                  : 'Không có KPI nào cho phòng ban này'}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsKpiDialogOpen(false)}>
+              Đóng
+            </Button>
+            <Button 
+              onClick={() => {
+                if (selectedKpis.length > 0) {
+                  setIsKpiDialogOpen(false);
+                }
+              }}
+              disabled={selectedKpis.length === 0}
+            >
+              Xác nhận ({selectedKpis.length})
             </Button>
           </DialogFooter>
         </DialogContent>
