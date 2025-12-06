@@ -119,9 +119,9 @@ export default function AssignKpiPage() {
   // State to control KPI selection Dialog
   const [isKpiDialogOpen, setIsKpiDialogOpen] = React.useState(false);
   
-  // State to control date picker Popovers
-  const [isStartDatePopoverOpen, setIsStartDatePopoverOpen] = React.useState(false);
-  const [isEndDatePopoverOpen, setIsEndDatePopoverOpen] = React.useState(false);
+  // State to control date picker Dialogs
+  const [isStartDateDialogOpen, setIsStartDateDialogOpen] = React.useState(false);
+  const [isEndDateDialogOpen, setIsEndDateDialogOpen] = React.useState(false);
 
   // Calculate period from date range (format: yyyy-MM-dd to yyyy-MM-dd)
   const calculatePeriodFromDate = (startDate: Date, endDate: Date): string => {
@@ -957,98 +957,43 @@ export default function AssignKpiPage() {
                 {/* Start Date Picker */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Ngày bắt đầu</label>
-                  <Popover open={isStartDatePopoverOpen} onOpenChange={setIsStartDatePopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="start-date"
-                        variant={'outline'}
-                        className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !startDate && 'text-muted-foreground'
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {startDate ? (
-                          format(startDate, 'dd/MM/yyyy')
-                        ) : (
-                          <span>Chọn ngày bắt đầu</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent 
-                      className="w-auto p-0" 
-                      align="start"
-                      onPointerDownOutside={(e) => {
-                        // Only close if clicking outside the calendar
-                        const target = e.target as HTMLElement;
-                        if (target.closest('[role="grid"]') || target.closest('[role="gridcell"]')) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      <CalendarComponent
-                        initialFocus
-                        mode="single"
-                        defaultMonth={startDate}
-                        selected={startDate}
-                        onSelect={(date) => {
-                          setStartDate(date);
-                          // Close popover after selecting a date
-                          setIsStartDatePopoverOpen(false);
-                        }}
-                        numberOfMonths={1}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Button
+                    id="start-date"
+                    variant={'outline'}
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !startDate && 'text-muted-foreground'
+                    )}
+                    onClick={() => setIsStartDateDialogOpen(true)}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? (
+                      format(startDate, 'dd/MM/yyyy')
+                    ) : (
+                      <span>Chọn ngày bắt đầu</span>
+                    )}
+                  </Button>
                 </div>
 
                 {/* End Date Picker */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Ngày kết thúc</label>
-                  <Popover open={isEndDatePopoverOpen} onOpenChange={setIsEndDatePopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="end-date"
-                        variant={'outline'}
-                        className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !endDate && 'text-muted-foreground'
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate ? (
-                          format(endDate, 'dd/MM/yyyy')
-                        ) : (
-                          <span>Chọn ngày kết thúc</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent 
-                      className="w-auto p-0" 
-                      align="start"
-                      onPointerDownOutside={(e) => {
-                        // Only close if clicking outside the calendar
-                        const target = e.target as HTMLElement;
-                        if (target.closest('[role="grid"]') || target.closest('[role="gridcell"]')) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      <CalendarComponent
-                        initialFocus
-                        mode="single"
-                        defaultMonth={endDate}
-                        selected={endDate}
-                        onSelect={(date) => {
-                          setEndDate(date);
-                          // Close popover after selecting a date
-                          setIsEndDatePopoverOpen(false);
-                        }}
-                        numberOfMonths={1}
-                        disabled={(date) => startDate ? date < startDate : false}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Button
+                    id="end-date"
+                    variant={'outline'}
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !endDate && 'text-muted-foreground'
+                    )}
+                    onClick={() => setIsEndDateDialogOpen(true)}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? (
+                      format(endDate, 'dd/MM/yyyy')
+                    ) : (
+                      <span>Chọn ngày kết thúc</span>
+                    )}
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -1176,6 +1121,81 @@ export default function AssignKpiPage() {
               disabled={selectedKpis.length === 0}
             >
               Xác nhận ({selectedKpis.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Start Date Picker Dialog */}
+      <Dialog open={isStartDateDialogOpen} onOpenChange={setIsStartDateDialogOpen}>
+        <DialogContent className="sm:max-w-fit">
+          <DialogHeader>
+            <DialogTitle>Chọn ngày bắt đầu</DialogTitle>
+            <DialogDescription>
+              Chọn ngày bắt đầu cho KPI được giao
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <CalendarComponent
+              initialFocus
+              mode="single"
+              defaultMonth={startDate}
+              selected={startDate}
+              onSelect={(date) => {
+                setStartDate(date);
+                setIsStartDateDialogOpen(false);
+              }}
+              numberOfMonths={1}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsStartDateDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button 
+              onClick={() => {
+                setIsStartDateDialogOpen(false);
+              }}
+            >
+              Xác nhận
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* End Date Picker Dialog */}
+      <Dialog open={isEndDateDialogOpen} onOpenChange={setIsEndDateDialogOpen}>
+        <DialogContent className="sm:max-w-fit">
+          <DialogHeader>
+            <DialogTitle>Chọn ngày kết thúc</DialogTitle>
+            <DialogDescription>
+              Chọn ngày kết thúc cho KPI được giao
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <CalendarComponent
+              initialFocus
+              mode="single"
+              defaultMonth={endDate}
+              selected={endDate}
+              onSelect={(date) => {
+                setEndDate(date);
+                setIsEndDateDialogOpen(false);
+              }}
+              numberOfMonths={1}
+              disabled={(date) => startDate ? date < startDate : false}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEndDateDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button 
+              onClick={() => {
+                setIsEndDateDialogOpen(false);
+              }}
+            >
+              Xác nhận
             </Button>
           </DialogFooter>
         </DialogContent>

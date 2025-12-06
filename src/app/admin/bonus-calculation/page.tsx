@@ -88,6 +88,8 @@ const AddBonusPenaltyDialog: React.FC<{
   });
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [isStartDateDialogOpen, setIsStartDateDialogOpen] = useState(false);
+  const [isEndDateDialogOpen, setIsEndDateDialogOpen] = useState(false);
 
   // Filter KPIs that are assigned to the selected employee
   const assignedKpis = useMemo(() => {
@@ -176,196 +178,246 @@ const AddBonusPenaltyDialog: React.FC<{
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Thêm thưởng/phạt
-          </DialogTitle>
-          <DialogDescription>
-            Nhập thông tin thưởng hoặc phạt cho nhân viên
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="employee">Nhân viên</Label>
-            <Select value={formData.employeeId} onValueChange={(value) => setFormData(prev => ({ ...prev, employeeId: value }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn nhân viên" />
-              </SelectTrigger>
-              <SelectContent>
-                {employees.map(employee => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name} - {employee.role?.name || 'N/A'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="kpi">KPI (Tùy chọn)</Label>
-            <Select 
-              value={formData.kpiId} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, kpiId: value }))}
-              disabled={!formData.employeeId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={
-                  !formData.employeeId 
-                    ? "Vui lòng chọn nhân viên trước" 
-                    : assignedKpis.length === 0 
-                      ? "Nhân viên chưa được giao KPI nào" 
-                      : "Chọn KPI (không bắt buộc)"
-                } />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Không chọn KPI</SelectItem>
-                {assignedKpis.length > 0 ? (
-                  assignedKpis.map(kpi => (
-                    <SelectItem key={kpi.id} value={kpi.id}>
-                      {kpi.name} - {kpi.unit || 'N/A'}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Thêm thưởng/phạt
+            </DialogTitle>
+            <DialogDescription>
+              Nhập thông tin thưởng hoặc phạt cho nhân viên
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="employee">Nhân viên</Label>
+              <Select value={formData.employeeId} onValueChange={(value) => setFormData(prev => ({ ...prev, employeeId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn nhân viên" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(employee => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name} - {employee.role?.name || 'N/A'}
                     </SelectItem>
-                  ))
-                ) : formData.employeeId ? (
-                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                    Không có KPI nào được giao cho nhân viên này
-                  </div>
-                ) : null}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="type">Loại</Label>
-            <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as 'bonus' | 'penalty' }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bonus">Thưởng</SelectItem>
-                <SelectItem value="penalty">Phạt</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="amount">Số tiền (VND)</Label>
-            <Input
-              id="amount"
-              type="text"
-              placeholder="Nhập số tiền"
-              value={formData.amount}
-              onChange={(e) => {
-                // Remove all non-digit characters except comma
-                let value = e.target.value.replace(/[^\d,]/g, '');
-                // Remove commas to parse, then format
-                const numValue = parseCurrency(value);
-                if (value === '' || numValue === 0) {
-                  setFormData(prev => ({ ...prev, amount: '' }));
-                } else {
-                  // Format with commas
-                  const formatted = formatCurrency(numValue);
-                  setFormData(prev => ({ ...prev, amount: formatted }));
-                }
-              }}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Thời kỳ (Từ ngày đến ngày)</Label>
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !startDate && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? (
-                      format(startDate, 'dd/MM/yyyy')
-                    ) : (
-                      <span>Từ ngày</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    initialFocus
-                    mode="single"
-                    defaultMonth={startDate}
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    numberOfMonths={1}
-                  />
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !endDate && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? (
-                      format(endDate, 'dd/MM/yyyy')
-                    ) : (
-                      <span>Đến ngày</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    initialFocus
-                    mode="single"
-                    defaultMonth={endDate}
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    numberOfMonths={1}
-                    disabled={(date) => startDate ? date < startDate : false}
-                  />
-                </PopoverContent>
-              </Popover>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            {startDate && endDate && startDate > endDate && (
-              <p className="text-sm text-destructive">Ngày kết thúc phải sau ngày bắt đầu</p>
-            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="kpi">KPI (Tùy chọn)</Label>
+              <Select 
+                value={formData.kpiId} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, kpiId: value }))}
+                disabled={!formData.employeeId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    !formData.employeeId 
+                      ? "Vui lòng chọn nhân viên trước" 
+                      : assignedKpis.length === 0 
+                        ? "Nhân viên chưa được giao KPI nào" 
+                        : "Chọn KPI (không bắt buộc)"
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Không chọn KPI</SelectItem>
+                  {assignedKpis.length > 0 ? (
+                    assignedKpis.map(kpi => (
+                      <SelectItem key={kpi.id} value={kpi.id}>
+                        {kpi.name} - {kpi.unit || 'N/A'}
+                      </SelectItem>
+                    ))
+                  ) : formData.employeeId ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      Không có KPI nào được giao cho nhân viên này
+                    </div>
+                  ) : null}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="type">Loại</Label>
+              <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as 'bonus' | 'penalty' }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bonus">Thưởng</SelectItem>
+                  <SelectItem value="penalty">Phạt</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amount">Số tiền (VND)</Label>
+              <Input
+                id="amount"
+                type="text"
+                placeholder="Nhập số tiền"
+                value={formData.amount}
+                onChange={(e) => {
+                  // Remove all non-digit characters except comma
+                  let value = e.target.value.replace(/[^\d,]/g, '');
+                  // Remove commas to parse, then format
+                  const numValue = parseCurrency(value);
+                  if (value === '' || numValue === 0) {
+                    setFormData(prev => ({ ...prev, amount: '' }));
+                  } else {
+                    // Format with commas
+                    const formatted = formatCurrency(numValue);
+                    setFormData(prev => ({ ...prev, amount: formatted }));
+                  }
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Thời kỳ (Từ ngày đến ngày)</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'w-full justify-start text-left font-normal',
+                    !startDate && 'text-muted-foreground'
+                  )}
+                  onClick={() => setIsStartDateDialogOpen(true)}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? (
+                    format(startDate, 'dd/MM/yyyy')
+                  ) : (
+                    <span>Từ ngày</span>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'w-full justify-start text-left font-normal',
+                    !endDate && 'text-muted-foreground'
+                  )}
+                  onClick={() => setIsEndDateDialogOpen(true)}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? (
+                    format(endDate, 'dd/MM/yyyy')
+                  ) : (
+                    <span>Đến ngày</span>
+                  )}
+                </Button>
+              </div>
+              {startDate && endDate && startDate > endDate && (
+                <p className="text-sm text-destructive">Ngày kết thúc phải sau ngày bắt đầu</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reason">Lý do</Label>
+              <Textarea
+                id="reason"
+                placeholder="Nhập lý do thưởng/phạt"
+                value={formData.reason}
+                onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="reason">Lý do</Label>
-            <Textarea
-              id="reason"
-              placeholder="Nhập lý do thưởng/phạt"
-              value={formData.reason}
-              onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4 mr-2" />
+              Hủy
+            </Button>
+            <Button 
+              onClick={handleSave}
+              disabled={!formData.employeeId || !formData.amount || !formData.reason || !startDate || !endDate || (startDate > endDate)}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Lưu
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Start Date Picker Dialog */}
+      <Dialog open={isStartDateDialogOpen} onOpenChange={setIsStartDateDialogOpen}>
+        <DialogContent className="sm:max-w-fit">
+          <DialogHeader>
+            <DialogTitle>Chọn ngày bắt đầu</DialogTitle>
+            <DialogDescription>
+              Chọn ngày bắt đầu cho thời kỳ thưởng/phạt
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <CalendarComponent
+              initialFocus
+              mode="single"
+              defaultMonth={startDate}
+              selected={startDate}
+              onSelect={(date) => {
+                setStartDate(date);
+                setIsStartDateDialogOpen(false);
+              }}
+              numberOfMonths={1}
             />
           </div>
-        </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsStartDateDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button 
+              onClick={() => {
+                setIsStartDateDialogOpen(false);
+              }}
+            >
+              Xác nhận
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            <X className="h-4 w-4 mr-2" />
-            Hủy
-          </Button>
-          <Button 
-            onClick={handleSave}
-            disabled={!formData.employeeId || !formData.amount || !formData.reason || !startDate || !endDate || (startDate > endDate)}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Lưu
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      {/* End Date Picker Dialog */}
+      <Dialog open={isEndDateDialogOpen} onOpenChange={setIsEndDateDialogOpen}>
+        <DialogContent className="sm:max-w-fit">
+          <DialogHeader>
+            <DialogTitle>Chọn ngày kết thúc</DialogTitle>
+            <DialogDescription>
+              Chọn ngày kết thúc cho thời kỳ thưởng/phạt
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <CalendarComponent
+              initialFocus
+              mode="single"
+              defaultMonth={endDate}
+              selected={endDate}
+              onSelect={(date) => {
+                setEndDate(date);
+                setIsEndDateDialogOpen(false);
+              }}
+              numberOfMonths={1}
+              disabled={(date) => startDate ? date < startDate : false}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsEndDateDialogOpen(false)}>
+              Hủy
+            </Button>
+            <Button 
+              onClick={() => {
+                setIsEndDateDialogOpen(false);
+              }}
+            >
+              Xác nhận
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
