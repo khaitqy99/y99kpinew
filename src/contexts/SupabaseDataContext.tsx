@@ -65,7 +65,7 @@ type SupabaseDataContextType = {
   };
 
   // Actions
-  addUser: (user: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  addUser: (user: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<Employee>;
   updateUser: (userId: string, updatedUser: Partial<any>) => Promise<void>;
   deleteUser: (userId: string | number) => Promise<void>;
   addKpi: (kpi: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -542,11 +542,25 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   // Action functions
   const addUser = async (userData: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => {
     try {
-      await employeeService.create(userData);
+      const createdUser = await employeeService.create(userData);
       await loadUsers();
-    } catch (error) {
-      console.error('Error adding user:', error);
-      throw error;
+      return createdUser;
+    } catch (error: any) {
+      // Log detailed error information
+      const errorMessage = error?.message || 
+                          error?.details || 
+                          error?.hint || 
+                          (typeof error === 'string' ? error : 'Unknown error occurred');
+      const errorCode = error?.code;
+      const errorDetails = {
+        message: errorMessage,
+        code: errorCode,
+        details: error?.details,
+        hint: error?.hint,
+        error: error
+      };
+      console.error('Error adding user:', errorDetails);
+      throw new Error(errorMessage);
     }
   };
 

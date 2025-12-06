@@ -169,6 +169,43 @@ export const employeeService = {
     }
   },
 
+  async generateUniqueEmployeeCode(): Promise<string> {
+    try {
+      // Get all existing employee codes
+      const { data, error } = await supabase
+        .from('employees')
+        .select('employee_code')
+        .like('employee_code', 'EMP%')
+        .order('employee_code', { ascending: false })
+        .limit(1000); // Limit to prevent performance issues
+      
+      if (error) throw error;
+      
+      // Find the highest number in existing codes
+      let maxNumber = 0;
+      if (data && data.length > 0) {
+        for (const emp of data) {
+          const match = emp.employee_code?.match(/^EMP(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNumber) {
+              maxNumber = num;
+            }
+          }
+        }
+      }
+      
+      // Generate new code
+      const nextNumber = maxNumber + 1;
+      return `EMP${String(nextNumber).padStart(4, '0')}`;
+    } catch (error: any) {
+      console.error('Error generating employee code:', error);
+      // Fallback: use timestamp-based code if query fails
+      const timestamp = Date.now();
+      return `EMP${String(timestamp).slice(-4)}`;
+    }
+  },
+
   async getById(id: number): Promise<any | null> {
     try {
       const { data, error } = await supabase

@@ -208,6 +208,41 @@ export function getCurrentQuarterLabel(): string {
 }
 
 /**
+ * Convert period label (e.g., "Quý 1 2024" or "Tháng 1 2024") to date range format (e.g., "2024-01-01 to 2024-01-31")
+ */
+export function periodLabelToDateRange(periodLabel: string): string {
+  // Try to parse Vietnamese period label format: "Quý X YYYY" or "Tháng X YYYY"
+  const quarterMatch = periodLabel.match(/^Quý\s+(\d+)\s+(\d{4})$/);
+  const monthMatch = periodLabel.match(/^Tháng\s+(\d+)\s+(\d{4})$/);
+  
+  let dateRange: { startDate: Date; endDate: Date };
+  
+  if (quarterMatch) {
+    const quarter = parseInt(quarterMatch[1], 10);
+    const year = parseInt(quarterMatch[2], 10);
+    dateRange = getQuarterDateRange(year, quarter);
+  } else if (monthMatch) {
+    const month = parseInt(monthMatch[1], 10);
+    const year = parseInt(monthMatch[2], 10);
+    dateRange = getMonthDateRange(year, month);
+  } else {
+    // If it's already a date range format, parse it
+    const parsed = getPeriodDateRange(periodLabel);
+    dateRange = parsed;
+  }
+  
+  // Format dates as yyyy-MM-dd
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  return `${formatDate(dateRange.startDate)} to ${formatDate(dateRange.endDate)}`;
+}
+
+/**
  * Get start and end dates for a period (date range format: yyyy-MM-dd to yyyy-MM-dd)
  */
 export function getPeriodDateRange(periodValue: string): { startDate: Date; endDate: Date } {
@@ -248,7 +283,7 @@ export function getPeriodDateRange(periodValue: string): { startDate: Date; endD
 /**
  * Get quarter date range
  */
-function getQuarterDateRange(year: number, quarter: number): { startDate: Date; endDate: Date } {
+export function getQuarterDateRange(year: number, quarter: number): { startDate: Date; endDate: Date } {
   const startMonth = (quarter - 1) * 3;
   const endMonth = startMonth + 2;
   
@@ -261,7 +296,7 @@ function getQuarterDateRange(year: number, quarter: number): { startDate: Date; 
 /**
  * Get month date range
  */
-function getMonthDateRange(year: number, month: number): { startDate: Date; endDate: Date } {
+export function getMonthDateRange(year: number, month: number): { startDate: Date; endDate: Date } {
   return {
     startDate: new Date(year, month - 1, 1),
     endDate: new Date(year, month, 0) // Last day of the month

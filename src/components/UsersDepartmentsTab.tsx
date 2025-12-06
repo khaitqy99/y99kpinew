@@ -278,9 +278,8 @@ export function UsersDepartmentsTab() {
     }
     
     try {
-      // Tạo employee_code tự động
-      const employeeCount = (users || []).length + 1;
-      const employeeCode = `EMP${String(employeeCount).padStart(4, '0')}`;
+      // Tạo employee_code tự động (unique từ database)
+      const employeeCode = await employeeService.generateUniqueEmployeeCode();
       
       // Xác định role_id dựa trên role level
       let roleId: number;
@@ -308,7 +307,7 @@ export function UsersDepartmentsTab() {
         employee_code: employeeCode,
         name: newUserName,
         email: newUserEmail,
-        avatar_url: `https://picsum.photos/seed/${employeeCount + 10}/40/40`,
+        avatar_url: `https://picsum.photos/seed/${Date.now()}/40/40`,
         role_id: roleId,
         department_id: primaryDeptId, // Primary department for backward compatibility
         position: newUserPosition || 'Nhân viên',
@@ -327,8 +326,18 @@ export function UsersDepartmentsTab() {
       const createdUser = await addUser(newUser);
       
       // Set multiple departments for the employee
-      if (createdUser && newUserDepts.length > 0) {
-        await employeeService.setEmployeeDepartments(createdUser.id, newUserDepts, primaryDeptId);
+      if (createdUser?.id && newUserDepts.length > 0) {
+        try {
+          await employeeService.setEmployeeDepartments(createdUser.id, newUserDepts, primaryDeptId);
+        } catch (deptError: any) {
+          console.error('Error setting employee departments:', deptError);
+          // Log but don't fail the entire operation - user is already created
+          toast({
+            variant: 'destructive',
+            title: 'Cảnh báo',
+            description: 'Nhân viên đã được tạo nhưng có lỗi khi gán phòng ban. Vui lòng cập nhật lại.'
+          });
+        }
       }
       
       // Reset form

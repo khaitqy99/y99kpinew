@@ -6,6 +6,7 @@ import {
   type BonusPenaltyRecordValidationData
 } from '@/lib/validation';
 import { employeeService } from './supabase-service';
+import { periodLabelToDateRange, getPeriodDateRange } from '@/lib/period-utils';
 
 export interface BonusPenaltyRecord {
   id: string;
@@ -120,10 +121,6 @@ class BonusPenaltyService {
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
-    if (period) {
-      query = query.eq('period', period);
-    }
-
     const { data, error } = await query;
 
     if (error) {
@@ -131,7 +128,51 @@ class BonusPenaltyService {
       throw new Error('Failed to fetch employee bonus/penalty records');
     }
 
-    return data || [];
+    let records = data || [];
+
+    // If period is provided, filter records that overlap with the period
+    if (period && records.length > 0) {
+      // Convert period label to date range if needed
+      let periodDateRange: string;
+      try {
+        // Check if it's already a date range format
+        if (period.includes(' to ')) {
+          periodDateRange = period;
+        } else {
+          // Convert label to date range
+          periodDateRange = periodLabelToDateRange(period);
+        }
+      } catch (error) {
+        console.warn('Could not parse period, returning all records:', error);
+        return records;
+      }
+
+      // Get the date range for the selected period
+      const selectedRange = getPeriodDateRange(periodDateRange);
+
+      // Filter records whose period overlaps with the selected period
+      records = records.filter(record => {
+        if (!record.period) return false;
+
+        try {
+          // Parse the record's period (should be in date range format)
+          const recordRange = getPeriodDateRange(record.period);
+
+          // Check if periods overlap: two periods overlap if one starts before the other ends
+          const overlaps = 
+            recordRange.startDate <= selectedRange.endDate &&
+            recordRange.endDate >= selectedRange.startDate;
+
+          return overlaps;
+        } catch (error) {
+          console.warn('Could not parse record period:', record.period, error);
+          // If we can't parse the period, include it for safety
+          return true;
+        }
+      });
+    }
+
+    return records;
   }
 
   // Create a new bonus/penalty record (simplified version)

@@ -41,13 +41,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
@@ -57,7 +50,7 @@ import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { KpiRecord as KpiRecordType, Kpi as KpiType } from '@/services/supabase-service';
 import { useToast } from '@/hooks/use-toast';
 import { uploadFile } from '@/ai/flows/upload-file';
-import { getCurrentQuarterLabel, generatePeriodOptions, getPeriodLabel, getDefaultPeriod } from '@/lib/period-utils';
+import { getPeriodLabel } from '@/lib/period-utils';
 import { bonusPenaltyService, BonusPenaltyRecord } from '@/services/bonus-penalty-service';
 
 type MappedKpi = KpiRecordType & {
@@ -218,7 +211,6 @@ export default function EmployeeKpiBonusPenaltyPage() {
 
   // Bonus/Penalty states
   const [bonusPenaltyRecords, setBonusPenaltyRecords] = useState<BonusPenaltyRecord[]>([]);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>(getCurrentQuarterLabel());
   const [isDetailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<BonusPenaltyRecord | null>(null);
   const [isLoadingBonus, setIsLoadingBonus] = useState(false);
@@ -249,23 +241,20 @@ export default function EmployeeKpiBonusPenaltyPage() {
     [employeeKpiRecords, safeKpis]
   );
 
-  // Generate periods dynamically
-  const periods = generatePeriodOptions();
-
-  // Load bonus/penalty records for current user
+  // Load bonus/penalty records for current user (all records, no period filter)
   const loadBonusPenaltyRecords = useCallback(async () => {
     if (!user?.id) return;
     
     try {
       setIsLoadingBonus(true);
-      const records = await bonusPenaltyService.getRecordsByEmployee(user.id, selectedPeriod);
+      const records = await bonusPenaltyService.getRecordsByEmployee(user.id);
       setBonusPenaltyRecords(records);
     } catch (error) {
       console.error('Error loading bonus/penalty records:', error);
     } finally {
       setIsLoadingBonus(false);
     }
-  }, [user?.id, selectedPeriod]);
+  }, [user?.id]);
 
   // Load records when component mounts or period changes
   React.useEffect(() => {
@@ -412,21 +401,18 @@ export default function EmployeeKpiBonusPenaltyPage() {
           <div className="space-y-1.5">
             <CardTitle>Thưởng & Phạt</CardTitle>
             <CardDescription>
-              Theo dõi các khoản thưởng và phạt dựa trên hiệu suất KPI của bạn
+              Theo dõi tất cả các khoản thưởng và phạt dựa trên hiệu suất KPI của bạn
             </CardDescription>
           </div>
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Chọn thời kỳ" />
-            </SelectTrigger>
-            <SelectContent>
-              {periods.map(period => (
-                <SelectItem key={period.value} value={period.label}>
-                  {period.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadBonusPenaltyRecords()}
+            disabled={isLoadingBonus}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingBonus ? 'animate-spin' : ''}`} />
+            Làm mới
+          </Button>
         </CardHeader>
         <CardContent>
           {isLoadingBonus ? (
@@ -486,7 +472,7 @@ export default function EmployeeKpiBonusPenaltyPage() {
                     {bonusPenaltySummary.totalRecords}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {selectedPeriod}
+                    Tổng số bản ghi
                   </div>
                 </div>
               </div>
@@ -551,7 +537,7 @@ export default function EmployeeKpiBonusPenaltyPage() {
 
                   {bonusPenaltyRecords.length > 0 && (
                     <div className="mt-4 text-sm text-muted-foreground text-center">
-                      Hiển thị {bonusPenaltyRecords.length} bản ghi trong {selectedPeriod}
+                      Hiển thị {bonusPenaltyRecords.length} bản ghi
                     </div>
                   )}
                 </>
