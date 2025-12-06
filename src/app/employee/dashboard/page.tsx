@@ -112,7 +112,7 @@ export default function EmployeeDashboardPage() {
     if (!user?.id || !kpiRecords) return [];
     
     const filtered = kpiRecords
-      .filter(record => record.employee_id === user.id)
+      .filter(record => String(record.employee_id) === String(user.id))
       .map(record => ({
         ...record,
         completionPercentage: record.progress || 0,

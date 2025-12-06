@@ -19,6 +19,7 @@ import {
   DollarSign,
   User,
   Calendar,
+  Building2,
 } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -43,6 +44,7 @@ const adminNavItems = [
   { href: '/admin/assign', icon: CheckCircle2, label: 'Giao KPI' },
   { href: '/admin/approval', icon: FileCheck, label: 'Duyệt KPI' },
   { href: '/admin/bonus-calculation', icon: Calculator, label: 'Tính thưởng' },
+  { href: '/admin/reports/branch-kpi', icon: Activity, label: 'Báo cáo KPI' },
   { href: '/settings', icon: Settings, label: 'Cài đặt' },
 ];
 
@@ -55,7 +57,7 @@ const employeeNavItems = [
 
 export function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useContext(SessionContext);
+  const { user, logout, selectedBranch } = useContext(SessionContext);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const isMobile = useIsMobile();
 
@@ -233,7 +235,29 @@ export function AppShellContent({ children }: { children: React.ReactNode }) {
              </h1>
            </div>
          </div>
-         <NotificationPanel />
+         <div className="flex items-center gap-3">
+           {user?.role === 'admin' && (
+             <Link href="/admin/branches">
+               <Button variant="outline" size="sm" className="gap-2">
+                 <Building2 className="h-4 w-4" />
+                 {selectedBranch ? (
+                   <span className="hidden md:inline">{selectedBranch.name}</span>
+                 ) : (
+                   <span className="hidden md:inline">Chọn chi nhánh</span>
+                 )}
+               </Button>
+             </Link>
+           )}
+           {user?.role !== 'admin' && user?.branch_name && (
+             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-50 border border-blue-200">
+               <Building2 className="h-4 w-4 text-blue-600" />
+               <span className="text-sm font-medium text-blue-900 hidden md:inline">
+                 {user.branch_name}
+               </span>
+             </div>
+           )}
+           <NotificationPanel />
+         </div>
        </header>
       <main className="flex-1 bg-muted/30 p-2 md:p-4">{children}</main>
     </div>
@@ -259,7 +283,27 @@ export function AppShellContent({ children }: { children: React.ReactNode }) {
             alt="Y99 Logo" 
             className="h-8 w-auto"
           />
-          <NotificationPanel />
+          <div className="flex items-center gap-2">
+            {user?.role === 'admin' && (
+              <Link href="/admin/branches">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Building2 className="h-4 w-4" />
+                  {selectedBranch && (
+                    <span className="text-xs">{selectedBranch.name}</span>
+                  )}
+                </Button>
+              </Link>
+            )}
+            {user?.role !== 'admin' && user?.branch_name && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-50 border border-blue-200">
+                <Building2 className="h-3.5 w-3.5 text-blue-600" />
+                <span className="text-xs font-medium text-blue-900">
+                  {user.branch_name}
+                </span>
+              </div>
+            )}
+            <NotificationPanel />
+          </div>
         </header>
         <div className="flex flex-1 flex-col overflow-hidden">
           <main className="flex-1 overflow-y-auto bg-background">

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useContext, useCallback } from 'react';
+import React, { useState, useContext, useCallback, useEffect } from 'react';
 import {
-  Calendar,
+  Calendar as CalendarIcon,
   Plus,
   Edit,
   Target,
@@ -50,8 +50,15 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
-import { formatDateToLocal } from '@/lib/utils';
+import { formatDateToLocal, cn } from '@/lib/utils';
 import type { Kpi, DailyKpiProgress } from '@/services/supabase-service';
+import { format } from 'date-fns';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +90,10 @@ export default function DailyKpiProgressPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<DailyKpiProgress | null>(null);
 
+  // Date range filter states
+  const [filterStartDate, setFilterStartDate] = useState<Date | undefined>(undefined);
+  const [filterEndDate, setFilterEndDate] = useState<Date | undefined>(undefined);
+
   // Debug logging for real data
   React.useEffect(() => {
     console.log('Daily KPI Progress Data:', {
@@ -111,7 +122,37 @@ export default function DailyKpiProgressPage() {
     const matchesEmployee = !filterEmployee || filterEmployee === 'all' || 
       record.employee_id?.toString() === filterEmployee;
     
-    return matchesDepartment && matchesEmployee;
+    // Filter by date range if selected
+    let matchesDateRange = true;
+    if (filterStartDate || filterEndDate) {
+      const recordDate = record.date ? new Date(record.date) : null;
+      if (recordDate && !isNaN(recordDate.getTime())) {
+        const checkDate = new Date(recordDate);
+        checkDate.setHours(0, 0, 0, 0);
+        
+        const filterStart = filterStartDate ? new Date(filterStartDate) : null;
+        const filterEnd = filterEndDate ? new Date(filterEndDate) : null;
+        
+        if (filterStart) {
+          filterStart.setHours(0, 0, 0, 0);
+        }
+        if (filterEnd) {
+          filterEnd.setHours(23, 59, 59, 999);
+        }
+        
+        if (filterStart && filterEnd) {
+          matchesDateRange = checkDate >= filterStart && checkDate <= filterEnd;
+        } else if (filterStart) {
+          matchesDateRange = checkDate >= filterStart;
+        } else if (filterEnd) {
+          matchesDateRange = checkDate <= filterEnd;
+        }
+      } else {
+        matchesDateRange = false;
+      }
+    }
+    
+    return matchesDepartment && matchesEmployee && matchesDateRange;
   });
 
   // Daily progress handlers
@@ -277,7 +318,7 @@ export default function DailyKpiProgressPage() {
                   <div>
                     <CardTitle className="text-lg font-semibold">Bản ghi tiến độ</CardTitle>
                   </div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-wrap gap-2 items-center">
                     <Select value={filterDepartment} onValueChange={setFilterDepartment}>
                       <SelectTrigger className="w-48 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
                         <SelectValue placeholder="Lọc theo phòng ban" />
@@ -297,7 +338,11 @@ export default function DailyKpiProgressPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tất cả nhân viên</SelectItem>
-                        {users && users.length > 0 ? users.map(user => (
+                        {users && users.length > 0 ? users.filter((user: any) => {
+                          // Filter out admins (level >= 4)
+                          const level = user.level || user.roles?.level || 0;
+                          return level < 4;
+                        }).map(user => (
                           <SelectItem key={user.id} value={user.id.toString()}>
                             {user.name}
                           </SelectItem>
@@ -306,6 +351,94 @@ export default function DailyKpiProgressPage() {
                         )}
                       </SelectContent>
                     </Select>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="filter-start-date"
+                            variant={'outline'}
+                            className={cn(
+                              'w-[140px] justify-start text-left font-normal',
+                              !filterStartDate && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterStartDate ? (
+                              format(filterStartDate, 'dd/MM/yyyy')
+                            ) : (
+                              <span>Từ ngày</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            initialFocus
+                            mode="single"
+                            defaultMonth={filterStartDate}
+                            selected={filterStartDate}
+                            onSelect={setFilterStartDate}
+                            numberOfMonths={1}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="filter-end-date"
+                            variant={'outline'}
+                            className={cn(
+                              'w-[140px] justify-start text-left font-normal',
+                              !filterEndDate && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterEndDate ? (
+                              format(filterEndDate, 'dd/MM/yyyy')
+                            ) : (
+                              <span>Đến ngày</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            initialFocus
+                            mode="single"
+                            defaultMonth={filterEndDate}
+                            selected={filterEndDate}
+                            onSelect={setFilterEndDate}
+                            numberOfMonths={1}
+                            disabled={(date) => filterStartDate ? date < filterStartDate : false}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      {(filterStartDate || filterEndDate) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setFilterStartDate(undefined);
+                            setFilterEndDate(undefined);
+                          }}
+                          className="h-8 px-2"
+                        >
+                          Xóa
+                        </Button>
+                      )}
+                    </div>
+                    {(filterStartDate || filterEndDate || filterDepartment !== 'all' || filterEmployee !== 'all') && (
+                      <div className="text-sm text-muted-foreground">
+                        Hiển thị {filteredProgress.length} bản ghi
+                        {filterDepartment !== 'all' && ` - ${filterDepartment}`}
+                        {filterEmployee !== 'all' && (() => {
+                          const employeeName = users.find((e: any) => e.id?.toString() === filterEmployee)?.name || '';
+                          return employeeName ? ` - ${employeeName}` : '';
+                        })()}
+                        {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                        {filterStartDate && !filterEndDate && ` - Từ ${format(filterStartDate, 'dd/MM/yyyy')}`}
+                        {!filterStartDate && filterEndDate && ` - Đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                      </div>
+                    )}
                     <Button 
                       onClick={() => {
                         setDailyFormData({
@@ -349,7 +482,7 @@ export default function DailyKpiProgressPage() {
                           <TableRow key={record.id} className="border-gray-100 hover:bg-gray-50/50">
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <CalendarIcon className="h-4 w-4 text-gray-400" />
                                 {isValidDate ? recordDate.toLocaleDateString('vi-VN') : 'N/A'}
                               </div>
                             </TableCell>
@@ -479,7 +612,11 @@ export default function DailyKpiProgressPage() {
                     <SelectValue placeholder="Chọn người chịu trách nhiệm" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users.map(user => (
+                    {users.filter((user: any) => {
+                      // Filter out admins (level >= 4)
+                      const level = user.level || user.roles?.level || 0;
+                      return level < 4;
+                    }).map(user => (
                       <SelectItem key={user.id} value={user.name}>
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4" />

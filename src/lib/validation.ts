@@ -106,19 +106,39 @@ export interface ValidationResult {
 }
 
 /**
- * Validate period format (Q1-2025, M1-2025, etc.)
+ * Validate period format (date range: yyyy-MM-dd to yyyy-MM-dd)
  */
 export function validatePeriod(period: string): ValidationResult {
   if (!period || typeof period !== 'string') {
     return { valid: false, error: 'Period phải là chuỗi không rỗng' };
   }
 
-  const periodRegex = /^(Q[1-4]|M(0?[1-9]|1[0-2]))-\d{4}$/;
-  if (!periodRegex.test(period)) {
+  // Validate date range format: "yyyy-MM-dd to yyyy-MM-dd"
+  const dateRangeRegex = /^(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})$/;
+  const match = period.match(dateRangeRegex);
+  
+  if (!match) {
     return {
       valid: false,
-      error: 'Period format không hợp lệ. Phải là Q1-2025, Q2-2025, ..., M1-2025, M2-2025, ...'
+      error: 'Period format không hợp lệ. Phải là định dạng từ ngày đến ngày: yyyy-MM-dd to yyyy-MM-dd'
     };
+  }
+
+  // Validate that dates are valid
+  const startDate = new Date(match[1]);
+  const endDate = new Date(match[2]);
+
+  if (isNaN(startDate.getTime())) {
+    return { valid: false, error: 'Ngày bắt đầu không hợp lệ' };
+  }
+
+  if (isNaN(endDate.getTime())) {
+    return { valid: false, error: 'Ngày kết thúc không hợp lệ' };
+  }
+
+  // Validate that start date is before or equal to end date
+  if (startDate > endDate) {
+    return { valid: false, error: 'Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc' };
   }
 
   return { valid: true };

@@ -64,36 +64,186 @@ export type { DailyKpiProgress, DailyKpiProgressInsert, DailyKpiProgressUpdate }
 export type { KpiSubmission, KpiSubmissionInsert, KpiSubmissionUpdate }
 export type { KpiSubmissionItem, KpiSubmissionItemInsert, KpiSubmissionItemUpdate }
 
+// Helper function to filter out admins (level >= 4)
+const filterNonAdmins = (employees: any[]): any[] => {
+  return employees.filter(emp => {
+    const level = emp.level || emp.roles?.level || 0;
+    return level < 4; // Chỉ lấy nhân viên có level < 4 (không phải admin)
+  });
+};
+
 // Employee operations
 export const employeeService = {
   async getAll(): Promise<any[]> {
-    const { data, error } = await supabase
-      .from('employees')
-      .select(`
-        *,
-        departments:department_id(name, code),
-        roles:role_id(name, code, level)
-      `)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-    
-    if (error) throw error
-    return data || []
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select(`
+          *,
+          departments:department_id(name, code),
+          roles:role_id(name, code, level)
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+      
+      if (error) throw error
+      
+      // Get all employee-department relationships separately
+      const employeeIds = (data || []).map((emp: any) => emp.id);
+      let employeeDeptMap = new Map<number, any[]>();
+      
+      if (employeeIds.length > 0) {
+        try {
+          // Query employee_departments without relationship syntax
+          const { data: employeeDepts, error: deptError } = await supabase
+            .from('employee_departments')
+            .select('employee_id, department_id, is_primary')
+            .in('employee_id', employeeIds);
+          
+          if (!deptError && employeeDepts && employeeDepts.length > 0) {
+            // Get unique department IDs
+            const deptIds = [...new Set(employeeDepts.map((ed: any) => ed.department_id))];
+            
+            // Query departments separately
+            const { data: deptData, error: deptDataError } = await supabase
+              .from('departments')
+              .select('id, name, code, branch_id')
+              .in('id', deptIds);
+            
+            if (!deptDataError && deptData) {
+              const deptMap = new Map(deptData.map((d: any) => [d.id, d]));
+              
+              employeeDepts.forEach((ed: any) => {
+                if (!employeeDeptMap.has(ed.employee_id)) {
+                  employeeDeptMap.set(ed.employee_id, []);
+                }
+                const dept = deptMap.get(ed.department_id);
+                if (dept) {
+                  employeeDeptMap.get(ed.employee_id)!.push({
+                    ...ed,
+                    departments: dept
+                  });
+                }
+              });
+            }
+          }
+        } catch (err) {
+          // If junction table doesn't exist or has issues, continue with old format
+          console.warn('Could not load employee_departments, using old format:', err);
+        }
+      }
+      
+      // Transform data to include all departments
+      const employees = (data || []).map((emp: any) => {
+        const employeeDepts = employeeDeptMap.get(emp.id) || [];
+        const allDepartments = employeeDepts
+          .map((ed: any) => ed.departments)
+          .filter(Boolean) || [];
+        
+        // If no departments from junction table, use old format
+        if (allDepartments.length === 0 && emp.departments) {
+          allDepartments.push({
+            id: emp.department_id,
+            name: emp.departments.name,
+            code: emp.departments.code
+          });
+        }
+        
+        const primaryDept = allDepartments.find((d: any) => 
+          employeeDepts.find((ed: any) => ed.department_id === d.id && ed.is_primary)
+        ) || allDepartments[0] || emp.departments;
+        
+        return {
+          ...emp,
+          departments: primaryDept, // Keep primary department for backward compatibility
+          all_departments: allDepartments, // All departments
+          department_ids: allDepartments.map((d: any) => d.id) // Array of department IDs
+        };
+      });
+      
+      // Filter out admins (level >= 4)
+      return filterNonAdmins(employees)
+    } catch (error: any) {
+      console.error('Error in employeeService.getAll:', error);
+      throw error;
+    }
   },
 
   async getById(id: number): Promise<any | null> {
-    const { data, error } = await supabase
-      .from('employees')
-      .select(`
-        *,
-        departments:department_id(name, code),
-        roles:role_id(name, code, level)
-      `)
-      .eq('id', id)
-      .maybeSingle()
-    
-    if (error) throw error
-    return data
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select(`
+          *,
+          departments:department_id(name, code),
+          roles:role_id(name, code, level)
+        `)
+        .eq('id', id)
+        .maybeSingle()
+      
+      if (error) throw error
+      if (!data) return null;
+      
+      // Get employee-department relationships separately
+      let employeeDepts: any[] = [];
+      try {
+        // Query employee_departments without relationship syntax
+        const { data: edData, error: edError } = await supabase
+          .from('employee_departments')
+          .select('employee_id, department_id, is_primary')
+          .eq('employee_id', id);
+        
+        if (!edError && edData && edData.length > 0) {
+          // Get department IDs
+          const deptIds = edData.map((ed: any) => ed.department_id);
+          
+          // Query departments separately
+          const { data: deptData, error: deptDataError } = await supabase
+            .from('departments')
+            .select('id, name, code, branch_id')
+            .in('id', deptIds);
+          
+          if (!deptDataError && deptData) {
+            const deptMap = new Map(deptData.map((d: any) => [d.id, d]));
+            employeeDepts = edData.map((ed: any) => ({
+              ...ed,
+              departments: deptMap.get(ed.department_id)
+            })).filter((ed: any) => ed.departments);
+          }
+        }
+      } catch (err) {
+        // If junction table doesn't exist or has issues, continue with old format
+        console.warn('Could not load employee_departments, using old format:', err);
+      }
+      
+      // Transform data to include all departments
+      const allDepartments = employeeDepts
+        .map((ed: any) => ed.departments)
+        .filter(Boolean) || [];
+      
+      // If no departments from junction table, use old format
+      if (allDepartments.length === 0 && data.departments) {
+        allDepartments.push({
+          id: data.department_id,
+          name: data.departments.name,
+          code: data.departments.code
+        });
+      }
+      
+      const primaryDept = allDepartments.find((d: any) => 
+        employeeDepts.find((ed: any) => ed.department_id === d.id && ed.is_primary)
+      ) || allDepartments[0] || data.departments;
+      
+      return {
+        ...data,
+        departments: primaryDept, // Keep primary department for backward compatibility
+        all_departments: allDepartments, // All departments
+        department_ids: allDepartments.map((d: any) => d.id) // Array of department IDs
+      };
+    } catch (error: any) {
+      console.error('Error in employeeService.getById:', error);
+      throw error;
+    }
   },
 
   async create(employee: EmployeeInsert): Promise<Employee> {
@@ -192,6 +342,166 @@ export const employeeService = {
       .eq('id', id)
     
     if (error) throw error
+  },
+
+  // Employee-Department relationship management
+  async setEmployeeDepartments(employeeId: number, departmentIds: number[], primaryDepartmentId?: number): Promise<void> {
+    // Validate all departments exist
+    for (const deptId of departmentIds) {
+      const dept = await departmentService.getById(deptId);
+      if (!dept) {
+        throw new Error(`Department với ID ${deptId} không tồn tại`);
+      }
+    }
+
+    // Delete existing relationships
+    const { error: deleteError } = await supabase
+      .from('employee_departments')
+      .delete()
+      .eq('employee_id', employeeId);
+    
+    if (deleteError) throw deleteError;
+
+    // Insert new relationships
+    if (departmentIds.length > 0) {
+      const primaryId = primaryDepartmentId || departmentIds[0];
+      const insertData = departmentIds.map(deptId => ({
+        employee_id: employeeId,
+        department_id: deptId,
+        is_primary: deptId === primaryId
+      }));
+
+      const { error: insertError } = await supabase
+        .from('employee_departments')
+        .insert(insertData);
+      
+      if (insertError) throw insertError;
+
+      // Update employees.department_id to primary department for backward compatibility
+      const { error: updateError } = await supabase
+        .from('employees')
+        .update({ department_id: primaryId, updated_at: new Date().toISOString() })
+        .eq('id', employeeId);
+      
+      if (updateError) throw updateError;
+    }
+  },
+
+  async addEmployeeDepartment(employeeId: number, departmentId: number, isPrimary: boolean = false): Promise<void> {
+    const dept = await departmentService.getById(departmentId);
+    if (!dept) {
+      throw new Error(`Department với ID ${departmentId} không tồn tại`);
+    }
+
+    // If setting as primary, unset other primary departments
+    if (isPrimary) {
+      const { error: unsetError } = await supabase
+        .from('employee_departments')
+        .update({ is_primary: false })
+        .eq('employee_id', employeeId)
+        .eq('is_primary', true);
+      
+      if (unsetError) throw unsetError;
+    }
+
+    const { error } = await supabase
+      .from('employee_departments')
+      .insert({
+        employee_id: employeeId,
+        department_id: departmentId,
+        is_primary: isPrimary
+      });
+    
+    if (error) {
+      // If duplicate, update instead
+      if (error.code === '23505') {
+        const { error: updateError } = await supabase
+          .from('employee_departments')
+          .update({ is_primary: isPrimary })
+          .eq('employee_id', employeeId)
+          .eq('department_id', departmentId);
+        
+        if (updateError) throw updateError;
+      } else {
+        throw error;
+      }
+    }
+
+    // Update employees.department_id if this is primary
+    if (isPrimary) {
+      const { error: updateError } = await supabase
+        .from('employees')
+        .update({ department_id: departmentId, updated_at: new Date().toISOString() })
+        .eq('id', employeeId);
+      
+      if (updateError) throw updateError;
+    }
+  },
+
+  async removeEmployeeDepartment(employeeId: number, departmentId: number): Promise<void> {
+    const { error } = await supabase
+      .from('employee_departments')
+      .delete()
+      .eq('employee_id', employeeId)
+      .eq('department_id', departmentId);
+    
+    if (error) throw error;
+
+    // If removed department was primary, set first remaining as primary
+    const { data: remaining } = await supabase
+      .from('employee_departments')
+      .select('department_id')
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    
+    if (remaining && remaining.length > 0) {
+      const { error: updateError } = await supabase
+        .from('employee_departments')
+        .update({ is_primary: true })
+        .eq('employee_id', employeeId)
+        .eq('department_id', remaining[0].department_id);
+      
+      if (updateError) throw updateError;
+
+      const { error: empUpdateError } = await supabase
+        .from('employees')
+        .update({ department_id: remaining[0].department_id, updated_at: new Date().toISOString() })
+        .eq('id', employeeId);
+      
+      if (empUpdateError) throw empUpdateError;
+    }
+  },
+
+  async getEmployeeDepartments(employeeId: number): Promise<any[]> {
+    // Query employee_departments without relationship syntax
+    const { data: edData, error: edError } = await supabase
+      .from('employee_departments')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: true });
+    
+    if (edError) throw edError;
+    if (!edData || edData.length === 0) return [];
+    
+    // Get department IDs
+    const deptIds = edData.map((ed: any) => ed.department_id);
+    
+    // Query departments separately
+    const { data: deptData, error: deptDataError } = await supabase
+      .from('departments')
+      .select('id, name, code, branch_id')
+      .in('id', deptIds);
+    
+    if (deptDataError) throw deptDataError;
+    
+    // Combine data
+    const deptMap = new Map((deptData || []).map((d: any) => [d.id, d]));
+    return edData.map((ed: any) => ({
+      ...ed,
+      departments: deptMap.get(ed.department_id)
+    })).filter((ed: any) => ed.departments);
   }
 }
 
@@ -300,6 +610,16 @@ export const roleService = {
   }
 }
 
+// Helper function to filter out management department
+const filterManagementDepartment = (departments: Department[]): Department[] => {
+  return departments.filter(dept => {
+    const name = dept.name?.toLowerCase() || '';
+    const code = dept.code?.toLowerCase() || '';
+    // Filter out "Phòng Quản Lý" or similar management departments
+    return !name.includes('quản lý') && !code.includes('ql') && !code.includes('management');
+  });
+};
+
 // Department operations
 export const departmentService = {
   async getAll(): Promise<Department[]> {
@@ -310,7 +630,8 @@ export const departmentService = {
       .order('name')
     
     if (error) throw error
-    return data || []
+    // Filter out management department
+    return filterManagementDepartment(data || [])
   },
 
   async getById(id: number): Promise<Department | null> {
@@ -350,6 +671,67 @@ export const departmentService = {
   async delete(id: number): Promise<void> {
     const { error } = await supabase
       .from('departments')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    
+    if (error) throw error
+  }
+}
+
+// Branch operations
+export type Branch = Database['public']['Tables']['branches']['Row']
+export type BranchInsert = Database['public']['Tables']['branches']['Insert']
+export type BranchUpdate = Database['public']['Tables']['branches']['Update']
+
+export const branchService = {
+  async getAll(): Promise<Branch[]> {
+    const { data, error } = await supabase
+      .from('branches')
+      .select('*')
+      .eq('is_active', true)
+      .order('name')
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getById(id: number): Promise<Branch | null> {
+    const { data, error } = await supabase
+      .from('branches')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    
+    if (error) throw error
+    return data
+  },
+
+  async create(branch: BranchInsert): Promise<Branch> {
+    const { data, error } = await supabase
+      .from('branches')
+      .insert(branch)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async update(id: number, updates: BranchUpdate): Promise<Branch> {
+    const { data, error } = await supabase
+      .from('branches')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async delete(id: number): Promise<void> {
+    const { error } = await supabase
+      .from('branches')
       .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('id', id)
     
@@ -1091,15 +1473,43 @@ export const kpiSubmissionService = {
 
       return submissionsWithItems;
     } catch (error) {
-      console.error('Error in kpiSubmissionService.getAll:', error);
+      // Extract error details for better logging
+      const errorDetails = error instanceof Error 
+        ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+            ...(error as any)
+          }
+        : error;
+      
+      console.error('Error in kpiSubmissionService.getAll:', {
+        error: errorDetails,
+        message: error instanceof Error ? error.message : String(error),
+        code: (error as any)?.code,
+        details: (error as any)?.details,
+        hint: (error as any)?.hint
+      });
+      
       // Return empty array instead of throwing if table doesn't exist
-      if (error && typeof error === 'object' && 'code' in error) {
-        if (error.code === '42P01' || (error as any).message?.includes('does not exist')) {
+      if (error && typeof error === 'object') {
+        const errorCode = (error as any)?.code;
+        const errorMessage = (error as any)?.message || (error instanceof Error ? error.message : String(error));
+        
+        if (errorCode === '42P01' || errorMessage?.includes('does not exist')) {
           console.warn('Table kpi_submissions does not exist yet. Please run the migration.');
           return [];
         }
       }
-      throw error;
+      
+      // Re-throw with better error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error && typeof error === 'object' && 'message' in error)
+          ? String((error as any).message)
+          : 'Unknown error occurred';
+      
+      throw new Error(`Failed to load KPI submissions: ${errorMessage}`);
     }
   },
 

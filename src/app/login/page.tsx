@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useRouter } from 'next/navigation';
 import { useContext, useState, useEffect } from 'react';
 import { SessionContext } from '@/contexts/SessionContext';
-import { AuthService, LoginCredentials } from '@/services/auth-service';
+import { LoginCredentials } from '@/services/auth-service';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -50,9 +50,18 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await AuthService.login(credentials);
+      // Call API route instead of service directly
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      const data = await response.json();
       
-      if (response.success && response.user) {
+      if (response.ok && data.success && data.data) {
         // Save email if remember me is checked
         if (rememberMe) {
           localStorage.setItem('rememberedEmail', credentials.email);
@@ -60,15 +69,15 @@ export default function LoginPage() {
           localStorage.removeItem('rememberedEmail');
         }
 
-        login(response.user);
+        login(data.data);
         setIsLoading(false); // Tắt loading state của login page
         setIsLoggingIn(true); // Bật logging in state để layout hiển thị splash screen
         
         // Delay redirect to show splash screen longer (3 seconds)
         setTimeout(() => {
           // Redirect based on role
-          if (response.user.role === 'admin') {
-            router.push('/admin/dashboard');
+          if (data.data.role === 'admin') {
+            router.push('/admin/branches');
           } else {
             router.push('/employee/dashboard');
           }
@@ -79,12 +88,12 @@ export default function LoginPage() {
           }, 500);
         }, 3000);
       } else {
-        setError(response.error || 'Đăng nhập thất bại');
+        setError(data.error || 'Đăng nhập thất bại');
         setIsLoading(false);
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError('Có lỗi xảy ra khi đăng nhập');
+      setError('Có lỗi xảy ra khi đăng nhập. Vui lòng thử lại sau.');
       setIsLoading(false);
     }
   };

@@ -1,15 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { CalendarIcon, ChevronDown, Plus, Trash2, Calendar, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { DateRange } from 'react-day-picker';
 
 import { cn, formatDateToLocal } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Card,
   CardContent,
@@ -59,7 +59,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
-import { generatePeriodOptions, getDefaultPeriod, getPeriodLabel, getPeriodDateRange } from '@/lib/period-utils';
 import { type KpiRecord } from '@/services/supabase-service';
 
 const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
@@ -68,6 +67,8 @@ const statusConfig: { [key: string]: { label: string; variant: 'default' | 'seco
   completed: { label: 'Hoàn thành', variant: 'outline' },
   overdue: { label: 'Quá hạn', variant: 'destructive' },
   pending_approval: { label: 'Chờ duyệt', variant: 'secondary' },
+  approved: { label: 'Đã duyệt', variant: 'default' },
+  rejected: { label: 'Từ chối', variant: 'destructive' },
 };
 
 type AssignedKpiDetails = KpiRecord & {
@@ -96,12 +97,12 @@ export default function AssignKpiPage() {
   const [assignmentType, setAssignmentType] = React.useState<'employee' | 'department'>('employee');
   const [selectedEmployee, setSelectedEmployee] = React.useState(safeUsers[0] || null);
   const [selectedDepartmentId, setSelectedDepartmentId] = React.useState('');
-  const [selectedKpi, setSelectedKpi] = React.useState(safeKpis[0] || null);
-  const [selectedPeriod, setSelectedPeriod] = React.useState(getDefaultPeriod());
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(new Date().setDate(new Date().getDate() + 30)),
-  });
+  const [selectedKpis, setSelectedKpis] = React.useState<any[]>([]);
+  // Period will be calculated automatically from date range
+  const [startDate, setStartDate] = React.useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = React.useState<Date | undefined>(
+    new Date(new Date().setDate(new Date().getDate() + 30))
+  );
   
   const [isDetailModalOpen, setDetailModalOpen] = React.useState(false);
   const [selectedRecord, setSelectedRecord] = React.useState<AssignedKpiDetails | null>(null);
@@ -111,39 +112,21 @@ export default function AssignKpiPage() {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = React.useState(false);
   const [recordToCancel, setRecordToCancel] = React.useState<AssignedKpiDetails | null>(null);
 
-  // Generate periods dynamically
-  const allPeriods = generatePeriodOptions();
-  
-  // Lọc periods theo frequency của KPI đã chọn
-  const filteredPeriods = React.useMemo(() => {
-    // Nếu chưa chọn KPI, hiển thị tất cả kỳ
-    if (!selectedKpi) {
-      return allPeriods;
-    }
+  // Date range filter states (similar to assign dialog)
+  const [filterStartDate, setFilterStartDate] = React.useState<Date | undefined>(undefined);
+  const [filterEndDate, setFilterEndDate] = React.useState<Date | undefined>(undefined);
 
-    // Lấy frequency của KPI đã chọn
-    const kpiFrequency = (selectedKpi as any).frequency || '';
+  // Calculate period from date range (format: yyyy-MM-dd to yyyy-MM-dd)
+  const calculatePeriodFromDate = (startDate: Date, endDate: Date): string => {
+    const formatDate = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     
-    // Lọc periods theo frequency
-    switch (kpiFrequency) {
-      case 'quarterly':
-        // Chỉ hiển thị quý
-        return allPeriods.filter(p => p.type === 'quarter');
-      case 'monthly':
-        // Chỉ hiển thị tháng
-        return allPeriods.filter(p => p.type === 'month');
-      case 'yearly':
-        // Nếu là yearly, hiển thị quý (vì có thể chọn quý trong năm)
-        return allPeriods.filter(p => p.type === 'quarter');
-      case 'weekly':
-      case 'daily':
-        // Nếu là weekly hoặc daily, hiển thị tháng (vì có thể chọn tháng)
-        return allPeriods.filter(p => p.type === 'month');
-      default:
-        // Mặc định hiển thị tất cả
-        return allPeriods;
-    }
-  }, [allPeriods, selectedKpi]);
+    return `${formatDate(startDate)} to ${formatDate(endDate)}`;
+  };
 
   const getAssignedKpis = (records: any[]): AssignedKpiDetails[] => {
     if (!records || records.length === 0) return [];
@@ -162,6 +145,33 @@ export default function AssignKpiPage() {
       filteredRecords = filteredRecords.filter(record => 
         record.status === filterStatus
       );
+    }
+    
+    // Filter by date range if selected
+    if (filterStartDate || filterEndDate) {
+      filteredRecords = filteredRecords.filter(record => {
+        if (!record.start_date || !record.end_date) return false;
+        
+        const recordStartDate = new Date(record.start_date);
+        const recordEndDate = new Date(record.end_date);
+        
+        // Check if record overlaps with filter date range
+        const filterStart = filterStartDate ? new Date(filterStartDate) : null;
+        const filterEnd = filterEndDate ? new Date(filterEndDate) : null;
+        
+        if (filterStart && filterEnd) {
+          // Both dates selected: record must overlap with filter range
+          return (recordStartDate <= filterEnd && recordEndDate >= filterStart);
+        } else if (filterStart) {
+          // Only start date: record must end after filter start
+          return recordEndDate >= filterStart;
+        } else if (filterEnd) {
+          // Only end date: record must start before filter end
+          return recordStartDate <= filterEnd;
+        }
+        
+        return true;
+      });
     }
     
     return filteredRecords.map(record => {
@@ -193,7 +203,7 @@ export default function AssignKpiPage() {
     }).sort((a,b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
   };
 
-  const assignedKpis = React.useMemo(() => getAssignedKpis(safeKpiRecords), [safeKpiRecords, filterEmployeeId, filterStatus, safeUsers, safeKpis, safeDepartments]);
+  const assignedKpis = React.useMemo(() => getAssignedKpis(safeKpiRecords), [safeKpiRecords, filterEmployeeId, filterStatus, filterStartDate, filterEndDate, safeUsers, safeKpis, safeDepartments]);
 
   
   // Lọc KPI theo phòng ban khi chọn phòng ban hoặc nhân viên
@@ -213,32 +223,20 @@ export default function AssignKpiPage() {
     return safeKpis;
   }, [assignmentType, selectedDepartmentId, selectedEmployee, safeKpis]);
 
-  // Reset selectedKpi nếu KPI hiện tại không còn trong danh sách đã lọc
+  // Reset selectedKpis nếu KPI đã chọn không còn trong danh sách đã lọc
   React.useEffect(() => {
-    if (selectedKpi && !filteredKpis.find((kpi: any) => kpi.id === selectedKpi.id)) {
-      setSelectedKpi(filteredKpis[0] || null);
-    } else if (!selectedKpi && filteredKpis.length > 0) {
-      setSelectedKpi(filteredKpis[0] || null);
-    }
+    setSelectedKpis(prev => prev.filter(kpi => 
+      filteredKpis.find((fKpi: any) => fKpi.id === kpi.id)
+    ));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredKpis]);
-
-  // Reset selectedPeriod nếu kỳ hiện tại không còn trong danh sách đã lọc
-  React.useEffect(() => {
-    if (selectedPeriod && !filteredPeriods.find((p) => p.value === selectedPeriod)) {
-      setSelectedPeriod(filteredPeriods[0]?.value || getDefaultPeriod());
-    } else if (!selectedPeriod && filteredPeriods.length > 0) {
-      setSelectedPeriod(filteredPeriods[0]?.value || getDefaultPeriod());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredPeriods]);
   
   const handleAssignKpi = async () => {
-    if (!selectedKpi || !date?.from || !date?.to) {
+    if (selectedKpis.length === 0 || !startDate || !endDate) {
         toast({
             variant: 'destructive',
             title: 'Lỗi!',
-            description: 'Vui lòng điền đầy đủ thông tin để giao KPI.'
+            description: 'Vui lòng chọn ít nhất một KPI và điền đầy đủ thông tin để giao KPI.'
         });
         return;
     }
@@ -261,25 +259,28 @@ export default function AssignKpiPage() {
         return;
     }
 
-    // TypeScript type guard: at this point date.from and date.to are guaranteed to be defined
-    const startDateValue = date.from;
-    const endDateValue = date.to;
+    // TypeScript type guard: at this point startDate and endDate are guaranteed to be defined
+    const startDateValue = startDate;
+    const endDateValue = endDate;
 
     // Xác định trạng thái dựa trên start_date
     // Nếu start_date <= hôm nay thì là 'in_progress', nếu > hôm nay thì là 'not_started'
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set time về 00:00:00 để so sánh ngày
     
-    const startDate = new Date(startDateValue);
-    startDate.setHours(0, 0, 0, 0);
+    const startDateObj = new Date(startDateValue);
+    startDateObj.setHours(0, 0, 0, 0);
     
-    const initialStatus = startDate <= today ? 'in_progress' : 'not_started';
+    const initialStatus = startDateObj <= today ? 'in_progress' : 'not_started';
 
     try {
         if (assignmentType === 'department') {
-            // Lấy danh sách nhân viên trong phòng ban
+            // Lấy danh sách nhân viên trong phòng ban (exclude admins - level >= 4)
             const departmentIdNum = Number(selectedDepartmentId);
-            const departmentEmployees = safeUsers.filter((emp: any) => 
+            const departmentEmployees = safeUsers.filter((emp: any) => {
+              const level = emp.level || emp.roles?.level || 0;
+              return level < 4;
+            }).filter((emp: any) => 
                 Number(emp.department_id) === departmentIdNum
             );
 
@@ -292,28 +293,33 @@ export default function AssignKpiPage() {
                 return;
             }
 
-            // Tạo KPI record cho từng nhân viên trong phòng ban
+            // Tạo KPI record cho từng nhân viên trong phòng ban với tất cả KPI đã chọn
             const departmentName = safeDepartments.find((d: any) => d.id === selectedDepartmentId)?.name || 'phòng ban';
             
-            // Prepare all records first
-            const recordsToCreate = departmentEmployees.map(employee => ({
-                    kpi_id: selectedKpi.id,
-                    employee_id: employee.id, // Gán cho từng nhân viên
-                    department_id: null, // Không set department_id khi gán cho nhân viên
-                    period: selectedPeriod,
-                    target: selectedKpi.target,
-                    actual: 0,
-                    progress: 0,
-                    status: initialStatus,
-                    start_date: formatDateToLocal(startDateValue),
-                    end_date: formatDateToLocal(endDateValue),
-                    submission_details: '',
-                    attachment: null,
-                    bonus_amount: null,
-                    penalty_amount: null,
-                    score: null,
-                    is_active: true,
-                }));
+            // Prepare all records first - for each employee and each selected KPI
+            const recordsToCreate: any[] = [];
+            departmentEmployees.forEach(employee => {
+                selectedKpis.forEach(kpi => {
+                    recordsToCreate.push({
+                        kpi_id: kpi.id,
+                        employee_id: employee.id,
+                        department_id: null,
+                        period: calculatePeriodFromDate(startDateValue, endDateValue),
+                        target: kpi.target,
+                        actual: 0,
+                        progress: 0,
+                        status: initialStatus,
+                        start_date: formatDateToLocal(startDateValue),
+                        end_date: formatDateToLocal(endDateValue),
+                        submission_details: '',
+                        attachment: null,
+                        bonus_amount: null,
+                        penalty_amount: null,
+                        score: null,
+                        is_active: true,
+                    });
+                });
+            });
 
             // Use batch operation with better error handling
             let successCount = 0;
@@ -330,7 +336,9 @@ export default function AssignKpiPage() {
                         .catch(() => ({ data: null }));
                     
                     if (existing?.exists) {
-                        errors.push(`Nhân viên ${departmentEmployees[i].name}: KPI đã được giao trong kỳ ${selectedPeriod}`);
+                        const employee = departmentEmployees.find((e: any) => e.id === record.employee_id);
+                        const kpi = selectedKpis.find((k: any) => k.id === record.kpi_id);
+                        errors.push(`Nhân viên ${employee?.name || 'N/A'}: KPI "${kpi?.name || 'N/A'}" đã được giao trong kỳ ${calculatePeriodFromDate(startDateValue, endDateValue)}`);
                         errorCount++;
                         continue;
                     }
@@ -343,10 +351,11 @@ export default function AssignKpiPage() {
             // Now attempt to create all records
             for (let i = 0; i < recordsToCreate.length; i++) {
                 const record = recordsToCreate[i];
-                const employee = departmentEmployees[i];
+                const employee = departmentEmployees.find((e: any) => e.id === record.employee_id);
+                const kpi = selectedKpis.find((k: any) => k.id === record.kpi_id);
                 
                 // Skip if already failed in pre-validation
-                if (errors.some(e => e.includes(employee.name))) {
+                if (errors.some(e => e.includes(employee?.name || '') && e.includes(kpi?.name || ''))) {
                     continue;
                 }
 
@@ -354,54 +363,82 @@ export default function AssignKpiPage() {
                     await assignKpi(record);
                     successCount++;
                 } catch (error: any) {
-                    console.error(`Error assigning KPI to employee ${employee.name}:`, error);
+                    console.error(`Error assigning KPI to employee ${employee?.name}:`, error);
                     errorCount++;
-                    errors.push(`Nhân viên ${employee.name}: ${error?.message || 'Lỗi không xác định'}`);
+                    errors.push(`Nhân viên ${employee?.name || 'N/A'}, KPI "${kpi?.name || 'N/A'}": ${error?.message || 'Lỗi không xác định'}`);
                 }
             }
 
+            const kpiNames = selectedKpis.map(k => k.name).join(', ');
             if (errorCount === 0) {
                 toast({
                     title: 'Thành công!',
-                    description: `Đã giao KPI "${selectedKpi.name}" cho ${successCount} nhân viên trong ${departmentName}.`
+                    description: `Đã giao ${selectedKpis.length} KPI (${kpiNames}) cho ${successCount} nhân viên trong ${departmentName}.`
                 });
             } else {
                 const errorMessage = errors.length > 0 
                     ? errors.slice(0, 3).join('; ') + (errors.length > 3 ? ` và ${errors.length - 3} lỗi khác...` : '')
-                    : `${errorCount} nhân viên gặp lỗi`;
+                    : `${errorCount} bản ghi gặp lỗi`;
                 
                 toast({
                     variant: 'destructive',
                     title: 'Cảnh báo!',
-                    description: `Đã giao KPI cho ${successCount} nhân viên. ${errorMessage}`
+                    description: `Đã giao ${selectedKpis.length} KPI cho ${successCount} bản ghi. ${errorMessage}`
                 });
             }
         } else {
-            // Giao cho nhân viên đơn lẻ
-            const newRecord: any = {
-                kpi_id: selectedKpi.id,
-                employee_id: selectedEmployee?.id,
-                department_id: null,
-                period: selectedPeriod,
-                target: selectedKpi.target,
-                actual: 0,
-                progress: 0,
-                status: initialStatus,
-                start_date: formatDateToLocal(startDateValue),
-                end_date: formatDateToLocal(endDateValue),
-                submission_details: '',
-                attachment: null,
-                bonus_amount: null,
-                penalty_amount: null,
-                score: null,
-                is_active: true,
-            };
-            
-            await assignKpi(newRecord);
-            toast({
-                title: 'Thành công!',
-                description: `Đã giao KPI "${selectedKpi.name}" cho ${selectedEmployee?.name}.`
-            });
+            // Giao cho nhân viên đơn lẻ với tất cả KPI đã chọn
+            let successCount = 0;
+            let errorCount = 0;
+            const errors: string[] = [];
+
+            for (const kpi of selectedKpis) {
+                try {
+                    const newRecord: any = {
+                        kpi_id: kpi.id,
+                        employee_id: selectedEmployee?.id,
+                        department_id: null,
+                        period: calculatePeriodFromDate(startDateValue, endDateValue),
+                        target: kpi.target,
+                        actual: 0,
+                        progress: 0,
+                        status: initialStatus,
+                        start_date: formatDateToLocal(startDateValue),
+                        end_date: formatDateToLocal(endDateValue),
+                        submission_details: '',
+                        attachment: null,
+                        bonus_amount: null,
+                        penalty_amount: null,
+                        score: null,
+                        is_active: true,
+                    };
+                    
+                    await assignKpi(newRecord);
+                    successCount++;
+                } catch (error: any) {
+                    console.error(`Error assigning KPI ${kpi.name}:`, error);
+                    errorCount++;
+                    errors.push(`KPI "${kpi.name}": ${error?.message || 'Lỗi không xác định'}`);
+                }
+            }
+
+            const kpiNames = selectedKpis.map(k => k.name).join(', ');
+            if (errorCount === 0) {
+                toast({
+                    title: 'Thành công!',
+                    description: `Đã giao ${selectedKpis.length} KPI (${kpiNames}) cho ${selectedEmployee?.name}.`
+                });
+            } else {
+                const errorMessage = errors.length > 0 
+                    ? errors.slice(0, 3).join('; ') + (errors.length > 3 ? ` và ${errors.length - 3} lỗi khác...` : '')
+                    : `${errorCount} KPI gặp lỗi`;
+                
+                toast({
+                    variant: 'destructive',
+                    title: 'Cảnh báo!',
+                    description: `Đã giao ${successCount}/${selectedKpis.length} KPI cho ${selectedEmployee?.name}. ${errorMessage}`
+                });
+            }
         }
         
         // Đóng dialog sau khi gán thành công
@@ -464,14 +501,18 @@ export default function AssignKpiPage() {
             <div>
               <CardTitle>KPI đã giao</CardTitle>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <Select value={filterEmployeeId} onValueChange={setFilterEmployeeId}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Tất cả nhân viên" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tất cả nhân viên</SelectItem>
-                  {safeUsers.map(user => (
+                  {safeUsers.filter((user: any) => {
+                    // Filter out admins (level >= 4)
+                    const level = user.level || user.roles?.level || 0;
+                    return level < 4;
+                  }).map(user => (
                     <SelectItem key={user.id} value={user.id}>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-5 w-5">
@@ -497,6 +538,94 @@ export default function AssignKpiPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="filter-start-date"
+                      variant={'outline'}
+                      className={cn(
+                        'w-[140px] justify-start text-left font-normal',
+                        !filterStartDate && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterStartDate ? (
+                        format(filterStartDate, 'dd/MM/yyyy')
+                      ) : (
+                        <span>Từ ngày</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      initialFocus
+                      mode="single"
+                      defaultMonth={filterStartDate}
+                      selected={filterStartDate}
+                      onSelect={setFilterStartDate}
+                      numberOfMonths={1}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="filter-end-date"
+                      variant={'outline'}
+                      className={cn(
+                        'w-[140px] justify-start text-left font-normal',
+                        !filterEndDate && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterEndDate ? (
+                        format(filterEndDate, 'dd/MM/yyyy')
+                      ) : (
+                        <span>Đến ngày</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      initialFocus
+                      mode="single"
+                      defaultMonth={filterEndDate}
+                      selected={filterEndDate}
+                      onSelect={setFilterEndDate}
+                      numberOfMonths={1}
+                      disabled={(date) => filterStartDate ? date < filterStartDate : false}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {(filterStartDate || filterEndDate) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFilterStartDate(undefined);
+                      setFilterEndDate(undefined);
+                    }}
+                    className="h-8 px-2"
+                  >
+                    Xóa
+                  </Button>
+                )}
+              </div>
+              {(filterStartDate || filterEndDate || filterStatus !== 'all' || filterEmployeeId !== 'all') && (
+                <div className="text-sm text-muted-foreground">
+                  Hiển thị {assignedKpis.length} KPI
+                  {filterEmployeeId !== 'all' && (() => {
+                    const employeeName = safeUsers.find((e: any) => e.id === filterEmployeeId)?.name || '';
+                    return ` của ${employeeName}`;
+                  })()}
+                  {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                  {filterStartDate && !filterEndDate && ` - Từ ${format(filterStartDate, 'dd/MM/yyyy')}`}
+                  {!filterStartDate && filterEndDate && ` - Đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                  {filterStatus !== 'all' && ` - ${statusConfig[filterStatus]?.label || filterStatus}`}
+                </div>
+              )}
               <Button 
                 onClick={() => setIsAssignDialogOpen(true)}
                 disabled={safeUsers.length === 0 || safeKpis.length === 0}
@@ -513,7 +642,6 @@ export default function AssignKpiPage() {
               <TableRow>
                 <TableHead className="min-w-[150px]">Người nhận</TableHead>
                 <TableHead className="min-w-[200px]">Tên KPI</TableHead>
-                <TableHead>Kỳ</TableHead>
                 <TableHead className="min-w-[150px]">Thời gian</TableHead>
                 <TableHead className="min-w-[150px]">Tiến độ</TableHead>
                 <TableHead>Trạng thái</TableHead>
@@ -541,7 +669,6 @@ export default function AssignKpiPage() {
                     )}
                   </TableCell>
                   <TableCell className="break-words">{item.kpiName}</TableCell>
-                  <TableCell className="break-words">{getPeriodLabel(item.period)}</TableCell>
                   <TableCell className="break-words">
                     {format(new Date((item as any).start_date), 'dd/MM/yy')} - {format(new Date((item as any).end_date), 'dd/MM/yy')}
                   </TableCell>
@@ -562,7 +689,7 @@ export default function AssignKpiPage() {
                 </TableRow>
               )) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center h-24">
+                  <TableCell colSpan={5} className="text-center h-24">
                     <div className="flex flex-col items-center justify-center">
                       <CalendarIcon className="h-8 w-8 text-muted-foreground mb-2" />
                       <p className="text-muted-foreground">Chưa có KPI nào được giao</p>
@@ -627,16 +754,12 @@ export default function AssignKpiPage() {
                              </div>
                         </div>
                     </div>
-                     <div className="grid grid-cols-3 gap-4 text-sm">
+                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                             <p className="font-medium text-muted-foreground">Trạng thái</p>
                             <Badge variant={statusConfig[selectedRecord.status]?.variant || 'default'}>
                               {statusConfig[selectedRecord.status]?.label || 'Không xác định'}
                             </Badge>
-                        </div>
-                         <div>
-                            <p className="font-medium text-muted-foreground">Kỳ</p>
-                            <p>{getPeriodLabel(selectedRecord.period)}</p>
                         </div>
                          <div>
                             <p className="font-medium text-muted-foreground">Thời gian</p>
@@ -732,7 +855,11 @@ export default function AssignKpiPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-64">
-                        {safeUsers.map(emp => (
+                        {safeUsers.filter((emp: any) => {
+                          // Filter out admins (level >= 4)
+                          const level = emp.level || emp.roles?.level || 0;
+                          return level < 4;
+                        }).map(emp => (
                           <DropdownMenuItem key={emp.id} onSelect={() => setSelectedEmployee(emp)}>
                             {emp.name}
                           </DropdownMenuItem>
@@ -763,40 +890,96 @@ export default function AssignKpiPage() {
                     </DropdownMenu>
                     {selectedDepartmentId && (
                       <p className="text-xs text-muted-foreground">
-                        KPI sẽ được tự động giao cho {safeUsers.filter((emp: any) => Number(emp.department_id) === Number(selectedDepartmentId)).length} nhân viên trong phòng ban này
+                        KPI sẽ được tự động giao cho {safeUsers.filter((emp: any) => {
+                          const level = emp.level || emp.roles?.level || 0;
+                          return level < 4 && Number(emp.department_id) === Number(selectedDepartmentId);
+                        }).length} nhân viên trong phòng ban này
                       </p>
                     )}
                   </div>
                 )}
                 
-                {/* KPI Select */}
+                {/* KPI Multi-Select */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Chọn KPI</label>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-between" disabled={filteredKpis.length === 0}>
-                        <span className='truncate'>{selectedKpi?.name || 'Chọn KPI'}</span>
+                        <span className='truncate'>
+                          {selectedKpis.length === 0 
+                            ? 'Chọn KPI' 
+                            : selectedKpis.length === 1 
+                            ? selectedKpis[0].name 
+                            : `Đã chọn ${selectedKpis.length} KPI`}
+                        </span>
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64">
-                      {filteredKpis.length > 0 ? (
-                        filteredKpis.map((kpi: any) => (
-                          <DropdownMenuItem key={kpi.id} onSelect={() => setSelectedKpi(kpi)}>
-                            {kpi.name}
-                          </DropdownMenuItem>
-                        ))
-                      ) : (
-                        <DropdownMenuItem disabled>
-                          {assignmentType === 'department' && !selectedDepartmentId
-                            ? 'Vui lòng chọn phòng ban trước'
-                            : assignmentType === 'employee' && !selectedEmployee
-                            ? 'Vui lòng chọn nhân viên trước'
-                            : 'Không có KPI nào cho phòng ban này'}
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="start">
+                      <div className="p-2">
+                        {filteredKpis.length > 0 ? (
+                          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                            {filteredKpis.map((kpi: any) => {
+                              const isSelected = selectedKpis.some((sk: any) => sk.id === kpi.id);
+                              return (
+                                <div
+                                  key={kpi.id}
+                                  className="flex items-center space-x-2 p-2 rounded-md hover:bg-accent cursor-pointer"
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
+                                    } else {
+                                      setSelectedKpis(prev => [...prev, kpi]);
+                                    }
+                                  }}
+                                >
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedKpis(prev => [...prev, kpi]);
+                                      } else {
+                                        setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
+                                      }
+                                    }}
+                                  />
+                                  <label className="text-sm font-normal cursor-pointer flex-1">
+                                    {kpi.name}
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="p-2 text-sm text-muted-foreground text-center">
+                            {assignmentType === 'department' && !selectedDepartmentId
+                              ? 'Vui lòng chọn phòng ban trước'
+                              : assignmentType === 'employee' && !selectedEmployee
+                              ? 'Vui lòng chọn nhân viên trước'
+                              : 'Không có KPI nào cho phòng ban này'}
+                          </div>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  {selectedKpis.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedKpis.map((kpi: any) => (
+                        <Badge key={kpi.id} variant="secondary" className="flex items-center gap-1">
+                          <span className="truncate max-w-[200px]">{kpi.name}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedKpis(prev => prev.filter((sk: any) => sk.id !== kpi.id));
+                            }}
+                            className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                   {assignmentType === 'department' && selectedDepartmentId && filteredKpis.length > 0 && (
                     <p className="text-xs text-muted-foreground">
                       {filteredKpis.length} KPI của phòng ban này
@@ -809,75 +992,69 @@ export default function AssignKpiPage() {
                   )}
                 </div>
                 
-                {/* Period Select */}
+                {/* Start Date Picker */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Chọn kỳ</label>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between" disabled={filteredPeriods.length === 0}>
-                        <span>{getPeriodLabel(selectedPeriod)}</span>
-                        <ChevronDown className="h-4 w-4 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-64">
-                      {filteredPeriods.length > 0 ? (
-                        filteredPeriods.map(p => (
-                          <DropdownMenuItem key={p.value} onSelect={() => setSelectedPeriod(p.value)}>
-                            {p.label}
-                          </DropdownMenuItem>
-                        ))
-                      ) : (
-                        <DropdownMenuItem disabled>
-                          {!selectedKpi 
-                            ? 'Vui lòng chọn KPI trước'
-                            : 'Không có kỳ phù hợp với tần suất của KPI này'}
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {selectedKpi && filteredPeriods.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      KPI này dùng {(selectedKpi as any).frequency === 'quarterly' ? 'quý' : (selectedKpi as any).frequency === 'monthly' ? 'tháng' : 'tần suất'} - {filteredPeriods.length} kỳ có thể chọn
-                    </p>
-                  )}
-                </div>
-                
-                {/* Date Picker */}
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium">Thời gian thực hiện</label>
+                  <label className="text-sm font-medium">Ngày bắt đầu</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
-                        id="date"
+                        id="start-date"
                         variant={'outline'}
                         className={cn(
                           'w-full justify-start text-left font-normal',
-                          !date && 'text-muted-foreground'
+                          !startDate && 'text-muted-foreground'
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date?.from ? (
-                          date.to ? (
-                            <>
-                              {format(date.from, 'dd/MM/yyyy')} -{' '}
-                              {format(date.to, 'dd/MM/yyyy')}
-                            </>
-                          ) : (
-                            format(date.from, 'dd/MM/yyyy')
-                          )
+                        {startDate ? (
+                          format(startDate, 'dd/MM/yyyy')
                         ) : (
-                          <span>Chọn ngày</span>
+                          <span>Chọn ngày bắt đầu</span>
                         )}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
+                      <CalendarComponent
                         initialFocus
-                        mode="range"
-                        defaultMonth={date?.from}
-                        selected={date}
-                        onSelect={setDate}
-                        numberOfMonths={2}
+                        mode="single"
+                        defaultMonth={startDate}
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        numberOfMonths={1}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* End Date Picker */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Ngày kết thúc</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="end-date"
+                        variant={'outline'}
+                        className={cn(
+                          'w-full justify-start text-left font-normal',
+                          !endDate && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? (
+                          format(endDate, 'dd/MM/yyyy')
+                        ) : (
+                          <span>Chọn ngày kết thúc</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        initialFocus
+                        mode="single"
+                        defaultMonth={endDate}
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        numberOfMonths={1}
                       />
                     </PopoverContent>
                   </Popover>

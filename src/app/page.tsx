@@ -20,7 +20,7 @@ export default function HomePage() {
       } else {
         // Đã đăng nhập -> redirect dựa trên role
         if (user.role === 'admin') {
-          router.replace('/admin/dashboard');
+          router.replace('/admin/branches');
         } else {
           // Employee hoặc Manager
           router.replace('/employee/dashboard');

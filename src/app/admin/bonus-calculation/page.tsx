@@ -7,7 +7,7 @@ import {
   TrendingUp,
   TrendingDown,
   Users,
-  Calendar,
+  CalendarIcon,
   Eye,
   Download,
   Plus,
@@ -54,7 +54,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import { getDefaultPeriod, getCurrentQuarterLabel, generatePeriodOptions, getPeriodLabel } from '@/lib/period-utils';
-import { formatCurrency, parseCurrency } from '@/lib/utils';
+import { formatCurrency, parseCurrency, cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { 
   RoleCode,
   ROLE_CODES 
@@ -79,6 +86,8 @@ const AddBonusPenaltyDialog: React.FC<{
     reason: '',
     period: getDefaultPeriod(),
   });
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   // Filter KPIs that are assigned to the selected employee
   const assignedKpis = useMemo(() => {
@@ -115,6 +124,8 @@ const AddBonusPenaltyDialog: React.FC<{
         reason: '',
         period: getDefaultPeriod(),
       });
+      setStartDate(undefined);
+      setEndDate(undefined);
     }
   }, [open]);
 
@@ -123,6 +134,18 @@ const AddBonusPenaltyDialog: React.FC<{
       return;
     }
 
+    // Validate date range
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    if (startDate > endDate) {
+      return;
+    }
+
+    // Format period as date range string
+    const periodString = `${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`;
+
     try {
       await onSave({
         employee_id: formData.employeeId,
@@ -130,7 +153,7 @@ const AddBonusPenaltyDialog: React.FC<{
         type: formData.type,
         amount: parseCurrency(formData.amount),
         reason: formData.reason,
-        period: formData.period,
+        period: periodString,
       });
 
       // Reset form only on success
@@ -142,6 +165,8 @@ const AddBonusPenaltyDialog: React.FC<{
         reason: '',
         period: getDefaultPeriod(),
       });
+      setStartDate(undefined);
+      setEndDate(undefined);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error saving record:', error);
@@ -205,9 +230,9 @@ const AddBonusPenaltyDialog: React.FC<{
                     </SelectItem>
                   ))
                 ) : formData.employeeId ? (
-                  <SelectItem value="" disabled>
+                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
                     Không có KPI nào được giao cho nhân viên này
-                  </SelectItem>
+                  </div>
                 ) : null}
               </SelectContent>
             </Select>
@@ -250,21 +275,69 @@ const AddBonusPenaltyDialog: React.FC<{
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="period">Thời kỳ</Label>
-            <Select value={formData.period} onValueChange={(value) => setFormData(prev => ({ ...prev, period: value }))}>
-              <SelectTrigger>
-                <SelectValue>
-                  {getPeriodLabel(formData.period)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {periods.map(period => (
-                  <SelectItem key={period.value} value={period.value}>
-                    {period.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Thời kỳ (Từ ngày đến ngày)</Label>
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !startDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? (
+                      format(startDate, 'dd/MM/yyyy')
+                    ) : (
+                      <span>Từ ngày</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    initialFocus
+                    mode="single"
+                    defaultMonth={startDate}
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    numberOfMonths={1}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !endDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? (
+                      format(endDate, 'dd/MM/yyyy')
+                    ) : (
+                      <span>Đến ngày</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    initialFocus
+                    mode="single"
+                    defaultMonth={endDate}
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    numberOfMonths={1}
+                    disabled={(date) => startDate ? date < startDate : false}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            {startDate && endDate && startDate > endDate && (
+              <p className="text-sm text-destructive">Ngày kết thúc phải sau ngày bắt đầu</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -283,7 +356,10 @@ const AddBonusPenaltyDialog: React.FC<{
             <X className="h-4 w-4 mr-2" />
             Hủy
           </Button>
-          <Button onClick={handleSave}>
+          <Button 
+            onClick={handleSave}
+            disabled={!formData.employeeId || !formData.amount || !formData.reason || !startDate || !endDate || (startDate > endDate)}
+          >
             <Save className="h-4 w-4 mr-2" />
             Lưu
           </Button>
@@ -296,10 +372,14 @@ const AddBonusPenaltyDialog: React.FC<{
 export default function BonusCalculationPage() {
   const { users, departments, roles, kpis, kpiRecords, loading } = useContext(SupabaseDataContext);
   const [bonusPenaltyRecords, setBonusPenaltyRecords] = useState<BonusPenaltyRecord[]>([]);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>(getDefaultPeriod());
+  const [allRecords, setAllRecords] = useState<BonusPenaltyRecord[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Date range filter states (similar to assign dialog)
+  const [filterStartDate, setFilterStartDate] = useState<Date | undefined>(undefined);
+  const [filterEndDate, setFilterEndDate] = useState<Date | undefined>(undefined);
 
   // Generate periods dynamically
   const periods = generatePeriodOptions();
@@ -309,7 +389,11 @@ export default function BonusCalculationPage() {
     const safeUsers = users || [];
     const safeRoles = roles || [];
     
-    return safeUsers.map(user => ({
+    return safeUsers.filter((user: any) => {
+      // Filter out admins (level >= 4)
+      const level = user.level || user.roles?.level || 0;
+      return level < 4;
+    }).map(user => ({
       ...user,
       role: safeRoles.find(role => role.id === user.role_id)
     }));
@@ -319,8 +403,46 @@ export default function BonusCalculationPage() {
   const loadRecords = useCallback(async () => {
     try {
       setIsLoading(true);
-      const records = await bonusPenaltyService.getRecords(selectedPeriod);
-      setBonusPenaltyRecords(records);
+      
+      // Load all records first
+      const records = await bonusPenaltyService.getRecords();
+      setAllRecords(records);
+      
+      // Filter by date range if selected
+      let filtered = records;
+      if (filterStartDate || filterEndDate) {
+        filtered = records.filter(record => {
+          const recordDate = new Date(record.created_at);
+          
+          // Check if record date is within filter date range
+          const filterStart = filterStartDate ? new Date(filterStartDate) : null;
+          const filterEnd = filterEndDate ? new Date(filterEndDate) : null;
+          
+          // Set time to start/end of day for proper comparison
+          if (filterStart) {
+            filterStart.setHours(0, 0, 0, 0);
+          }
+          if (filterEnd) {
+            filterEnd.setHours(23, 59, 59, 999);
+          }
+          recordDate.setHours(0, 0, 0, 0);
+          
+          if (filterStart && filterEnd) {
+            // Both dates selected: record must be within range
+            return recordDate >= filterStart && recordDate <= filterEnd;
+          } else if (filterStart) {
+            // Only start date: record must be on or after filter start
+            return recordDate >= filterStart;
+          } else if (filterEnd) {
+            // Only end date: record must be on or before filter end
+            return recordDate <= filterEnd;
+          }
+          
+          return true;
+        });
+      }
+      
+      setBonusPenaltyRecords(filtered);
     } catch (error) {
       console.error('Error loading records:', error);
       toast({
@@ -331,9 +453,9 @@ export default function BonusCalculationPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedPeriod, toast]);
+  }, [filterStartDate, filterEndDate, toast]);
 
-  // Load records when component mounts or period changes
+  // Load records when component mounts or filters change
   React.useEffect(() => {
     loadRecords();
   }, [loadRecords]);
@@ -364,7 +486,39 @@ export default function BonusCalculationPage() {
   const handleAddRecord = async (recordData: CreateBonusPenaltyRecord) => {
     try {
       const newRecord = await bonusPenaltyService.createRecord(recordData);
-      setBonusPenaltyRecords(prev => [newRecord, ...prev]);
+      
+      // Add to allRecords
+      setAllRecords(prev => [newRecord, ...prev]);
+      
+      // Check if the new record matches current date range filters
+      let shouldShow = true;
+      if (filterStartDate || filterEndDate) {
+        const recordDate = new Date(newRecord.created_at);
+        const filterStart = filterStartDate ? new Date(filterStartDate) : null;
+        const filterEnd = filterEndDate ? new Date(filterEndDate) : null;
+        
+        // Set time to start/end of day for proper comparison
+        if (filterStart) {
+          filterStart.setHours(0, 0, 0, 0);
+        }
+        if (filterEnd) {
+          filterEnd.setHours(23, 59, 59, 999);
+        }
+        recordDate.setHours(0, 0, 0, 0);
+        
+        if (filterStart && filterEnd) {
+          shouldShow = recordDate >= filterStart && recordDate <= filterEnd;
+        } else if (filterStart) {
+          shouldShow = recordDate >= filterStart;
+        } else if (filterEnd) {
+          shouldShow = recordDate <= filterEnd;
+        }
+      }
+      
+      // Only add to filtered records if it matches the filter
+      if (shouldShow) {
+        setBonusPenaltyRecords(prev => [newRecord, ...prev]);
+      }
       
       toast({
         title: 'Thành công',
@@ -387,6 +541,7 @@ export default function BonusCalculationPage() {
   const handleDeleteRecord = async (recordId: string) => {
     try {
       await bonusPenaltyService.deleteRecord(recordId);
+      setAllRecords(prev => prev.filter(record => record.id !== recordId));
       setBonusPenaltyRecords(prev => prev.filter(record => record.id !== recordId));
       
       toast({
@@ -422,7 +577,14 @@ export default function BonusCalculationPage() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `bonus_penalty_${selectedPeriod.replace(' ', '_')}.csv`);
+    const dateLabel = filterStartDate && filterEndDate
+      ? `${format(filterStartDate, 'yyyy-MM-dd')}_to_${format(filterEndDate, 'yyyy-MM-dd')}`
+      : filterStartDate
+      ? `from_${format(filterStartDate, 'yyyy-MM-dd')}`
+      : filterEndDate
+      ? `to_${format(filterEndDate, 'yyyy-MM-dd')}`
+      : 'Tat_ca';
+    link.setAttribute('download', `bonus_penalty_${dateLabel}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -441,21 +603,89 @@ export default function BonusCalculationPage() {
           <div className="space-y-1.5">
             <CardTitle>Quản lý thưởng phạt</CardTitle>
           </div>
-          <div className="flex items-center gap-4">
-            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Chọn thời kỳ">
-                  {getPeriodLabel(selectedPeriod)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {periods.map(period => (
-                  <SelectItem key={period.value} value={period.value}>
-                    {period.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="filter-start-date"
+                    variant={'outline'}
+                    className={cn(
+                      'w-[140px] justify-start text-left font-normal',
+                      !filterStartDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {filterStartDate ? (
+                      format(filterStartDate, 'dd/MM/yyyy')
+                    ) : (
+                      <span>Từ ngày</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    initialFocus
+                    mode="single"
+                    defaultMonth={filterStartDate}
+                    selected={filterStartDate}
+                    onSelect={setFilterStartDate}
+                    numberOfMonths={1}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="filter-end-date"
+                    variant={'outline'}
+                    className={cn(
+                      'w-[140px] justify-start text-left font-normal',
+                      !filterEndDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {filterEndDate ? (
+                      format(filterEndDate, 'dd/MM/yyyy')
+                    ) : (
+                      <span>Đến ngày</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    initialFocus
+                    mode="single"
+                    defaultMonth={filterEndDate}
+                    selected={filterEndDate}
+                    onSelect={setFilterEndDate}
+                    numberOfMonths={1}
+                  />
+                </PopoverContent>
+              </Popover>
+              {(filterStartDate || filterEndDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterStartDate(undefined);
+                    setFilterEndDate(undefined);
+                  }}
+                  className="h-8 px-2"
+                >
+                  Xóa
+                </Button>
+              )}
+            </div>
+            {(filterStartDate || filterEndDate) && (
+              <div className="text-sm text-muted-foreground">
+                Hiển thị {bonusPenaltyRecords.length} bản ghi
+                {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                {filterStartDate && !filterEndDate && ` - Từ ${format(filterStartDate, 'dd/MM/yyyy')}`}
+                {!filterStartDate && filterEndDate && ` - Đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+              </div>
+            )}
             <div className="flex gap-2 ml-auto">
               <Button variant="outline" onClick={handleExportData}>
                 <Download className="h-4 w-4 mr-2" />

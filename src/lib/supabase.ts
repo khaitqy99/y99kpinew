@@ -17,6 +17,7 @@ export type Database = {
           code: string
           description?: string
           manager_id?: number  // BIGINT → number
+          branch_id?: number  // BIGINT → number (chi nhánh)
           is_active: boolean
           created_at: string
           updated_at: string
@@ -27,6 +28,7 @@ export type Database = {
           code: string
           description?: string
           manager_id?: number
+          branch_id?: number
           is_active?: boolean
           created_at?: string
           updated_at?: string
@@ -36,6 +38,48 @@ export type Database = {
           name?: string
           code?: string
           description?: string
+          manager_id?: number
+          branch_id?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      branches: {
+        Row: {
+          id: number  // BIGSERIAL → number
+          name: string
+          code: string
+          description?: string
+          address?: string
+          phone?: string
+          email?: string
+          manager_id?: number  // BIGINT → number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          code: string
+          description?: string
+          address?: string
+          phone?: string
+          email?: string
+          manager_id?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          code?: string
+          description?: string
+          address?: string
+          phone?: string
+          email?: string
           manager_id?: number
           is_active?: boolean
           created_at?: string

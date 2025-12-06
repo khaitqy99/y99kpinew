@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useState, ReactNode, useCallback, useEffect, useContext } from 'react';
+import React, { createContext, useState, ReactNode, useCallback, useEffect, useContext, useMemo } from 'react';
 import { 
   employeeService, 
   departmentService, 
+  branchService,
   kpiService, 
   kpiRecordService, 
   notificationService,
@@ -12,6 +13,7 @@ import {
   kpiSubmissionService,
   type Employee,
   type Department,
+  type Branch,
   type Kpi,
   type KpiRecord,
   type Notification,
@@ -42,8 +44,12 @@ type SupabaseDataContextType = {
   dailyKpiProgress: DailyKpiProgress[];
   notifications: Notification[];
   departments: Department[];
+  branches: Branch[];
   roles: any[];
   kpiSubmissions: any[];
+  // Raw data (unfiltered) - for pages that need all data regardless of selected branch
+  allUsers: any[];
+  allDepartments: Department[];
 
   // Loading states
   loading: {
@@ -53,6 +59,7 @@ type SupabaseDataContextType = {
     dailyKpiProgress: boolean;
     notifications: boolean;
     departments: boolean;
+    branches: boolean;
     roles: boolean;
     kpiSubmissions: boolean;
   };
@@ -60,6 +67,7 @@ type SupabaseDataContextType = {
   // Actions
   addUser: (user: Omit<Employee, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateUser: (userId: string, updatedUser: Partial<any>) => Promise<void>;
+  deleteUser: (userId: string | number) => Promise<void>;
   addKpi: (kpi: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   editKpi: (kpiId: string, updatedKpi: Omit<Kpi, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   deleteKpi: (kpiId: string) => Promise<void>;
@@ -83,6 +91,9 @@ type SupabaseDataContextType = {
   addDepartment: (department: Omit<Department, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateDepartment: (departmentId: string, updatedDepartment: Partial<Department>) => Promise<void>;
   deleteDepartment: (departmentId: string) => Promise<void>;
+  addBranch: (branch: Omit<Branch, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateBranch: (branchId: string | number, updatedBranch: Partial<Branch>) => Promise<void>;
+  deleteBranch: (branchId: string | number) => Promise<void>;
   addRole: (role: any) => Promise<void>;
   updateRole: (roleId: string, updatedRole: any) => Promise<void>;
   deleteRole: (roleId: string) => Promise<void>;
@@ -112,13 +123,14 @@ export const SupabaseDataContext = createContext<SupabaseDataContextType>({} as 
 
 // Provider component
 export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
-  const { user: currentUser } = useContext(SessionContext);
+  const { user: currentUser, selectedBranch } = useContext(SessionContext);
   const [users, setUsers] = useState<any[]>([]);
   const [kpis, setKpis] = useState<Kpi[]>([]);
   const [kpiRecords, setKpiRecords] = useState<KpiRecord[]>([]);
   const [dailyKpiProgress, setDailyKpiProgress] = useState<DailyKpiProgress[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [kpiSubmissions, setKpiSubmissions] = useState<any[]>([]);
 
@@ -129,6 +141,7 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     dailyKpiProgress: false,
     notifications: false,
     departments: false,
+    branches: false,
     roles: false,
     kpiSubmissions: false,
   });
@@ -205,7 +218,22 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
       const data = await kpiSubmissionService.getAll();
       setKpiSubmissions(data);
     } catch (error) {
-      console.error('Error loading KPI submissions:', error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error && typeof error === 'object' && 'message' in error)
+          ? String((error as any).message)
+          : 'Unknown error occurred';
+      
+      console.error('Error loading KPI submissions:', {
+        error,
+        message: errorMessage,
+        code: (error as any)?.code,
+        details: (error as any)?.details,
+        hint: (error as any)?.hint
+      });
+      
+      // Set empty array on error to prevent UI issues
+      setKpiSubmissions([]);
     } finally {
       setLoading(prev => ({ ...prev, kpiSubmissions: false }));
     }
@@ -223,6 +251,20 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  const loadBranches = useCallback(async () => {
+    setLoading(prev => ({ ...prev, branches: true }));
+    try {
+      const data = await branchService.getAll();
+      setBranches(data);
+    } catch (error) {
+      console.error('Error loading branches:', error);
+      // Nếu bảng branches chưa tồn tại, set empty array
+      setBranches([]);
+    } finally {
+      setLoading(prev => ({ ...prev, branches: false }));
+    }
+  }, []);
+
   const loadRoles = useCallback(async () => {
     setLoading(prev => ({ ...prev, roles: true }));
     try {
@@ -235,6 +277,53 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  // Filter data by selected branch
+  const filteredDepartments = useMemo(() => {
+    if (!selectedBranch?.id) return departments;
+    return departments.filter((dept: any) => dept.branch_id === selectedBranch.id);
+  }, [departments, selectedBranch]);
+
+  const filteredUsers = useMemo(() => {
+    if (!selectedBranch?.id) return users;
+    const branchDepartmentIds = filteredDepartments.map((d: any) => d.id);
+    return users.filter((user: any) => {
+      // Check if user belongs to any department in this branch
+      // Support both old format (department_id) and new format (department_ids, all_departments)
+      const userDeptIds = user.department_ids || 
+                          (user.all_departments ? user.all_departments.map((d: any) => d.id) : []) ||
+                          (user.department_id ? [user.department_id] : []);
+      
+      // Check if any of user's departments is in the branch
+      return userDeptIds.some((deptId: number) => branchDepartmentIds.includes(deptId));
+    });
+  }, [users, filteredDepartments, selectedBranch]);
+
+  const filteredKpis = useMemo(() => {
+    if (!selectedBranch?.id) return kpis;
+    const branchDepartmentIds = filteredDepartments.map((d: any) => d.id);
+    return kpis.filter((kpi: any) => branchDepartmentIds.includes(kpi.department_id));
+  }, [kpis, filteredDepartments, selectedBranch]);
+
+  const filteredKpiRecords = useMemo(() => {
+    if (!selectedBranch?.id) return kpiRecords;
+    const branchDepartmentIds = filteredDepartments.map((d: any) => d.id);
+    const branchUserIds = filteredUsers.map((u: any) => u.id);
+    return kpiRecords.filter((record: any) => 
+      (record.employee_id && branchUserIds.includes(record.employee_id)) ||
+      (record.department_id && branchDepartmentIds.includes(record.department_id))
+    );
+  }, [kpiRecords, filteredDepartments, filteredUsers, selectedBranch]);
+
+  const filteredDailyKpiProgress = useMemo(() => {
+    if (!selectedBranch?.id) return dailyKpiProgress;
+    const branchDepartmentIds = filteredDepartments.map((d: any) => d.id);
+    const branchUserIds = filteredUsers.map((u: any) => u.id);
+    return dailyKpiProgress.filter((progress: any) => 
+      (progress.department_id && branchDepartmentIds.includes(progress.department_id)) ||
+      (progress.employee_id && branchUserIds.includes(progress.employee_id))
+    );
+  }, [dailyKpiProgress, filteredDepartments, filteredUsers, selectedBranch]);
+
   // Load all data on mount
   useEffect(() => {
     loadUsers();
@@ -243,6 +332,7 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     loadDailyKpiProgress();
     loadNotifications();
     loadDepartments();
+    loadBranches();
     loadRoles();
     loadKpiSubmissions();
     
@@ -470,6 +560,17 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const deleteUser = async (userId: string | number) => {
+    try {
+      const id = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+      await employeeService.delete(id);
+      await loadUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
+  };
+
   const addDepartment = async (deptData: Omit<Department, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       await departmentService.create(deptData);
@@ -490,9 +591,10 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const updateDepartment = async (departmentId: string, updatedDepartmentData: Partial<Department>) => {
+  const updateDepartment = async (departmentId: string | number, updatedDepartmentData: Partial<Department>) => {
     try {
-      await departmentService.update(departmentId, updatedDepartmentData);
+      const id = typeof departmentId === 'string' ? parseInt(departmentId, 10) : departmentId;
+      await departmentService.update(id, updatedDepartmentData);
       await loadDepartments();
     } catch (error) {
       console.error('Error updating department:', error);
@@ -500,12 +602,45 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const deleteDepartment = async (departmentId: string) => {
+  const deleteDepartment = async (departmentId: string | number) => {
     try {
-      await departmentService.delete(departmentId);
+      const id = typeof departmentId === 'string' ? parseInt(departmentId, 10) : departmentId;
+      await departmentService.delete(id);
       await loadDepartments();
     } catch (error) {
       console.error('Error deleting department:', error);
+      throw error;
+    }
+  };
+
+  const addBranch = async (branchData: Omit<Branch, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      await branchService.create(branchData);
+      await loadBranches();
+    } catch (error) {
+      console.error('Error adding branch:', error);
+      throw error;
+    }
+  };
+
+  const updateBranch = async (branchId: string | number, updatedBranchData: Partial<Branch>) => {
+    try {
+      const id = typeof branchId === 'string' ? parseInt(branchId, 10) : branchId;
+      await branchService.update(id, updatedBranchData);
+      await loadBranches();
+    } catch (error) {
+      console.error('Error updating branch:', error);
+      throw error;
+    }
+  };
+
+  const deleteBranch = async (branchId: string | number) => {
+    try {
+      const id = typeof branchId === 'string' ? parseInt(branchId, 10) : branchId;
+      await branchService.delete(id);
+      await loadBranches();
+    } catch (error) {
+      console.error('Error deleting branch:', error);
       throw error;
     }
   };
@@ -1142,19 +1277,24 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
   const getNotificationPriorities = useCallback(() => [...new Set(notifications.map(n => n.priority))].sort(), [notifications]);
   const getNotificationCategories = useCallback(() => [...new Set(notifications.map(n => n.category))].sort(), [notifications]);
 
-  // Provider value
+  // Provider value - use filtered data when branch is selected
   const value = {
-    users,
-    kpis,
-    kpiRecords,
-    dailyKpiProgress,
+    users: selectedBranch?.id ? filteredUsers : users,
+    kpis: selectedBranch?.id ? filteredKpis : kpis,
+    kpiRecords: selectedBranch?.id ? filteredKpiRecords : kpiRecords,
+    dailyKpiProgress: selectedBranch?.id ? filteredDailyKpiProgress : dailyKpiProgress,
     notifications,
-    departments,
+    departments: selectedBranch?.id ? filteredDepartments : departments,
+    branches,
     roles,
     kpiSubmissions,
+    // Raw data (unfiltered) - always return all data
+    allUsers: users,
+    allDepartments: departments,
     loading,
     addUser,
     updateUser,
+    deleteUser,
     addKpi,
     editKpi,
     deleteKpi,
@@ -1178,6 +1318,9 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
     addDepartment,
     updateDepartment,
     deleteDepartment,
+    addBranch,
+    updateBranch,
+    deleteBranch,
     addRole,
     updateRole,
     deleteRole,

@@ -15,6 +15,7 @@ export interface User {
   avatar: string;
   position: string;
   employee_code: string;
+  branch_name?: string;
 }
 
 export interface LoginResponse {
@@ -42,6 +43,9 @@ export class AuthService {
     try {
       const { email, password } = credentials;
 
+      // Normalize email to lowercase for comparison
+      const normalizedEmail = email.toLowerCase().trim();
+
       // Tìm employee với email (simple query)
       const { data: employee, error: findError } = await supabase
         .from('employees')
@@ -61,14 +65,54 @@ export class AuthService {
           department_id,
           level
         `)
-        .eq('email', email)
+        .eq('email', normalizedEmail)
         .eq('is_active', true)
         .single();
 
-      if (findError || !employee) {
+      if (findError) {
+        // Check if error is an HTML response (network/Cloudflare error)
+        const errorMessage = typeof findError === 'object' && findError !== null
+          ? (findError as any).message || JSON.stringify(findError)
+          : String(findError);
+        
+        if (errorMessage.includes('<html>') || errorMessage.includes('500 Internal Server Error')) {
+          console.error('Login error - Supabase connection failed:', {
+            code: (findError as any)?.code,
+            details: (findError as any)?.details,
+            hint: (findError as any)?.hint,
+            message: 'Network or Supabase service error'
+          });
+          return {
+            success: false,
+            error: 'Không thể kết nối đến hệ thống. Vui lòng kiểm tra kết nối mạng và thử lại sau.'
+          };
+        }
+        
+        console.error('Login error - Employee not found:', {
+          code: (findError as any)?.code,
+          message: (findError as any)?.message,
+          details: (findError as any)?.details,
+          hint: (findError as any)?.hint
+        });
         return {
           success: false,
           error: 'Email hoặc mật khẩu không đúng'
+        };
+      }
+
+      if (!employee) {
+        console.error('Login error - Employee not found: No employee data returned');
+        return {
+          success: false,
+          error: 'Email hoặc mật khẩu không đúng'
+        };
+      }
+
+      // Kiểm tra status của employee
+      if (employee.status !== 'active') {
+        return {
+          success: false,
+          error: 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.'
         };
       }
 
@@ -113,9 +157,26 @@ export class AuthService {
       // Lấy thông tin department
       const { data: department } = await supabase
         .from('departments')
-        .select('id, name')
+        .select('id, name, branch_id')
         .eq('id', employee.department_id)
         .single();
+
+      // Lấy tên branch từ department nếu có branch_id
+      let branchName: string | undefined;
+      if (department?.branch_id) {
+        try {
+          const { data: branch } = await supabase
+            .from('branches')
+            .select('id, name')
+            .eq('id', department.branch_id)
+            .eq('is_active', true)
+            .single();
+          branchName = branch?.name;
+        } catch (error) {
+          // Nếu bảng branches chưa tồn tại hoặc có lỗi, bỏ qua
+          console.warn('Could not fetch branch:', error);
+        }
+      }
 
       // Xác định role dựa trên level
       let role: 'admin' | 'manager' | 'employee' = 'employee';
@@ -126,15 +187,16 @@ export class AuthService {
       }
 
       const user: User = {
-        id: employee.id,
+        id: String(employee.id),
         name: employee.name,
         email: employee.email,
         role,
         department: department?.name || 'Unknown',
-        department_id: employee.department_id,
+        department_id: String(employee.department_id),
         avatar: employee.avatar_url || 'https://picsum.photos/seed/default/40/40',
         position: employee.position,
-        employee_code: employee.employee_code
+        employee_code: employee.employee_code,
+        branch_name: branchName
       };
 
       return {
@@ -142,11 +204,24 @@ export class AuthService {
         user
       };
 
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch (error: any) {
+      console.error('Login error - Exception:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name
+      });
+      
+      // Check if it's a network error
+      if (error?.message?.includes('fetch') || error?.message?.includes('network') || error?.code === 'ECONNREFUSED') {
+        return {
+          success: false,
+          error: 'Không thể kết nối đến hệ thống. Vui lòng kiểm tra kết nối mạng và thử lại sau.'
+        };
+      }
+      
       return {
         success: false,
-        error: 'Có lỗi xảy ra khi đăng nhập'
+        error: 'Có lỗi xảy ra khi đăng nhập. Vui lòng thử lại sau.'
       };
     }
   }
@@ -174,10 +249,17 @@ export class AuthService {
       const user = JSON.parse(storedUser);
       
       // Kiểm tra user có còn tồn tại trong DB không
+      // Convert user.id (string) to number for database query
+      const employeeId = parseInt(user.id, 10);
+      if (isNaN(employeeId)) {
+        sessionStorage.removeItem('user');
+        return null;
+      }
+      
       const { data: employee, error } = await supabase
         .from('employees')
         .select('id, is_active, status')
-        .eq('id', user.id)
+        .eq('id', employeeId)
         .eq('is_active', true)
         .single();
 
@@ -253,10 +335,19 @@ export class AuthService {
       }
 
       // Lấy thông tin user hiện tại
+      // Convert userId (string) to number for database query
+      const employeeId = parseInt(userId, 10);
+      if (isNaN(employeeId)) {
+        return {
+          success: false,
+          error: 'ID người dùng không hợp lệ'
+        };
+      }
+      
       const { data: employee, error: findError } = await supabase
         .from('employees')
         .select('id, password_hash')
-        .eq('id', userId)
+        .eq('id', employeeId)
         .single();
 
       if (findError || !employee) {
@@ -281,7 +372,7 @@ export class AuthService {
           password_hash: newPassword,
           updated_at: new Date().toISOString()
         })
-        .eq('id', userId);
+        .eq('id', employeeId);
 
       if (updateError) {
         return {
@@ -303,3 +394,4 @@ export class AuthService {
     }
   }
 }
+

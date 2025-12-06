@@ -14,14 +14,23 @@ type User = {
   avatar: string;
   position: string;
   employee_code: string;
+  branch_name?: string;
 };
+
+type SelectedBranch = {
+  id: number;
+  name: string;
+  code: string;
+} | null;
 
 type SessionContextType = {
   user: User | null;
   language: string;
+  selectedBranch: SelectedBranch;
   login: (userData: User) => void;
   logout: () => void;
   setLanguage: (language: string) => void;
+  setSelectedBranch: (branch: SelectedBranch) => void;
   isLoading: boolean;
   isLoggingOut: boolean;
   isLoggingIn: boolean;
@@ -31,9 +40,11 @@ type SessionContextType = {
 export const SessionContext = createContext<SessionContextType>({
   user: null,
   language: 'vi',
+  selectedBranch: null,
   login: () => {},
   logout: () => {},
   setLanguage: () => {},
+  setSelectedBranch: () => {},
   isLoading: true,
   isLoggingOut: false,
   isLoggingIn: false,
@@ -43,10 +54,36 @@ export const SessionContext = createContext<SessionContextType>({
 export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [language, setLanguage] = useState('vi');
+  const [selectedBranch, setSelectedBranch] = useState<SelectedBranch>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
+
+  // Load selected branch from sessionStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedBranch = sessionStorage.getItem('selectedBranch');
+      if (savedBranch) {
+        try {
+          setSelectedBranch(JSON.parse(savedBranch));
+        } catch (e) {
+          console.error('Error parsing saved branch:', e);
+        }
+      }
+    }
+  }, []);
+
+  // Save selected branch to sessionStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (selectedBranch) {
+        sessionStorage.setItem('selectedBranch', JSON.stringify(selectedBranch));
+      } else {
+        sessionStorage.removeItem('selectedBranch');
+      }
+    }
+  }, [selectedBranch]);
   
   useEffect(() => {
     // This effect runs once on mount to check for an existing session.
@@ -99,12 +136,18 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     setLanguage(lang);
   };
 
+  const handleSetSelectedBranch = (branch: SelectedBranch) => {
+    setSelectedBranch(branch);
+  };
+
   const value = {
       user,
       language,
+      selectedBranch,
       login,
       logout,
       setLanguage: handleSetLanguage,
+      setSelectedBranch: handleSetSelectedBranch,
       isLoading,
       isLoggingOut,
       isLoggingIn,

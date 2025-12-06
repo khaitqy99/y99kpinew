@@ -228,7 +228,7 @@ export default function EmployeeKpiBonusPenaltyPage() {
   const safeKpis = kpis || [];
 
   const employeeKpiRecords = useMemo(() => 
-    safeKpiRecords.filter(r => r.employee_id === user?.id), 
+    safeKpiRecords.filter(r => String(r.employee_id) === String(user?.id)), 
     [safeKpiRecords, user?.id]
   );
 

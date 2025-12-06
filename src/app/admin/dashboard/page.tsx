@@ -128,7 +128,11 @@ export default function AdminDashboardPage() {
 
   const totalKpis = safeKpiRecords.length;
   const pendingCount = safeKpiRecords.filter(r => r.status === 'pending_approval').length;
-  const employeeCount = safeUsers.length;
+  // Count only employees (exclude admins - level >= 4)
+  const employeeCount = safeUsers.filter((user: any) => {
+    const level = user.level || user.roles?.level || 0;
+    return level < 4;
+  }).length;
   const completedCount = safeKpiRecords.filter(r => r.status === 'completed' || r.status === 'approved').length;
   const completionRate = totalKpis > 0 ? (completedCount / totalKpis) * 100 : 0;
 
