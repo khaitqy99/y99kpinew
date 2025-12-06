@@ -69,6 +69,13 @@ export default function ApprovalPage() {
   const { toast } = useToast();
   const { kpiRecords, users, kpis, kpiSubmissions, updateKpiRecordStatus, loading } = useContext(SupabaseDataContext);
   
+  // Fix hydration mismatch by only rendering Select/Popover after mount
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   const [selectedApproval, setSelectedApproval] = useState<MappedApproval | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
@@ -138,21 +145,43 @@ export default function ApprovalPage() {
   };
 
   const getAllApprovals = () => {
-    // Filter by status: show relevant statuses (pending, completed, approved, rejected)
-    // Also include 'in_progress' with submission_details (submitted but not yet pending approval)
+    // Filter to show ALL KPI records that have been submitted by employees, regardless of status
+    // This ensures we catch all submissions even if status hasn't been updated correctly
+    // Criteria for "submitted":
+    // 1. Records with status: pending_approval, completed, approved, rejected (always shown)
+    // 2. Records with submission_date (definitive proof of submission)
+    // 3. Records with submission_details (text submission)
+    // 4. Records with attachment (file submission)
+    // 5. Records that have a submission in kpi_submissions table (multi-KPI submissions)
+    // 6. Records with any status (not_started, in_progress, overdue) that have submission indicators
+    
     let filteredRecords = safeKpiRecords.filter(r => {
-      const relevantStatuses = ['pending_approval', 'completed', 'approved', 'rejected', 'in_progress'];
-      // Include in_progress only if it has submission details (submitted)
-      // Check both record submission_details and submission submission_details (for multi-KPI submissions)
-      if (r.status === 'in_progress') {
-        const hasRecordSubmissionDetails = r.submission_details && r.submission_details.trim() !== '';
-        const submission = getSubmissionForRecord(r.id);
-        const hasSubmissionDetails = submission?.submission_details && submission.submission_details.trim() !== '';
-        if (!hasRecordSubmissionDetails && !hasSubmissionDetails) {
-          return false;
-        }
+      const alwaysShowStatuses = ['pending_approval', 'completed', 'approved', 'rejected'];
+      
+      // Check if this record has a submission (for multi-KPI submissions)
+      const submission = getSubmissionForRecord(r.id);
+      const hasSubmission = submission !== null;
+      
+      // Always include records with these statuses (they are definitely submitted)
+      if (alwaysShowStatuses.includes(r.status)) {
+        return true;
       }
-      return relevantStatuses.includes(r.status);
+      
+      // Check for submission indicators
+      const hasRecordSubmissionDetails = r.submission_details && r.submission_details.trim() !== '';
+      const hasSubmissionDetails = submission?.submission_details && submission.submission_details.trim() !== '';
+      const hasSubmissionDate = r.submission_date !== null && r.submission_date !== undefined;
+      const hasSubmissionAttachment = r.attachment && typeof r.attachment === 'string' && r.attachment.trim() !== '';
+      const hasSubmissionAttachmentInSubmission = submission?.attachment && typeof submission.attachment === 'string' && submission.attachment.trim() !== '';
+      
+      // Include if it has ANY indication of submission (regardless of status)
+      // This catches cases where status might be 'not_started', 'in_progress', or 'overdue' 
+      // but the record was actually submitted
+      if (hasSubmission || hasSubmissionDate || hasRecordSubmissionDetails || hasSubmissionDetails || hasSubmissionAttachment || hasSubmissionAttachmentInSubmission) {
+        return true;
+      }
+      
+      return false;
     });
     
     // Filter by status if selected
@@ -191,6 +220,16 @@ export default function ApprovalPage() {
     if (selectedEmployee && selectedEmployee !== 'all') {
       filteredRecords = filteredRecords.filter(r => String(r.employee_id) === selectedEmployee);
     }
+    
+    // Sort by submission_date (newest first), then by created_at if no submission_date
+    filteredRecords.sort((a, b) => {
+      const dateA = a.submission_date || a.created_at || '';
+      const dateB = b.submission_date || b.created_at || '';
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1; // Put records without submission_date at the end
+      if (!dateB) return -1;
+      return new Date(dateB).getTime() - new Date(dateA).getTime(); // Newest first
+    });
     
     return filteredRecords.map(record => {
         const employee = safeUsers.find(e => e.id === record.employee_id);
@@ -231,7 +270,7 @@ export default function ApprovalPage() {
   const approvals = getAllApprovals();
 
   // Debug: Log to see what records we have
-  React.useEffect(() => {
+  useEffect(() => {
     const approvalsCount = getAllApprovals().length;
     console.log('KPI Records:', safeKpiRecords.length);
     console.log('KPI Submissions:', safeKpiSubmissions.length);
@@ -313,16 +352,33 @@ export default function ApprovalPage() {
     }
   };
 
-  // Get unique employees from relevant records
+  // Get unique employees from relevant records and submissions (same logic as getAllApprovals)
   const getUniqueEmployees = () => {
     const employeeMap = new Map<number, string>();
+    
+    // Get employees from KPI records using the same filtering logic as getAllApprovals
     safeKpiRecords
       .filter(r => {
-        const relevantStatuses = ['pending_approval', 'completed', 'approved', 'rejected', 'in_progress'];
-        if (r.status === 'in_progress' && !r.submission_details) {
-          return false;
+        const alwaysShowStatuses = ['pending_approval', 'completed', 'approved', 'rejected'];
+        
+        const submission = getSubmissionForRecord(r.id);
+        const hasSubmission = submission !== null;
+        
+        if (alwaysShowStatuses.includes(r.status)) {
+          return true;
         }
-        return relevantStatuses.includes(r.status);
+        
+        const hasRecordSubmissionDetails = r.submission_details && r.submission_details.trim() !== '';
+        const hasSubmissionDetails = submission?.submission_details && submission.submission_details.trim() !== '';
+        const hasSubmissionDate = r.submission_date !== null && r.submission_date !== undefined;
+        const hasSubmissionAttachment = r.attachment && typeof r.attachment === 'string' && r.attachment.trim() !== '';
+        const hasSubmissionAttachmentInSubmission = submission?.attachment && typeof submission.attachment === 'string' && submission.attachment.trim() !== '';
+        
+        if (hasSubmission || hasSubmissionDate || hasRecordSubmissionDetails || hasSubmissionDetails || hasSubmissionAttachment || hasSubmissionAttachmentInSubmission) {
+          return true;
+        }
+        
+        return false;
       })
       .forEach(r => {
         const employee = safeUsers.find(e => e.id === r.employee_id);
@@ -330,6 +386,27 @@ export default function ApprovalPage() {
           employeeMap.set(employee.id, employee.name || 'N/A');
         }
       });
+    
+    // Also get employees from kpi_submissions directly (to catch new submissions)
+    safeKpiSubmissions
+      .filter(sub => {
+        if (!sub.is_active) return false;
+        // Include all submissions that have been submitted
+        const alwaysShowStatuses = ['pending_approval', 'completed', 'approved', 'rejected'];
+        return alwaysShowStatuses.includes(sub.status) || 
+               (sub.submission_details && sub.submission_details.trim() !== '') ||
+               (sub.attachment && typeof sub.attachment === 'string' && sub.attachment.trim() !== '') ||
+               sub.submission_date;
+      })
+      .forEach(sub => {
+        if (sub.employee_id) {
+          const employee = safeUsers.find(e => e.id === sub.employee_id);
+          if (employee && !employeeMap.has(employee.id)) {
+            employeeMap.set(employee.id, employee.name || 'N/A');
+          }
+        }
+      });
+    
     return Array.from(employeeMap.entries())
       .map(([id, name]) => ({ id: String(id), name }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -470,106 +547,117 @@ export default function ApprovalPage() {
               <CardTitle>Duyệt KPI</CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-4">
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Tất cả nhân viên" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả nhân viên</SelectItem>
-                  {uniqueEmployees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Tất cả trạng thái" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                  <SelectItem value="pending_approval">Chờ duyệt</SelectItem>
-                  <SelectItem value="approved">Đã duyệt</SelectItem>
-                  <SelectItem value="completed">Đã hoàn thành</SelectItem>
-                  <SelectItem value="rejected">Đã từ chối</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="filter-start-date"
-                      variant={'outline'}
-                      className={cn(
-                        'w-[140px] justify-start text-left font-normal',
-                        !filterStartDate && 'text-muted-foreground'
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filterStartDate ? (
-                        format(filterStartDate, 'dd/MM/yyyy')
-                      ) : (
-                        <span>Từ ngày</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      initialFocus
-                      mode="single"
-                      defaultMonth={filterStartDate}
-                      selected={filterStartDate}
-                      onSelect={setFilterStartDate}
-                      numberOfMonths={1}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="filter-end-date"
-                      variant={'outline'}
-                      className={cn(
-                        'w-[140px] justify-start text-left font-normal',
-                        !filterEndDate && 'text-muted-foreground'
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filterEndDate ? (
-                        format(filterEndDate, 'dd/MM/yyyy')
-                      ) : (
-                        <span>Đến ngày</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      initialFocus
-                      mode="single"
-                      defaultMonth={filterEndDate}
-                      selected={filterEndDate}
-                      onSelect={setFilterEndDate}
-                      numberOfMonths={1}
-                      disabled={(date) => filterStartDate ? date < filterStartDate : false}
-                    />
-                  </PopoverContent>
-                </Popover>
-                {(filterStartDate || filterEndDate) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setFilterStartDate(undefined);
-                      setFilterEndDate(undefined);
-                    }}
-                    className="h-8 px-2"
-                  >
-                    Xóa
-                  </Button>
-                )}
-              </div>
+              {mounted ? (
+                <>
+                  <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Tất cả nhân viên" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả nhân viên</SelectItem>
+                      {uniqueEmployees.map((employee) => (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          {employee.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Tất cả trạng thái" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                      <SelectItem value="pending_approval">Chờ duyệt</SelectItem>
+                      <SelectItem value="approved">Đã duyệt</SelectItem>
+                      <SelectItem value="completed">Đã hoàn thành</SelectItem>
+                      <SelectItem value="rejected">Đã từ chối</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="filter-start-date"
+                          variant={'outline'}
+                          className={cn(
+                            'w-[140px] justify-start text-left font-normal',
+                            !filterStartDate && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {filterStartDate ? (
+                            format(filterStartDate, 'dd/MM/yyyy')
+                          ) : (
+                            <span>Từ ngày</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          initialFocus
+                          mode="single"
+                          defaultMonth={filterStartDate}
+                          selected={filterStartDate}
+                          onSelect={setFilterStartDate}
+                          numberOfMonths={1}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="filter-end-date"
+                          variant={'outline'}
+                          className={cn(
+                            'w-[140px] justify-start text-left font-normal',
+                            !filterEndDate && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {filterEndDate ? (
+                            format(filterEndDate, 'dd/MM/yyyy')
+                          ) : (
+                            <span>Đến ngày</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          initialFocus
+                          mode="single"
+                          defaultMonth={filterEndDate}
+                          selected={filterEndDate}
+                          onSelect={setFilterEndDate}
+                          numberOfMonths={1}
+                          disabled={(date) => filterStartDate ? date < filterStartDate : false}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {(filterStartDate || filterEndDate) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setFilterStartDate(undefined);
+                          setFilterEndDate(undefined);
+                        }}
+                        className="h-8 px-2"
+                      >
+                        Xóa
+                      </Button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="w-[180px] h-10 rounded-md border bg-muted animate-pulse" />
+                  <div className="w-[180px] h-10 rounded-md border bg-muted animate-pulse" />
+                  <div className="w-[140px] h-10 rounded-md border bg-muted animate-pulse" />
+                  <div className="w-[140px] h-10 rounded-md border bg-muted animate-pulse" />
+                </div>
+              )}
               {(filterStartDate || filterEndDate || selectedStatus !== 'all' || selectedEmployee !== 'all') && (
                 <div className="text-sm text-muted-foreground">
                   Hiển thị {approvals.length} KPI

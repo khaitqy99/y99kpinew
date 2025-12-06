@@ -495,7 +495,9 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         },
         (payload) => {
           console.log('KPI submissions realtime update:', payload);
+          // When submission changes, also reload KPI records since they are linked
           loadKpiSubmissions();
+          loadKpiRecords();
         }
       )
       .subscribe();

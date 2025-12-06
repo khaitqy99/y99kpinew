@@ -54,19 +54,33 @@ export function NotificationPanel() {
   const userNotifications = useMemo(() => {
     if (!user || !notifications) return [];
     
+    // Convert user.id to number for comparison (user.id is string, n.user_id is number)
+    const userId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
+    
     // Lấy thông báo cho user cụ thể và thông báo theo role
     return notifications.filter(n => {
-      // Thông báo cá nhân cho user này
-      if (n.user_id === user.id) return true;
+      // Thông báo cá nhân cho user này (so sánh số với số)
+      // Đây là ưu tiên cao nhất - thông báo gửi trực tiếp cho user
+      if (n.user_id !== null && n.user_id === userId) return true;
+      
+      // Nếu có user_id cụ thể nhưng không phải user này, bỏ qua
+      if (n.user_id !== null && n.user_id !== userId) return false;
+      
+      // Xử lý backward compatibility: nếu user_type không có hoặc null,
+      // mặc định là 'all' cho thông báo cũ (user_id là null)
+      const effectiveUserType = n.user_type || 'all';
       
       // Thông báo cho admin (nếu user là admin)
-      if (user.role === 'admin' && n.user_id === 'admin') return true;
+      // Kiểm tra user_type === 'admin' - thông báo gửi cho tất cả admin
+      if (user.role === 'admin' && effectiveUserType === 'admin') return true;
       
       // Thông báo cho employee (nếu user là employee)
-      if (user.role === 'employee' && n.user_id === 'employee') return true;
+      // Kiểm tra user_type === 'employee' - thông báo gửi cho tất cả employee
+      if (user.role === 'employee' && effectiveUserType === 'employee') return true;
       
-      // Thông báo cho tất cả
-      if (n.user_id === 'all') return true;
+      // Thông báo cho tất cả (user_id là null và user_type là 'all')
+      // Hoặc thông báo cũ không có user_type và user_id là null
+      if (effectiveUserType === 'all') return true;
       
       return false;
     });
