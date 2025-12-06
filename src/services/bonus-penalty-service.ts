@@ -390,6 +390,114 @@ class BonusPenaltyService {
     };
   }
 
+  // Get summary statistics for a specific branch
+  async getSummaryByBranch(branchId: number, period?: string): Promise<BonusPenaltySummary> {
+    // Get all departments in this branch
+    const { data: departments, error: deptError } = await supabase
+      .from('departments')
+      .select('id')
+      .eq('branch_id', branchId)
+      .eq('is_active', true);
+
+    if (deptError) {
+      console.error('Error fetching departments for branch:', deptError);
+      throw new Error('Failed to fetch departments for branch');
+    }
+
+    const departmentIds = (departments || []).map(d => d.id);
+    
+    if (departmentIds.length === 0) {
+      return {
+        totalEmployees: 0,
+        totalBonus: 0,
+        totalPenalty: 0,
+        netAmount: 0,
+        totalRecords: 0
+      };
+    }
+
+    // Get all employees in departments of this branch using junction table
+    const { data: employeeDeptRelations, error: empDeptError } = await supabase
+      .from('employee_departments')
+      .select('employee_id')
+      .in('department_id', departmentIds);
+
+    if (empDeptError) {
+      console.warn('Error fetching employee-department relations:', empDeptError);
+    }
+
+    // Get unique employee IDs from junction table
+    const employeeIdsFromJunction = new Set(
+      (employeeDeptRelations || []).map((ed: any) => ed.employee_id)
+    );
+
+    // Also get employees with old format (department_id directly)
+    const { data: employeesOldFormat, error: empError } = await supabase
+      .from('employees')
+      .select('id')
+      .in('department_id', departmentIds)
+      .eq('is_active', true);
+
+    if (empError) {
+      console.warn('Error fetching employees with old format:', empError);
+    }
+
+    // Combine employee IDs
+    const allEmployeeIds = new Set(employeeIdsFromJunction);
+    (employeesOldFormat || []).forEach((emp: any) => {
+      allEmployeeIds.add(emp.id);
+    });
+
+    if (allEmployeeIds.size === 0) {
+      return {
+        totalEmployees: 0,
+        totalBonus: 0,
+        totalPenalty: 0,
+        netAmount: 0,
+        totalRecords: 0
+      };
+    }
+
+    // Get bonus/penalty records for these employees
+    let query = supabase
+      .from('bonus_penalty_records')
+      .select('employee_id, type, amount')
+      .in('employee_id', Array.from(allEmployeeIds))
+      .eq('is_active', true);
+
+    if (period) {
+      query = query.eq('period', period);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching bonus/penalty summary by branch:', error);
+      throw new Error('Failed to fetch bonus/penalty summary by branch');
+    }
+
+    const records = data || [];
+    
+    const totalBonus = records
+      .filter(record => record.type === 'bonus')
+      .reduce((sum, record) => sum + record.amount, 0);
+    
+    const totalPenalty = records
+      .filter(record => record.type === 'penalty')
+      .reduce((sum, record) => sum + record.amount, 0);
+    
+    const netAmount = totalBonus - totalPenalty;
+    const uniqueEmployees = new Set(records.map(record => record.employee_id)).size;
+    
+    return {
+      totalEmployees: uniqueEmployees,
+      totalBonus,
+      totalPenalty,
+      netAmount,
+      totalRecords: records.length
+    };
+  }
+
   // Get available periods
   async getAvailablePeriods(): Promise<string[]> {
     const { data, error } = await supabase

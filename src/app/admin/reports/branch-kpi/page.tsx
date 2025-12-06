@@ -80,6 +80,17 @@ export default function BranchKpiReportPage() {
   const [allEmployeeReports, setAllEmployeeReports] = useState<EmployeeReport[]>([]);
   const [selectedKpiRecord, setSelectedKpiRecord] = useState<any | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [branchBonusPenaltySummary, setBranchBonusPenaltySummary] = useState<{
+    totalBonus: number;
+    totalPenalty: number;
+  }>({ totalBonus: 0, totalPenalty: 0 });
+  
+  // Fix hydration mismatch by only rendering Radix UI components after mount
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Reset filters when branch or tab changes
   useEffect(() => {
@@ -264,6 +275,28 @@ export default function BranchKpiReportPage() {
           title: 'Lỗi',
           description: result.error || 'Không thể tải báo cáo KPI',
         });
+      }
+
+      // Fetch bonus/penalty summary for the branch
+      try {
+        const summaryParams = new URLSearchParams({
+          branchId: selectedBranchId.toString()
+        });
+        const summaryResponse = await fetch(
+          `/api/bonus-penalty/summary?${summaryParams.toString()}`
+        );
+        const summaryResult = await summaryResponse.json();
+
+        if (summaryResult.success) {
+          setBranchBonusPenaltySummary({
+            totalBonus: summaryResult.data.totalBonus || 0,
+            totalPenalty: summaryResult.data.totalPenalty || 0,
+          });
+        }
+      } catch (summaryError) {
+        console.error('Error fetching bonus/penalty summary:', summaryError);
+        // Don't show error toast for summary, just use default values
+        setBranchBonusPenaltySummary({ totalBonus: 0, totalPenalty: 0 });
       }
     } catch (error: any) {
       console.error('Error fetching reports:', error);
@@ -527,21 +560,27 @@ export default function BranchKpiReportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Select
-              value={selectedBranchId?.toString() || ''}
-              onValueChange={(value) => setSelectedBranchId(parseInt(value, 10))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Chọn chi nhánh" />
-              </SelectTrigger>
-              <SelectContent>
-                {safeBranches.map((branch: any) => (
-                  <SelectItem key={branch.id} value={branch.id.toString()}>
-                    {branch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {mounted ? (
+              <Select
+                value={selectedBranchId?.toString() || ''}
+                onValueChange={(value) => setSelectedBranchId(parseInt(value, 10))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn chi nhánh" />
+                </SelectTrigger>
+                <SelectContent>
+                  {safeBranches.map((branch: any) => (
+                    <SelectItem key={branch.id} value={branch.id.toString()}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                Chọn chi nhánh
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -557,10 +596,9 @@ export default function BranchKpiReportPage() {
     ? (departmentReports.reduce((sum, d) => sum + (d.averageProgress * d.totalKpis), 0) +
        employeeReports.reduce((sum, e) => sum + (e.averageProgress * e.totalKpis), 0)) / totalKpis
     : 0;
-  const totalBonus = departmentReports.reduce((sum, d) => sum + (d.totalBonus || 0), 0) +
-    employeeReports.reduce((sum, e) => sum + (e.totalBonus || 0), 0);
-  const totalPenalty = departmentReports.reduce((sum, d) => sum + (d.totalPenalty || 0), 0) +
-    employeeReports.reduce((sum, e) => sum + (e.totalPenalty || 0), 0);
+  // Use bonus/penalty summary from bonus-calculation page instead of calculating from KPI records
+  const totalBonus = branchBonusPenaltySummary.totalBonus;
+  const totalPenalty = branchBonusPenaltySummary.totalPenalty;
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -593,7 +631,7 @@ export default function BranchKpiReportPage() {
           </div>
           <div className="flex items-center gap-4">
             {/* Branch Selector */}
-            {safeBranches.length > 0 && (
+            {mounted && safeBranches.length > 0 && (
               <Select
                 value={selectedBranchId?.toString() || ''}
                 onValueChange={(value) => setSelectedBranchId(parseInt(value, 10))}
@@ -610,67 +648,85 @@ export default function BranchKpiReportPage() {
                 </SelectContent>
               </Select>
             )}
+            {!mounted && safeBranches.length > 0 && (
+              <div className="h-10 w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm">
+                Chọn chi nhánh
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="filter-start-date"
-                    variant={'outline'}
-                    className={cn(
-                      'w-[140px] justify-start text-left font-normal',
-                      !filterStartDate && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filterStartDate ? (
-                      format(filterStartDate, 'dd/MM/yyyy')
-                    ) : (
-                      <span>Từ ngày</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    initialFocus
-                    mode="single"
-                    defaultMonth={filterStartDate}
-                    selected={filterStartDate}
-                    onSelect={setFilterStartDate}
-                    numberOfMonths={1}
-                  />
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="filter-end-date"
-                    variant={'outline'}
-                    className={cn(
-                      'w-[140px] justify-start text-left font-normal',
-                      !filterEndDate && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filterEndDate ? (
-                      format(filterEndDate, 'dd/MM/yyyy')
-                    ) : (
-                      <span>Đến ngày</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    initialFocus
-                    mode="single"
-                    defaultMonth={filterEndDate}
-                    selected={filterEndDate}
-                    onSelect={setFilterEndDate}
-                    numberOfMonths={1}
-                    disabled={(date) => filterStartDate ? date < filterStartDate : false}
-                  />
-                </PopoverContent>
-              </Popover>
+              {mounted ? (
+                <>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="filter-start-date"
+                        variant={'outline'}
+                        className={cn(
+                          'w-[140px] justify-start text-left font-normal',
+                          !filterStartDate && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filterStartDate ? (
+                          format(filterStartDate, 'dd/MM/yyyy')
+                        ) : (
+                          <span>Từ ngày</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        initialFocus
+                        mode="single"
+                        defaultMonth={filterStartDate}
+                        selected={filterStartDate}
+                        onSelect={setFilterStartDate}
+                        numberOfMonths={1}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="filter-end-date"
+                        variant={'outline'}
+                        className={cn(
+                          'w-[140px] justify-start text-left font-normal',
+                          !filterEndDate && 'text-muted-foreground'
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {filterEndDate ? (
+                          format(filterEndDate, 'dd/MM/yyyy')
+                        ) : (
+                          <span>Đến ngày</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        initialFocus
+                        mode="single"
+                        defaultMonth={filterEndDate}
+                        selected={filterEndDate}
+                        onSelect={setFilterEndDate}
+                        numberOfMonths={1}
+                        disabled={(date) => filterStartDate ? date < filterStartDate : false}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </>
+              ) : (
+                <>
+                  <div className="h-10 w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                    Từ ngày
+                  </div>
+                  <div className="h-10 w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                    Đến ngày
+                  </div>
+                </>
+              )}
               {(filterStartDate || filterEndDate) && (
                 <Button
                   variant="ghost"
