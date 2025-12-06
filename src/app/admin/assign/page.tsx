@@ -118,6 +118,10 @@ export default function AssignKpiPage() {
   
   // State to control KPI selection Dialog
   const [isKpiDialogOpen, setIsKpiDialogOpen] = React.useState(false);
+  
+  // State to control date picker Popovers
+  const [isStartDatePopoverOpen, setIsStartDatePopoverOpen] = React.useState(false);
+  const [isEndDatePopoverOpen, setIsEndDatePopoverOpen] = React.useState(false);
 
   // Calculate period from date range (format: yyyy-MM-dd to yyyy-MM-dd)
   const calculatePeriodFromDate = (startDate: Date, endDate: Date): string => {
@@ -953,7 +957,7 @@ export default function AssignKpiPage() {
                 {/* Start Date Picker */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Ngày bắt đầu</label>
-                  <Popover>
+                  <Popover open={isStartDatePopoverOpen} onOpenChange={setIsStartDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         id="start-date"
@@ -971,13 +975,27 @@ export default function AssignKpiPage() {
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent 
+                      className="w-auto p-0" 
+                      align="start"
+                      onPointerDownOutside={(e) => {
+                        // Only close if clicking outside the calendar
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[role="grid"]') || target.closest('[role="gridcell"]')) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
                       <CalendarComponent
                         initialFocus
                         mode="single"
                         defaultMonth={startDate}
                         selected={startDate}
-                        onSelect={setStartDate}
+                        onSelect={(date) => {
+                          setStartDate(date);
+                          // Close popover after selecting a date
+                          setIsStartDatePopoverOpen(false);
+                        }}
                         numberOfMonths={1}
                       />
                     </PopoverContent>
@@ -987,7 +1005,7 @@ export default function AssignKpiPage() {
                 {/* End Date Picker */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Ngày kết thúc</label>
-                  <Popover>
+                  <Popover open={isEndDatePopoverOpen} onOpenChange={setIsEndDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         id="end-date"
@@ -1005,14 +1023,29 @@ export default function AssignKpiPage() {
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent 
+                      className="w-auto p-0" 
+                      align="start"
+                      onPointerDownOutside={(e) => {
+                        // Only close if clicking outside the calendar
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[role="grid"]') || target.closest('[role="gridcell"]')) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
                       <CalendarComponent
                         initialFocus
                         mode="single"
                         defaultMonth={endDate}
                         selected={endDate}
-                        onSelect={setEndDate}
+                        onSelect={(date) => {
+                          setEndDate(date);
+                          // Close popover after selecting a date
+                          setIsEndDatePopoverOpen(false);
+                        }}
                         numberOfMonths={1}
+                        disabled={(date) => startDate ? date < startDate : false}
                       />
                     </PopoverContent>
                   </Popover>
