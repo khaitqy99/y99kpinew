@@ -43,3 +43,12 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# development tools
+.idx/
+assets/
+
+# test data
+database/*test*.sql
+database/sample-*.sql
+database/add-more-*.sql

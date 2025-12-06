@@ -9,9 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "test:supabase": "tsx src/scripts/test-supabase.ts",
-    "migrate:supabase": "tsx src/scripts/migrate-to-supabase.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",

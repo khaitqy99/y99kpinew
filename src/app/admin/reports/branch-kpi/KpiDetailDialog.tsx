@@ -331,3 +331,4 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
 
 
 
+
