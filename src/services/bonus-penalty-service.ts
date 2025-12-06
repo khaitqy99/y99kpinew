@@ -202,8 +202,17 @@ class BonusPenaltyService {
     }
 
     if (kpiId) {
-      // Note: We'd need to import kpiService here if we want to validate KPI
-      // For now, let the database constraint handle it
+      // Validate KPI exists
+      const { data: kpi, error: kpiError } = await supabase
+        .from('kpis')
+        .select('id')
+        .eq('id', kpiId)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (kpiError || !kpi) {
+        throw new Error(`KPI với ID ${kpiId} không tồn tại hoặc không active`);
+      }
     }
 
     if (createdBy) {

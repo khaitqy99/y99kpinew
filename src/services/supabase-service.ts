@@ -1633,33 +1633,63 @@ export const kpiSubmissionService = {
       }
 
       // Update KPI records with actual values
+      // Track updates for potential rollback
+      const updatedRecordIds: number[] = [];
+      const updateErrors: Array<{ recordId: number; error: any }> = [];
+      
       for (const item of items) {
         const kpiRecordId = item.kpi_record_id
         const actual = item.actual
         
-        // Get KPI record to calculate progress
-        const { data: kpiRecord } = await supabase
-          .from('kpi_records')
-          .select('target')
-          .eq('id', kpiRecordId)
-          .single()
-        
-        if (kpiRecord) {
+        try {
+          // Get KPI record to calculate progress
+          const { data: kpiRecord, error: fetchError } = await supabase
+            .from('kpi_records')
+            .select('target')
+            .eq('id', kpiRecordId)
+            .single()
+          
+          if (fetchError || !kpiRecord) {
+            updateErrors.push({ recordId: kpiRecordId, error: fetchError || 'KPI record not found' });
+            continue;
+          }
+          
           // Calculate progress, allow > 100% if actual exceeds target
           const calculatedProgress = (actual / kpiRecord.target) * 100;
           const progress = Math.max(0, Math.round(calculatedProgress * 100) / 100); // Round to 2 decimal places
           
-          await supabase
+          const { error: updateError } = await supabase
             .from('kpi_records')
             .update({
               actual,
               progress,
               status: 'pending_approval',
               submission_date: submissionData.submission_date,
+              submission_details: submissionData.submission_details || null,
+              attachment: submissionData.attachment || null,
               updated_at: new Date().toISOString()
             })
             .eq('id', kpiRecordId)
+          
+          if (updateError) {
+            updateErrors.push({ recordId: kpiRecordId, error: updateError });
+          } else {
+            updatedRecordIds.push(kpiRecordId);
+          }
+        } catch (error) {
+          updateErrors.push({ recordId: kpiRecordId, error });
         }
+      }
+      
+      // If any updates failed, log but don't rollback submission
+      // (submission is already created and items are inserted)
+      // This is a partial success scenario - submission exists but some records weren't updated
+      if (updateErrors.length > 0) {
+        console.error('Some KPI records failed to update:', updateErrors);
+        // Note: In a production system, you might want to:
+        // 1. Mark submission with a warning flag
+        // 2. Create a notification for admin
+        // 3. Or implement a retry mechanism
       }
     }
 

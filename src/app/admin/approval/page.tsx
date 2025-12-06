@@ -79,7 +79,7 @@ export default function ApprovalPage() {
   const [selectedApproval, setSelectedApproval] = useState<MappedApproval | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'complete' | null>(null);
   const [feedback, setFeedback] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
@@ -108,33 +108,49 @@ export default function ApprovalPage() {
   // Supports multiple ways to access kpi_record_id in items (direct, nested in kpi_records, etc.)
   const getSubmissionForRecord = (kpiRecordId: number): any | null => {
     const targetRecordId = Number(kpiRecordId);
+    if (isNaN(targetRecordId)) return null;
     
     // Find submission that contains this KPI record
     const submission = safeKpiSubmissions.find(sub => {
+      if (!sub) return false;
+      // Check is_active if it exists, but don't require it (for backward compatibility)
+      if (sub.is_active === false) return false;
       if (!sub.items || !Array.isArray(sub.items)) return false;
       
       return sub.items.some((item: any) => {
-        // Try multiple ways to get the record ID from item
-        let itemRecordId: number | null = null;
+        if (!item) return false;
         
-        // Method 1: Direct field (kpi_record_id or kpiRecordId)
+        // Try multiple ways to get the record ID from item
+        // Priority: direct kpi_record_id field (always present in database)
         if (item.kpi_record_id !== undefined && item.kpi_record_id !== null) {
-          itemRecordId = Number(item.kpi_record_id);
-        } else if (item.kpiRecordId !== undefined && item.kpiRecordId !== null) {
-          itemRecordId = Number(item.kpiRecordId);
-        }
-        // Method 2: Nested in kpi_records object (when loaded with details)
-        else if (item.kpi_records && typeof item.kpi_records === 'object') {
-          if (item.kpi_records.id !== undefined && item.kpi_records.id !== null) {
-            itemRecordId = Number(item.kpi_records.id);
-          } else if (item.kpi_records.kpi_record_id !== undefined && item.kpi_records.kpi_record_id !== null) {
-            itemRecordId = Number(item.kpi_records.kpi_record_id);
+          const itemRecordId = Number(item.kpi_record_id);
+          if (!isNaN(itemRecordId) && itemRecordId === targetRecordId) {
+            return true;
           }
         }
         
-        // Compare if we found a valid ID
-        if (itemRecordId !== null && !isNaN(itemRecordId)) {
-          return itemRecordId === targetRecordId;
+        // Fallback: kpiRecordId (camelCase)
+        if (item.kpiRecordId !== undefined && item.kpiRecordId !== null) {
+          const itemRecordId = Number(item.kpiRecordId);
+          if (!isNaN(itemRecordId) && itemRecordId === targetRecordId) {
+            return true;
+          }
+        }
+        
+        // Fallback: Nested in kpi_records object (when loaded with details)
+        if (item.kpi_records && typeof item.kpi_records === 'object') {
+          if (item.kpi_records.id !== undefined && item.kpi_records.id !== null) {
+            const itemRecordId = Number(item.kpi_records.id);
+            if (!isNaN(itemRecordId) && itemRecordId === targetRecordId) {
+              return true;
+            }
+          }
+          if (item.kpi_records.kpi_record_id !== undefined && item.kpi_records.kpi_record_id !== null) {
+            const itemRecordId = Number(item.kpi_records.kpi_record_id);
+            if (!isNaN(itemRecordId) && itemRecordId === targetRecordId) {
+              return true;
+            }
+          }
         }
         
         return false;
@@ -156,6 +172,8 @@ export default function ApprovalPage() {
     // 6. Records with any status (not_started, in_progress, overdue) that have submission indicators
     
     let filteredRecords = safeKpiRecords.filter(r => {
+      if (!r || !r.is_active) return false;
+      
       const alwaysShowStatuses = ['pending_approval', 'completed', 'approved', 'rejected'];
       
       // Check if this record has a submission (for multi-KPI submissions)
@@ -168,16 +186,16 @@ export default function ApprovalPage() {
       }
       
       // Check for submission indicators
-      const hasRecordSubmissionDetails = r.submission_details && r.submission_details.trim() !== '';
-      const hasSubmissionDetails = submission?.submission_details && submission.submission_details.trim() !== '';
+      const hasRecordSubmissionDetails = r.submission_details && typeof r.submission_details === 'string' && r.submission_details.trim() !== '';
+      const hasSubmissionDetails = submission?.submission_details && typeof submission.submission_details === 'string' && submission.submission_details.trim() !== '';
       const hasSubmissionDate = r.submission_date !== null && r.submission_date !== undefined;
-      const hasSubmissionAttachment = r.attachment && typeof r.attachment === 'string' && r.attachment.trim() !== '';
-      const hasSubmissionAttachmentInSubmission = submission?.attachment && typeof submission.attachment === 'string' && submission.attachment.trim() !== '';
+      const hasRecordAttachment = r.attachment && typeof r.attachment === 'string' && r.attachment.trim() !== '';
+      const hasSubmissionAttachment = submission?.attachment && typeof submission.attachment === 'string' && submission.attachment.trim() !== '';
       
       // Include if it has ANY indication of submission (regardless of status)
       // This catches cases where status might be 'not_started', 'in_progress', or 'overdue' 
       // but the record was actually submitted
-      if (hasSubmission || hasSubmissionDate || hasRecordSubmissionDetails || hasSubmissionDetails || hasSubmissionAttachment || hasSubmissionAttachmentInSubmission) {
+      if (hasSubmission || hasSubmissionDate || hasRecordSubmissionDetails || hasSubmissionDetails || hasRecordAttachment || hasSubmissionAttachment) {
         return true;
       }
       
@@ -445,7 +463,7 @@ export default function ApprovalPage() {
     setIsDetailModalOpen(true);
   };
 
-  const handleActionClick = (approval: MappedApproval, type: 'approve' | 'reject') => {
+  const handleActionClick = (approval: MappedApproval, type: 'approve' | 'reject' | 'complete') => {
     setSelectedApproval(approval);
     setActionType(type);
     setFeedback('');
@@ -455,17 +473,25 @@ export default function ApprovalPage() {
   const handleConfirm = () => {
     if (!selectedApproval || !actionType) return;
     
-    // For approve: set to 'approved', for reject: set to 'rejected'
-    const newStatus = actionType === 'approve' ? 'approved' : 'rejected';
-    const feedbackComment = { author: 'Admin User', comment: feedback };
+    // For approve: set to 'approved', for reject: set to 'rejected', for complete: set to 'completed'
+    const newStatus = actionType === 'approve' ? 'approved' : actionType === 'reject' ? 'rejected' : 'completed';
+    const feedbackComment = feedback ? { author: 'Admin User', comment: feedback } : undefined;
 
-    updateKpiRecordStatus(selectedApproval.id, newStatus, feedback ? feedbackComment : undefined);
+    updateKpiRecordStatus(selectedApproval.id, newStatus, feedbackComment);
     
     setIsActionModalOpen(false);
     setIsDetailModalOpen(false);
+    let toastTitle = '';
+    if (actionType === 'approve') {
+      toastTitle = 'Đã duyệt thành công';
+    } else if (actionType === 'reject') {
+      toastTitle = 'Đã từ chối KPI';
+    } else {
+      toastTitle = 'Đã đánh dấu hoàn thành';
+    }
     toast({
-      title: actionType === 'approve' ? 'Đã duyệt thành công' : 'Đã từ chối KPI',
-      description: `KPI "${selectedApproval.kpiName}" của ${selectedApproval.employeeName} đã được xử lý.`,
+      title: toastTitle,
+      description: `KPI "${selectedApproval.kpiName}" của ${selectedApproval.employeeName} đã được ${actionType === 'complete' ? 'đánh dấu hoàn thành' : 'xử lý'}.`,
     });
     setSelectedApproval(null);
     setActionType(null);
@@ -726,10 +752,10 @@ export default function ApprovalPage() {
       {/* Detail Modal */}
       {selectedApproval && (
         <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-          <DialogContent className="sm:max-w-[625px]">
+          <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
-              <DialogTitle>Chi tiết KPI: {selectedApproval.kpiName}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="break-words pr-8">Chi tiết KPI: {selectedApproval.kpiName}</DialogTitle>
+              <DialogDescription className="break-words">
                 Nhân viên: <strong>{selectedApproval.employeeName}</strong>
               </DialogDescription>
             </DialogHeader>
@@ -780,7 +806,7 @@ export default function ApprovalPage() {
                 
                 <div className='space-y-1'>
                   <p className='text-sm font-medium text-muted-foreground'>Chi tiết nhân viên nộp:</p>
-                  <p className='text-sm p-3 bg-muted rounded-md whitespace-pre-wrap break-words'>
+                  <p className='text-sm p-3 bg-muted rounded-md whitespace-pre-wrap break-all'>
                     {selectedApproval.submissionDetails || 'Không có chi tiết.'}
                   </p>
                 </div>
@@ -846,6 +872,15 @@ export default function ApprovalPage() {
                     {selectedApproval.status === 'rejected' ? 'Duyệt lại' : 'Duyệt'}
                   </Button>
                 )}
+                {selectedApproval.status !== 'completed' && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => handleActionClick(selectedApproval, 'complete')}
+                    className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                  >
+                    Đánh dấu hoàn thành
+                  </Button>
+                )}
               </div>
             </DialogFooter>
           </DialogContent>
@@ -855,12 +890,12 @@ export default function ApprovalPage() {
       {/* Action Modal */}
       {selectedApproval && (
         <Dialog open={isActionModalOpen} onOpenChange={setIsActionModalOpen}>
-          <DialogContent className="sm:max-w-[625px]">
+          <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
-              <DialogTitle>
-                {actionType === 'approve' ? 'Duyệt' : 'Từ chối'} KPI: {selectedApproval.kpiName}
+              <DialogTitle className="break-words pr-8">
+                {actionType === 'approve' ? 'Duyệt' : actionType === 'reject' ? 'Từ chối' : 'Đánh dấu hoàn thành'} KPI: {selectedApproval.kpiName}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="break-words">
                 Nhân viên: <strong>{selectedApproval.employeeName}</strong>
               </DialogDescription>
             </DialogHeader>
@@ -881,7 +916,7 @@ export default function ApprovalPage() {
                 
                 <div className='space-y-1'>
                   <p className='text-sm font-medium text-muted-foreground'>Chi tiết nhân viên nộp:</p>
-                  <p className='text-sm p-3 bg-muted rounded-md whitespace-pre-wrap break-words'>
+                  <p className='text-sm p-3 bg-muted rounded-md whitespace-pre-wrap break-all'>
                     {selectedApproval.submissionDetails || 'Không có chi tiết.'}
                   </p>
                 </div>
@@ -949,9 +984,10 @@ export default function ApprovalPage() {
               </Button>
               <Button 
                 onClick={handleConfirm}
-                variant={actionType === 'reject' ? 'destructive' : 'default'}
+                variant={actionType === 'reject' ? 'destructive' : actionType === 'complete' ? 'default' : 'default'}
+                className={actionType === 'complete' ? 'bg-green-600 hover:bg-green-700' : ''}
               >
-                {actionType === 'approve' ? 'Xác nhận duyệt' : 'Xác nhận từ chối'}
+                {actionType === 'approve' ? 'Xác nhận duyệt' : actionType === 'reject' ? 'Xác nhận từ chối' : 'Xác nhận hoàn thành'}
               </Button>
             </DialogFooter>
           </DialogContent>

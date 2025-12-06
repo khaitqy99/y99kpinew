@@ -36,7 +36,9 @@ BEGIN
     END IF;
 END $$;
 
--- Progress must be between 0 and 100
+-- Progress must be >= 0 (allows over-achievement > 100%)
+-- Note: Migration allow-progress-over-100.sql should be run after this
+-- to update the constraint if over-achievement is desired
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -45,7 +47,7 @@ BEGIN
         AND conrelid = 'kpi_records'::regclass
     ) THEN
         ALTER TABLE kpi_records 
-        ADD CONSTRAINT check_progress_range CHECK (progress >= 0 AND progress <= 100);
+        ADD CONSTRAINT check_progress_range CHECK (progress >= 0);
     END IF;
 END $$;
 

@@ -131,7 +131,9 @@ const AddBonusPenaltyDialog: React.FC<{
   }, [open]);
 
   const handleSave = async () => {
-    if (!formData.employeeId || !formData.amount || !formData.reason) {
+    // Check if amount is empty string, but allow 0 values
+    const amountValue = parseCurrency(formData.amount);
+    if (!formData.employeeId || formData.amount === '' || isNaN(amountValue) || !formData.reason) {
       return;
     }
 
@@ -265,10 +267,10 @@ const AddBonusPenaltyDialog: React.FC<{
                   let value = e.target.value.replace(/[^\d,]/g, '');
                   // Remove commas to parse, then format
                   const numValue = parseCurrency(value);
-                  if (value === '' || numValue === 0) {
+                  if (value === '') {
                     setFormData(prev => ({ ...prev, amount: '' }));
                   } else {
-                    // Format with commas
+                    // Format with commas (allow 0 values)
                     const formatted = formatCurrency(numValue);
                     setFormData(prev => ({ ...prev, amount: formatted }));
                   }

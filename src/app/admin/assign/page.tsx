@@ -86,7 +86,7 @@ type AssignedKpiDetails = KpiRecord & {
 
 export default function AssignKpiPage() {
   const { toast } = useToast();
-  const { users, kpis, kpiRecords, assignKpi, departments, deleteKpiRecord } = React.useContext(SupabaseDataContext);
+  const { users, kpis, kpiRecords, assignKpi, departments, deleteKpiRecord, updateKpiRecordStatus } = React.useContext(SupabaseDataContext);
   
   // Fix hydration mismatch by only rendering Select/Popover after mount
   const [mounted, setMounted] = React.useState(false);
@@ -821,7 +821,35 @@ export default function AssignKpiPage() {
                         <Trash2 className="h-4 w-4 mr-2" />
                         Hủy giao KPI
                     </Button>
-                    <Button variant="outline" onClick={() => setDetailModalOpen(false)}>Đóng</Button>
+                    <div className="flex gap-2">
+                        {selectedRecord.status !== 'completed' && (
+                            <Button 
+                                variant="outline"
+                                onClick={async () => {
+                                    if (selectedRecord) {
+                                        try {
+                                            await updateKpiRecordStatus(selectedRecord.id.toString(), 'completed');
+                                            toast({
+                                                title: 'Thành công!',
+                                                description: `Đã đánh dấu KPI "${selectedRecord.kpiName}" là hoàn thành.`
+                                            });
+                                            setDetailModalOpen(false);
+                                        } catch (error: any) {
+                                            toast({
+                                                variant: 'destructive',
+                                                title: 'Lỗi!',
+                                                description: error?.message || 'Không thể đánh dấu hoàn thành KPI. Vui lòng thử lại.'
+                                            });
+                                        }
+                                    }
+                                }}
+                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                            >
+                                Đánh dấu hoàn thành
+                            </Button>
+                        )}
+                        <Button variant="outline" onClick={() => setDetailModalOpen(false)}>Đóng</Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
