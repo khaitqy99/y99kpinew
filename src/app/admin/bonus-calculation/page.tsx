@@ -88,8 +88,7 @@ const AddBonusPenaltyDialog: React.FC<{
   });
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [isStartDateDialogOpen, setIsStartDateDialogOpen] = useState(false);
-  const [isEndDateDialogOpen, setIsEndDateDialogOpen] = useState(false);
+  const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
 
   // Filter KPIs that are assigned to the selected employee
   const assignedKpis = useMemo(() => {
@@ -278,39 +277,22 @@ const AddBonusPenaltyDialog: React.FC<{
             </div>
 
             <div className="space-y-2">
-              <Label>Thời kỳ (Từ ngày đến ngày)</Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'w-full justify-start text-left font-normal',
-                    !startDate && 'text-muted-foreground'
-                  )}
-                  onClick={() => setIsStartDateDialogOpen(true)}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate ? (
-                    format(startDate, 'dd/MM/yyyy')
-                  ) : (
-                    <span>Từ ngày</span>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'w-full justify-start text-left font-normal',
-                    !endDate && 'text-muted-foreground'
-                  )}
-                  onClick={() => setIsEndDateDialogOpen(true)}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? (
-                    format(endDate, 'dd/MM/yyyy')
-                  ) : (
-                    <span>Đến ngày</span>
-                  )}
-                </Button>
-              </div>
+              <Label>Thời kỳ</Label>
+              <Button
+                variant="outline"
+                className={cn(
+                  'w-full justify-start text-left font-normal',
+                  (!startDate || !endDate) && 'text-muted-foreground'
+                )}
+                onClick={() => setIsDateRangeDialogOpen(true)}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate && endDate ? (
+                  <span>{format(startDate, 'dd/MM/yyyy')} - {format(endDate, 'dd/MM/yyyy')}</span>
+                ) : (
+                  <span>Chọn thời kỳ (Từ ngày đến ngày)</span>
+                )}
+              </Button>
               {startDate && endDate && startDate > endDate && (
                 <p className="text-sm text-destructive">Ngày kết thúc phải sau ngày bắt đầu</p>
               )}
@@ -343,74 +325,57 @@ const AddBonusPenaltyDialog: React.FC<{
         </DialogContent>
       </Dialog>
 
-      {/* Start Date Picker Dialog */}
-      <Dialog open={isStartDateDialogOpen} onOpenChange={setIsStartDateDialogOpen}>
+      {/* Date Range Picker Dialog */}
+      <Dialog open={isDateRangeDialogOpen} onOpenChange={setIsDateRangeDialogOpen}>
         <DialogContent className="sm:max-w-fit">
           <DialogHeader>
-            <DialogTitle>Chọn ngày bắt đầu</DialogTitle>
+            <DialogTitle>Chọn thời kỳ</DialogTitle>
             <DialogDescription>
-              Chọn ngày bắt đầu cho thời kỳ thưởng/phạt
+              Chọn ngày bắt đầu và ngày kết thúc cho thời kỳ thưởng/phạt
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <CalendarComponent
-              initialFocus
-              mode="single"
-              defaultMonth={startDate}
-              selected={startDate}
-              onSelect={(date) => {
-                setStartDate(date);
-                setIsStartDateDialogOpen(false);
-              }}
-              numberOfMonths={1}
-            />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-center">Từ ngày</Label>
+                <CalendarComponent
+                  initialFocus
+                  mode="single"
+                  defaultMonth={startDate}
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  numberOfMonths={1}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-center">Đến ngày</Label>
+                <CalendarComponent
+                  mode="single"
+                  defaultMonth={endDate || startDate}
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  numberOfMonths={1}
+                  disabled={(date) => startDate ? date < startDate : false}
+                />
+              </div>
+            </div>
+            {startDate && endDate && startDate > endDate && (
+              <p className="text-sm text-destructive text-center mt-4">
+                Ngày kết thúc phải sau ngày bắt đầu
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsStartDateDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDateRangeDialogOpen(false)}>
               Hủy
             </Button>
             <Button 
               onClick={() => {
-                setIsStartDateDialogOpen(false);
+                if (startDate && endDate && startDate <= endDate) {
+                  setIsDateRangeDialogOpen(false);
+                }
               }}
-            >
-              Xác nhận
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* End Date Picker Dialog */}
-      <Dialog open={isEndDateDialogOpen} onOpenChange={setIsEndDateDialogOpen}>
-        <DialogContent className="sm:max-w-fit">
-          <DialogHeader>
-            <DialogTitle>Chọn ngày kết thúc</DialogTitle>
-            <DialogDescription>
-              Chọn ngày kết thúc cho thời kỳ thưởng/phạt
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <CalendarComponent
-              initialFocus
-              mode="single"
-              defaultMonth={endDate}
-              selected={endDate}
-              onSelect={(date) => {
-                setEndDate(date);
-                setIsEndDateDialogOpen(false);
-              }}
-              numberOfMonths={1}
-              disabled={(date) => startDate ? date < startDate : false}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEndDateDialogOpen(false)}>
-              Hủy
-            </Button>
-            <Button 
-              onClick={() => {
-                setIsEndDateDialogOpen(false);
-              }}
+              disabled={!startDate || !endDate || startDate > endDate}
             >
               Xác nhận
             </Button>
@@ -428,6 +393,13 @@ export default function BonusCalculationPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Fix hydration mismatch by only rendering Select/Popover after mount
+  const [mounted, setMounted] = useState(false);
+  
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Date range filter states (similar to assign dialog)
   const [filterStartDate, setFilterStartDate] = useState<Date | undefined>(undefined);
@@ -656,80 +628,88 @@ export default function BonusCalculationPage() {
             <CardTitle>Quản lý thưởng phạt</CardTitle>
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-              <Popover>
-                <PopoverTrigger asChild>
+            {mounted ? (
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="filter-start-date"
+                      variant={'outline'}
+                      className={cn(
+                        'w-[140px] justify-start text-left font-normal',
+                        !filterStartDate && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterStartDate ? (
+                        format(filterStartDate, 'dd/MM/yyyy')
+                      ) : (
+                        <span>Từ ngày</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      initialFocus
+                      mode="single"
+                      defaultMonth={filterStartDate}
+                      selected={filterStartDate}
+                      onSelect={setFilterStartDate}
+                      numberOfMonths={1}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="filter-end-date"
+                      variant={'outline'}
+                      className={cn(
+                        'w-[140px] justify-start text-left font-normal',
+                        !filterEndDate && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterEndDate ? (
+                        format(filterEndDate, 'dd/MM/yyyy')
+                      ) : (
+                        <span>Đến ngày</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      initialFocus
+                      mode="single"
+                      defaultMonth={filterEndDate}
+                      selected={filterEndDate}
+                      onSelect={setFilterEndDate}
+                      numberOfMonths={1}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {(filterStartDate || filterEndDate) && (
                   <Button
-                    id="filter-start-date"
-                    variant={'outline'}
-                    className={cn(
-                      'w-[140px] justify-start text-left font-normal',
-                      !filterStartDate && 'text-muted-foreground'
-                    )}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setFilterStartDate(undefined);
+                      setFilterEndDate(undefined);
+                    }}
+                    className="h-8 px-2"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filterStartDate ? (
-                      format(filterStartDate, 'dd/MM/yyyy')
-                    ) : (
-                      <span>Từ ngày</span>
-                    )}
+                    Xóa
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    initialFocus
-                    mode="single"
-                    defaultMonth={filterStartDate}
-                    selected={filterStartDate}
-                    onSelect={setFilterStartDate}
-                    numberOfMonths={1}
-                  />
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="filter-end-date"
-                    variant={'outline'}
-                    className={cn(
-                      'w-[140px] justify-start text-left font-normal',
-                      !filterEndDate && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filterEndDate ? (
-                      format(filterEndDate, 'dd/MM/yyyy')
-                    ) : (
-                      <span>Đến ngày</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    initialFocus
-                    mode="single"
-                    defaultMonth={filterEndDate}
-                    selected={filterEndDate}
-                    onSelect={setFilterEndDate}
-                    numberOfMonths={1}
-                  />
-                </PopoverContent>
-              </Popover>
-              {(filterStartDate || filterEndDate) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setFilterStartDate(undefined);
-                    setFilterEndDate(undefined);
-                  }}
-                  className="h-8 px-2"
-                >
-                  Xóa
-                </Button>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <div className="w-[140px] h-10 rounded-md border bg-muted animate-pulse" />
+                <div className="w-[140px] h-10 rounded-md border bg-muted animate-pulse" />
+              </div>
+            )}
             {(filterStartDate || filterEndDate) && (
               <div className="text-sm text-muted-foreground">
                 Hiển thị {bonusPenaltyRecords.length} bản ghi
