@@ -150,16 +150,27 @@ END $$;
 -- 2. BONUS_PENALTY_RECORDS CONSTRAINTS
 -- =====================================================
 
--- Amount must be positive
+-- Amount must be non-negative (allow 0)
 DO $$
 BEGIN
-    IF NOT EXISTS (
+    -- Drop old constraint if exists
+    IF EXISTS (
         SELECT 1 FROM pg_constraint 
         WHERE conname = 'check_bonus_penalty_amount_positive' 
         AND conrelid = 'bonus_penalty_records'::regclass
     ) THEN
         ALTER TABLE bonus_penalty_records 
-        ADD CONSTRAINT check_bonus_penalty_amount_positive CHECK (amount > 0);
+        DROP CONSTRAINT check_bonus_penalty_amount_positive;
+    END IF;
+    
+    -- Add new constraint allowing 0
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'check_bonus_penalty_amount_non_negative' 
+        AND conrelid = 'bonus_penalty_records'::regclass
+    ) THEN
+        ALTER TABLE bonus_penalty_records 
+        ADD CONSTRAINT check_bonus_penalty_amount_non_negative CHECK (amount >= 0);
     END IF;
 END $$;
 
@@ -407,4 +418,5 @@ FROM pg_constraint
 WHERE conname LIKE 'check_%' 
    OR conname LIKE 'unique_kpi_assignment%'
 ORDER BY table_name, constraint_name;
+
 

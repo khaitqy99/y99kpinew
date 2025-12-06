@@ -415,9 +415,9 @@ export function validateBonusPenaltyRecord(data: BonusPenaltyRecordValidationDat
     if (!typeResult.valid) return typeResult;
   }
 
-  // Validate amount
+  // Validate amount (allow 0)
   if (data.amount !== undefined && data.amount !== null) {
-    const amountResult = validatePositiveNumber(data.amount, 'Amount');
+    const amountResult = validateNonNegativeNumber(data.amount, 'Amount');
     if (!amountResult.valid) return amountResult;
   }
 
