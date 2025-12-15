@@ -71,13 +71,14 @@ export default function BranchKpiReportPage() {
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(
     selectedBranch?.id || null
   );
-  const [activeTab, setActiveTab] = useState<'department' | 'employee'>('department');
+  const [activeTab, setActiveTab] = useState<'department' | 'employee' | 'kpi-summary'>('department');
   const [filterStartDate, setFilterStartDate] = useState<Date | undefined>(undefined);
   const [filterEndDate, setFilterEndDate] = useState<Date | undefined>(undefined);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('all');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('all');
   const [allDepartmentReports, setAllDepartmentReports] = useState<DepartmentReport[]>([]);
   const [allEmployeeReports, setAllEmployeeReports] = useState<EmployeeReport[]>([]);
+  const [kpiSummaries, setKpiSummaries] = useState<any[]>([]);
   const [selectedKpiRecord, setSelectedKpiRecord] = useState<any | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [branchBonusPenaltySummary, setBranchBonusPenaltySummary] = useState<{
@@ -257,8 +258,10 @@ export default function BranchKpiReportPage() {
       if (result.success) {
         const deptReports = result.data.departmentReports || [];
         const empReports = result.data.employeeReports || [];
+        const kpiSummariesData = result.data.kpiSummaries || [];
         setAllDepartmentReports(deptReports);
         setAllEmployeeReports(empReports);
+        setKpiSummaries(kpiSummariesData);
         
         // Show helpful message if no data
         if (deptReports.length === 0 && empReports.length === 0) {
@@ -837,7 +840,7 @@ export default function BranchKpiReportPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'department' | 'employee')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'department' | 'employee' | 'kpi-summary')}>
           <TabsList>
             <TabsTrigger value="department">
               <Building2 className="h-4 w-4 mr-2" />
@@ -846,6 +849,10 @@ export default function BranchKpiReportPage() {
             <TabsTrigger value="employee">
               <Users className="h-4 w-4 mr-2" />
               KPI Cá nhân
+            </TabsTrigger>
+            <TabsTrigger value="kpi-summary">
+              <Target className="h-4 w-4 mr-2" />
+              Tổng hợp KPI
             </TabsTrigger>
           </TabsList>
 
@@ -1307,6 +1314,288 @@ export default function BranchKpiReportPage() {
                     </div>
                   );
                 })()}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="kpi-summary" className="mt-4">
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle>Báo cáo Tiến độ chung theo KPI</CardTitle>
+                  <CardDescription>
+                    Tổng hợp tiến độ của từng KPI trên tất cả phòng ban và nhân viên trong chi nhánh {selectedBranchName}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : kpiSummaries.length === 0 ? (
+                  <div className="flex items-center justify-center py-12 text-muted-foreground">
+                    <div className="text-center max-w-md">
+                      <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm font-medium">Chưa có dữ liệu KPI</p>
+                      <p className="text-xs mt-1">
+                        {filterStartDate || filterEndDate
+                          ? 'Không có dữ liệu KPI trong khoảng thời gian đã chọn'
+                          : 'Chưa có dữ liệu KPI để hiển thị báo cáo tổng hợp.'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {kpiSummaries.map((summary: any) => {
+                      // Filter records by date range if needed
+                      const filteredRecords = summary.records.filter((record: any) => {
+                        if (!filterStartDate && !filterEndDate) return true;
+                        if (!record.start_date || !record.end_date) return false;
+                        
+                        const recordStartDate = new Date(record.start_date);
+                        const recordEndDate = new Date(record.end_date);
+                        
+                        const filterStart = filterStartDate ? new Date(filterStartDate) : null;
+                        const filterEnd = filterEndDate ? new Date(filterEndDate) : null;
+                        
+                        if (filterStart && filterEnd) {
+                          return (recordStartDate <= filterEnd && recordEndDate >= filterStart);
+                        } else if (filterStart) {
+                          return recordEndDate >= filterStart;
+                        } else if (filterEnd) {
+                          return recordStartDate <= filterEnd;
+                        }
+                        
+                        return true;
+                      });
+
+                      if (filteredRecords.length === 0) return null;
+
+                      // Recalculate for filtered records
+                      const totalAssignments = filteredRecords.length;
+                      const totalProgress = filteredRecords.reduce((sum: number, r: any) => sum + (parseFloat(r.progress) || 0), 0);
+                      const averageProgress = totalAssignments > 0 ? totalProgress / totalAssignments : 0;
+                      const totalBonus = filteredRecords.reduce((sum: number, r: any) => sum + (r.bonusAmount || 0), 0);
+                      const totalPenalty = filteredRecords.reduce((sum: number, r: any) => sum + (r.penaltyAmount || 0), 0);
+                      const completedCount = filteredRecords.filter((r: any) => 
+                        ['completed', 'approved'].includes(r.status)
+                      ).length;
+                      const departmentAssignments = filteredRecords.filter((r: any) => r.source === 'department').length;
+                      const employeeAssignments = filteredRecords.filter((r: any) => r.source === 'employee').length;
+
+                      return (
+                        <Card key={summary.kpiId} className="border-l-4 border-l-purple-500">
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <CardTitle className="text-lg">{summary.kpiName}</CardTitle>
+                                {summary.kpiDescription && (
+                                  <CardDescription className="mt-1">
+                                    {summary.kpiDescription}
+                                  </CardDescription>
+                                )}
+                                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                  <span>Đơn vị: {summary.kpiUnit || 'N/A'}</span>
+                                  <span>Mục tiêu: {summary.kpiTarget || 0} {summary.kpiUnit || ''}</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-bold">
+                                  {averageProgress.toFixed(1)}%
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  Tiến độ chung
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {totalAssignments} {totalAssignments === 1 ? 'người' : 'người'} đang thực hiện
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4 mt-4">
+                              <div className="flex items-center gap-2">
+                                <Target className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">
+                                  Tổng: {totalAssignments} gán
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm">
+                                  Phòng ban: {departmentAssignments}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-green-600" />
+                                <span className="text-sm">
+                                  Nhân viên: {employeeAssignments}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <span className="text-sm">
+                                  Hoàn thành: {completedCount}/{totalAssignments}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-green-600" />
+                                <span className="text-sm">
+                                  Thưởng: {formatCurrency(totalBonus)} VNĐ
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <TrendingDown className="h-4 w-4 text-red-600" />
+                                <span className="text-sm">
+                                  Phạt: {formatCurrency(totalPenalty)} VNĐ
+                                </span>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div>
+                                    <span className="text-sm font-medium">Tiến độ chung của KPI</span>
+                                    <span className="text-xs text-muted-foreground ml-2">
+                                      ({totalAssignments} {totalAssignments === 1 ? 'người' : 'người'} đang thực hiện)
+                                    </span>
+                                  </div>
+                                  <span className="text-sm font-semibold">
+                                    {averageProgress.toFixed(1)}%
+                                  </span>
+                                </div>
+                                <Progress
+                                  value={Math.min(averageProgress, 100)}
+                                  className="h-3"
+                                />
+                                <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                                  <span>
+                                    Phòng ban: {departmentAssignments} | Nhân viên: {employeeAssignments}
+                                  </span>
+                                  <span>
+                                    Hoàn thành: {completedCount}/{totalAssignments}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="border-t pt-4">
+                                <h4 className="font-semibold mb-3">Chi tiết theo Phòng ban/Nhân viên</h4>
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Người thực hiện</TableHead>
+                                      <TableHead>Loại</TableHead>
+                                      <TableHead>Mục tiêu</TableHead>
+                                      <TableHead>Thực tế</TableHead>
+                                      <TableHead>Tiến độ</TableHead>
+                                      <TableHead>Thưởng</TableHead>
+                                      <TableHead>Phạt</TableHead>
+                                      <TableHead>Trạng thái</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {filteredRecords.map((record: any) => {
+                                      const progress = record.progress || 0;
+                                      const isEmployeeKpi = record.source === 'employee';
+                                      const isDepartmentKpi = record.source === 'department';
+                                      
+                                      let assigneeName = 'N/A';
+                                      let assigneeCode = '';
+                                      
+                                      if (isEmployeeKpi && record.employees) {
+                                        assigneeName = record.employees.name || 'N/A';
+                                        assigneeCode = record.employees.employee_code || '';
+                                      } else if (isDepartmentKpi && record.departments) {
+                                        assigneeName = record.departments.name || 'N/A';
+                                        assigneeCode = record.departments.code || '';
+                                      }
+
+                                      return (
+                                        <TableRow 
+                                          key={record.id}
+                                          className="cursor-pointer hover:bg-muted/50"
+                                          onClick={() => handleViewKpiDetail(record)}
+                                        >
+                                          <TableCell>
+                                            <div className="flex flex-col">
+                                              <span className="font-medium text-sm">{assigneeName}</span>
+                                              {assigneeCode && (
+                                                <span className="text-xs text-muted-foreground">
+                                                  {assigneeCode}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </TableCell>
+                                          <TableCell>
+                                            {isEmployeeKpi ? (
+                                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                                Nhân viên
+                                              </Badge>
+                                            ) : (
+                                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                                Phòng ban
+                                              </Badge>
+                                            )}
+                                          </TableCell>
+                                          <TableCell>
+                                            {summary.kpiTarget || 0} {summary.kpiUnit || ''}
+                                          </TableCell>
+                                          <TableCell>
+                                            {record.actual || 0} {summary.kpiUnit || ''}
+                                          </TableCell>
+                                          <TableCell>
+                                            <div className="flex items-center gap-2">
+                                              <Progress
+                                                value={Math.min(progress, 100)}
+                                                className="h-2 flex-1"
+                                              />
+                                              <span className="text-sm w-16 text-right">
+                                                {progress.toFixed(1)}%
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                          <TableCell>
+                                            {record.bonusAmount > 0 ? (
+                                              <span className="text-green-600 font-medium">
+                                                {formatCurrency(record.bonusAmount)} VNĐ
+                                              </span>
+                                            ) : (
+                                              <span className="text-muted-foreground">-</span>
+                                            )}
+                                          </TableCell>
+                                          <TableCell>
+                                            {record.penaltyAmount > 0 ? (
+                                              <span className="text-red-600 font-medium">
+                                                {formatCurrency(record.penaltyAmount)} VNĐ
+                                              </span>
+                                            ) : (
+                                              <span className="text-muted-foreground">-</span>
+                                            )}
+                                          </TableCell>
+                                          <TableCell>{getStatusBadge(record.status)}</TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                                <div className="flex items-center justify-end gap-6 mt-4 text-sm">
+                                  <div className="flex items-center gap-2 text-green-600 font-medium">
+                                    <TrendingUp className="h-4 w-4" />
+                                    Tổng thưởng: {formatCurrency(totalBonus)} VNĐ
+                                  </div>
+                                  <div className="flex items-center gap-2 text-red-600 font-medium">
+                                    <TrendingDown className="h-4 w-4" />
+                                    Tổng phạt: {formatCurrency(totalPenalty)} VNĐ
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

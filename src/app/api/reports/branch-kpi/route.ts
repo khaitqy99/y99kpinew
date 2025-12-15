@@ -598,11 +598,88 @@ export async function GET(request: NextRequest) {
       dept.kpiRecords.length > 0
     );
 
+    // Calculate KPI-level summaries (group by KPI ID)
+    // This aggregates all records for each KPI across all departments and employees
+    const kpiSummaries: any = {};
+    
+    // Collect all KPI records (from both departments and employees)
+    const allKpiRecords = [
+      ...departmentKpiRecords
+        .map((r: any) => {
+          const enriched = enrichKpiRecord(r);
+          return enriched ? { ...enriched, source: 'department' } : null;
+        })
+        .filter((r: any) => r !== null),
+      ...employeeKpiRecords
+        .map((r: any) => {
+          const enriched = enrichKpiRecord(r, r.employee_id);
+          return enriched ? { ...enriched, source: 'employee' } : null;
+        })
+        .filter((r: any) => r !== null)
+    ];
+
+    allKpiRecords.forEach((record: any) => {
+      if (!record || !record.kpis) return;
+      
+      const kpiId = record.kpi_id;
+      const kpi = record.kpis;
+      
+      if (!kpiSummaries[kpiId]) {
+        kpiSummaries[kpiId] = {
+          kpiId: kpiId,
+          kpiName: kpi.name || 'N/A',
+          kpiDescription: kpi.description || '',
+          kpiUnit: kpi.unit || '',
+          kpiTarget: kpi.target || 0,
+          records: [],
+          totalAssignments: 0,
+          departmentAssignments: 0,
+          employeeAssignments: 0,
+          averageProgress: 0,
+          totalBonus: 0,
+          totalPenalty: 0,
+          completedCount: 0,
+          inProgressCount: 0,
+          notStartedCount: 0,
+        };
+      }
+      
+      const summary = kpiSummaries[kpiId];
+      summary.records.push(record);
+      summary.totalAssignments += 1;
+      
+      if (record.source === 'department') {
+        summary.departmentAssignments += 1;
+      } else {
+        summary.employeeAssignments += 1;
+      }
+      
+      if (record.status === 'completed' || record.status === 'approved') {
+        summary.completedCount += 1;
+      } else if (record.status === 'in_progress') {
+        summary.inProgressCount += 1;
+      } else if (record.status === 'not_started') {
+        summary.notStartedCount += 1;
+      }
+    });
+
+    // Calculate averages and totals for each KPI summary
+    Object.values(kpiSummaries).forEach((summary: any) => {
+      if (summary.records.length > 0) {
+        const totalProgress = summary.records.reduce((sum: number, r: any) => sum + (parseFloat(r.progress) || 0), 0);
+        summary.averageProgress = Math.round((totalProgress / summary.records.length) * 100) / 100;
+        
+        summary.totalBonus = summary.records.reduce((sum: number, r: any) => sum + (r.bonusAmount || 0), 0);
+        summary.totalPenalty = summary.records.reduce((sum: number, r: any) => sum + (r.penaltyAmount || 0), 0);
+      }
+    });
+
     return NextResponse.json({
       success: true,
       data: {
         departmentReports: filteredDepartmentReports,
         employeeReports: Object.values(employeeReports),
+        kpiSummaries: Object.values(kpiSummaries),
         availablePeriods,
         branchId: branchIdNum,
         earliestDate: earliestDate,
