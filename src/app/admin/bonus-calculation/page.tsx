@@ -53,6 +53,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { SessionContext } from '@/contexts/SessionContext';
 import { getDefaultPeriod, getCurrentQuarterLabel, generatePeriodOptions, getPeriodLabel } from '@/lib/period-utils';
 import { formatCurrency, parseCurrency, cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -390,6 +391,7 @@ const AddBonusPenaltyDialog: React.FC<{
 
 export default function BonusCalculationPage() {
   const { users, departments, roles, kpis, kpiRecords, loading } = useContext(SupabaseDataContext);
+  const { selectedBranch } = useContext(SessionContext);
   const [bonusPenaltyRecords, setBonusPenaltyRecords] = useState<BonusPenaltyRecord[]>([]);
   const [allRecords, setAllRecords] = useState<BonusPenaltyRecord[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -430,8 +432,9 @@ export default function BonusCalculationPage() {
     try {
       setIsLoading(true);
       
-      // Load all records first
-      const records = await bonusPenaltyService.getRecords();
+      // Load records filtered by selected branch if available
+      const branchId = selectedBranch?.id;
+      const records = await bonusPenaltyService.getRecords(undefined, branchId);
       setAllRecords(records);
       
       // Filter by date range if selected
@@ -479,7 +482,7 @@ export default function BonusCalculationPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [filterStartDate, filterEndDate, toast]);
+  }, [filterStartDate, filterEndDate, selectedBranch, toast]);
 
   // Load records when component mounts or filters change
   React.useEffect(() => {

@@ -56,8 +56,8 @@ export interface BonusPenaltySummary {
 }
 
 class BonusPenaltyService {
-  // Get all bonus/penalty records
-  async getRecords(period?: string): Promise<BonusPenaltyRecord[]> {
+  // Get all bonus/penalty records, optionally filtered by branch
+  async getRecords(period?: string, branchId?: number): Promise<BonusPenaltyRecord[]> {
     let query = supabase
       .from('bonus_penalty_records')
       .select(`
@@ -83,6 +83,68 @@ class BonusPenaltyService {
 
     if (period) {
       query = query.eq('period', period);
+    }
+
+    // If branchId is provided, filter by branch
+    if (branchId !== undefined && branchId !== null) {
+      // Get all departments in this branch
+      const { data: departments, error: deptError } = await supabase
+        .from('departments')
+        .select('id')
+        .eq('branch_id', branchId)
+        .eq('is_active', true);
+
+      if (deptError) {
+        console.error('Error fetching departments for branch:', deptError);
+        throw new Error('Failed to fetch departments for branch');
+      }
+
+      const departmentIds = (departments || []).map(d => d.id);
+      
+      if (departmentIds.length === 0) {
+        // No departments in this branch, return empty array
+        return [];
+      }
+
+      // Get all employees in departments of this branch using junction table
+      const { data: employeeDeptRelations, error: empDeptError } = await supabase
+        .from('employee_departments')
+        .select('employee_id')
+        .in('department_id', departmentIds);
+
+      if (empDeptError) {
+        console.warn('Error fetching employee-department relations:', empDeptError);
+      }
+
+      // Get unique employee IDs from junction table
+      const employeeIdsFromJunction = new Set(
+        (employeeDeptRelations || []).map((ed: any) => ed.employee_id)
+      );
+
+      // Also get employees with old format (department_id directly)
+      const { data: employeesOldFormat, error: empError } = await supabase
+        .from('employees')
+        .select('id')
+        .in('department_id', departmentIds)
+        .eq('is_active', true);
+
+      if (empError) {
+        console.warn('Error fetching employees with old format:', empError);
+      }
+
+      // Combine employee IDs
+      const allEmployeeIds = new Set(employeeIdsFromJunction);
+      (employeesOldFormat || []).forEach((emp: any) => {
+        allEmployeeIds.add(emp.id);
+      });
+
+      if (allEmployeeIds.size === 0) {
+        // No employees in this branch, return empty array
+        return [];
+      }
+
+      // Filter records by employee IDs
+      query = query.in('employee_id', Array.from(allEmployeeIds));
     }
 
     const { data, error } = await query;
