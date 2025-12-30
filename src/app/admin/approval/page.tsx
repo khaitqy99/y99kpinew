@@ -30,6 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { useTranslation } from '@/hooks/use-translation';
 import { Paperclip, CheckCircle, File, ExternalLink, CalendarIcon, Calendar, Clock } from 'lucide-react';
 import {
   Select,
@@ -67,6 +68,7 @@ type MappedApproval = {
 
 export default function ApprovalPage() {
   const { toast } = useToast();
+  const { t, language } = useTranslation();
   const { kpiRecords, users, kpis, kpiSubmissions, updateKpiRecordStatus, loading } = useContext(SupabaseDataContext);
   
   // Fix hydration mismatch by only rendering Select/Popover after mount
@@ -269,14 +271,14 @@ export default function ApprovalPage() {
         
         return {
             id: String(record.id), // Ensure id is string for consistency
-            employeeName: employee?.name || 'N/A',
-            kpiName: kpi?.name || 'N/A',
+            employeeName: employee?.name || t('approval.notAvailable'),
+            kpiName: kpi?.name || t('approval.notAvailable'),
             targetFormatted: `${record.target} ${kpi?.unit || ''}`,
             actualFormatted: `${record.actual || 0} ${kpi?.unit || ''}`,
             completion: completion > 100 ? 100 : completion,
             submissionDetails: submissionDetails,
             attachment: finalAttachment,
-            period: record.period || 'N/A',
+            period: record.period || t('approval.notAvailable'),
             status: record.status,
             submissionDate: submissionDate,
             startDate: record.start_date || null,
@@ -336,7 +338,7 @@ export default function ApprovalPage() {
   if (loading.kpiRecords || loading.users || loading.kpis) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
-        <div className="text-lg">Đang tải dữ liệu...</div>
+        <div className="text-lg">{t('approval.loadingData')}</div>
       </div>
     );
   }
@@ -344,13 +346,13 @@ export default function ApprovalPage() {
   // Get status label
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
-      'pending_approval': 'Chờ duyệt',
-      'completed': 'Đã hoàn thành',
-      'approved': 'Đã duyệt',
-      'rejected': 'Đã từ chối',
-      'in_progress': 'Đang thực hiện',
-      'not_started': 'Chưa bắt đầu',
-      'overdue': 'Quá hạn',
+      'pending_approval': t('approval.pendingApproval'),
+      'completed': t('approval.completed'),
+      'approved': t('approval.approved'),
+      'rejected': t('approval.rejected'),
+      'in_progress': t('approval.inProgress'),
+      'not_started': t('approval.notStarted'),
+      'overdue': t('approval.overdue'),
     };
     return labels[status] || status;
   };
@@ -420,7 +422,7 @@ export default function ApprovalPage() {
         if (sub.employee_id) {
           const employee = safeUsers.find(e => e.id === sub.employee_id);
           if (employee && !employeeMap.has(employee.id)) {
-            employeeMap.set(employee.id, employee.name || 'N/A');
+            employeeMap.set(employee.id, employee.name || t('approval.notAvailable'));
           }
         }
       });
@@ -483,15 +485,19 @@ export default function ApprovalPage() {
     setIsDetailModalOpen(false);
     let toastTitle = '';
     if (actionType === 'approve') {
-      toastTitle = 'Đã duyệt thành công';
+      toastTitle = t('approval.approveSuccess');
     } else if (actionType === 'reject') {
-      toastTitle = 'Đã từ chối KPI';
+      toastTitle = t('approval.rejectSuccess');
     } else {
-      toastTitle = 'Đã đánh dấu hoàn thành';
+      toastTitle = t('approval.completeSuccess');
     }
     toast({
       title: toastTitle,
-      description: `KPI "${selectedApproval.kpiName}" của ${selectedApproval.employeeName} đã được ${actionType === 'complete' ? 'đánh dấu hoàn thành' : 'xử lý'}.`,
+      description: t('approval.actionSuccessDesc', {
+        kpiName: selectedApproval.kpiName,
+        employeeName: selectedApproval.employeeName,
+        action: actionType === 'complete' ? t('approval.markComplete') : t('approval.processed')
+      }),
     });
     setSelectedApproval(null);
     setActionType(null);
@@ -518,7 +524,7 @@ export default function ApprovalPage() {
         if (idMatch) {
           // For Google Drive, we can't easily get the file name from URL alone
           // So we'll use a generic name with the file ID
-          return `File đính kèm ${index + 1}`;
+          return t('approval.attachmentFile', { index: index + 1 });
         }
       }
       
@@ -531,9 +537,9 @@ export default function ApprovalPage() {
         }
       }
       
-      return `File đính kèm ${index + 1}`;
+      return t('approval.attachmentFile', { index: index + 1 });
     } catch (error) {
-      return `File đính kèm ${index + 1}`;
+      return t('approval.attachmentFile', { index: index + 1 });
     }
   };
 
@@ -545,7 +551,7 @@ export default function ApprovalPage() {
 
   // Format date for display
   const formatDateTime = (dateString: string | null): string => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return t('approval.notAvailable');
     try {
       const date = new Date(dateString);
       return format(date, 'dd/MM/yyyy HH:mm');
@@ -555,7 +561,7 @@ export default function ApprovalPage() {
   };
 
   const formatDate = (dateString: string | null): string => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return t('approval.notAvailable');
     try {
       const date = new Date(dateString);
       return format(date, 'dd/MM/yyyy');
@@ -570,17 +576,17 @@ export default function ApprovalPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Duyệt KPI</CardTitle>
+              <CardTitle>{t('approval.title')}</CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-4">
               {mounted ? (
                 <>
                   <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
                     <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Tất cả nhân viên" />
+                      <SelectValue placeholder={t('approval.allEmployees')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tất cả nhân viên</SelectItem>
+                      <SelectItem value="all">{t('approval.allEmployees')}</SelectItem>
                       {uniqueEmployees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.name}
@@ -590,14 +596,14 @@ export default function ApprovalPage() {
                   </Select>
                   <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                     <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Tất cả trạng thái" />
+                      <SelectValue placeholder={t('approval.allStatuses')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                      <SelectItem value="pending_approval">Chờ duyệt</SelectItem>
-                      <SelectItem value="approved">Đã duyệt</SelectItem>
-                      <SelectItem value="completed">Đã hoàn thành</SelectItem>
-                      <SelectItem value="rejected">Đã từ chối</SelectItem>
+                      <SelectItem value="all">{t('approval.allStatuses')}</SelectItem>
+                      <SelectItem value="pending_approval">{t('approval.pendingApproval')}</SelectItem>
+                      <SelectItem value="approved">{t('approval.approved')}</SelectItem>
+                      <SelectItem value="completed">{t('approval.completed')}</SelectItem>
+                      <SelectItem value="rejected">{t('approval.rejected')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <div className="flex items-center gap-2">
@@ -616,7 +622,7 @@ export default function ApprovalPage() {
                           {filterStartDate ? (
                             format(filterStartDate, 'dd/MM/yyyy')
                           ) : (
-                            <span>Từ ngày</span>
+                            <span>{t('approval.fromDate')}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -645,7 +651,7 @@ export default function ApprovalPage() {
                           {filterEndDate ? (
                             format(filterEndDate, 'dd/MM/yyyy')
                           ) : (
-                            <span>Đến ngày</span>
+                            <span>{t('approval.toDate')}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -671,7 +677,7 @@ export default function ApprovalPage() {
                         }}
                         className="h-8 px-2"
                       >
-                        Xóa
+                        {t('common.clear')}
                       </Button>
                     )}
                   </div>
@@ -686,14 +692,14 @@ export default function ApprovalPage() {
               )}
               {(filterStartDate || filterEndDate || selectedStatus !== 'all' || selectedEmployee !== 'all') && (
                 <div className="text-sm text-muted-foreground">
-                  Hiển thị {approvals.length} KPI
+                  {t('approval.showingKpis', { count: approvals.length })}
                   {selectedEmployee !== 'all' && (() => {
                     const employeeName = uniqueEmployees.find(e => e.id === selectedEmployee)?.name || '';
-                    return ` của ${employeeName}`;
+                    return ` ${t('approval.of')} ${employeeName}`;
                   })()}
-                  {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
-                  {filterStartDate && !filterEndDate && ` - Từ ${format(filterStartDate, 'dd/MM/yyyy')}`}
-                  {!filterStartDate && filterEndDate && ` - Đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                  {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                  {filterStartDate && !filterEndDate && ` - ${t('common.from')} ${format(filterStartDate, 'dd/MM/yyyy')}`}
+                  {!filterStartDate && filterEndDate && ` - ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`}
                   {selectedStatus !== 'all' && ` - ${getStatusLabel(selectedStatus)}`}
                 </div>
               )}
@@ -704,13 +710,13 @@ export default function ApprovalPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nhân viên</TableHead>
-                <TableHead>Tên KPI</TableHead>
-                <TableHead>Tháng/Chu kỳ</TableHead>
-                <TableHead>Mục tiêu</TableHead>
-                <TableHead>Thực tế</TableHead>
-                <TableHead className="w-[150px]">% Hoàn thành</TableHead>
-                <TableHead>Trạng thái</TableHead>
+                <TableHead>{t('approval.employee')}</TableHead>
+                <TableHead>{t('approval.kpiName')}</TableHead>
+                <TableHead>{t('approval.monthCycle')}</TableHead>
+                <TableHead>{t('approval.target')}</TableHead>
+                <TableHead>{t('approval.actual')}</TableHead>
+                <TableHead className="w-[150px]">{t('approval.completion')}</TableHead>
+                <TableHead>{t('approval.status')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -738,8 +744,8 @@ export default function ApprovalPage() {
                     <TableCell colSpan={7} className="text-center h-24">
                       <div className="flex flex-col items-center justify-center">
                         <CheckCircle className="h-8 w-8 text-muted-foreground mb-2" />
-                        <p className="text-muted-foreground">Không có KPI nào</p>
-                        <p className="text-sm text-muted-foreground">Hãy thử thay đổi bộ lọc</p>
+                        <p className="text-muted-foreground">{t('approval.noKpis')}</p>
+                        <p className="text-sm text-muted-foreground">{t('approval.noKpisDesc')}</p>
                       </div>
                     </TableCell>
                 </TableRow>
@@ -754,23 +760,23 @@ export default function ApprovalPage() {
         <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
           <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
-              <DialogTitle className="break-words pr-8">Chi tiết KPI: {selectedApproval.kpiName}</DialogTitle>
+              <DialogTitle className="break-words pr-8">{t('approval.detailTitle', { name: selectedApproval.kpiName })}</DialogTitle>
               <DialogDescription className="break-words">
-                Nhân viên: <strong>{selectedApproval.employeeName}</strong>
+                {t('approval.employeeLabel')} <strong>{selectedApproval.employeeName}</strong>
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4 rounded-lg border p-4">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Mục tiêu</p>
+                  <p className="text-sm font-medium text-muted-foreground">{t('approval.target')}</p>
                   <p className="text-lg font-semibold">{selectedApproval.targetFormatted}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Thực tế</p>
+                  <p className="text-sm font-medium text-muted-foreground">{t('approval.actual')}</p>
                   <p className="text-lg font-semibold">{selectedApproval.actualFormatted}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Tiến độ hoàn thành</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">{t('approval.completionProgress')}</p>
                   <div className="flex items-center gap-2">
                     <Progress value={selectedApproval.completion} className="h-2" />
                     <span className="font-semibold text-sm">{selectedApproval.completion}%</span>
@@ -779,11 +785,11 @@ export default function ApprovalPage() {
                 {(selectedApproval.startDate || selectedApproval.endDate) && (
                   <div className="col-span-2 grid grid-cols-2 gap-4 pt-2 border-t">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Ngày bắt đầu</p>
+                      <p className="text-sm font-medium text-muted-foreground">{t('approval.startDate')}</p>
                       <p className="text-sm font-semibold">{formatDate(selectedApproval.startDate)}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Ngày kết thúc</p>
+                      <p className="text-sm font-medium text-muted-foreground">{t('approval.endDate')}</p>
                       <p className="text-sm font-semibold">{formatDate(selectedApproval.endDate)}</p>
                     </div>
                   </div>
@@ -794,20 +800,20 @@ export default function ApprovalPage() {
               <div className="space-y-3 border-t pt-4">
                 <h4 className='text-sm font-semibold flex items-center gap-2'>
                   <Clock className="h-4 w-4" />
-                  Thông tin nộp báo cáo
+                  {t('approval.submissionInfo')}
                 </h4>
                 
                 {selectedApproval.submissionDate && (
                   <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                    <span className="text-sm text-muted-foreground">Ngày nộp:</span>
+                    <span className="text-sm text-muted-foreground">{t('approval.submissionDate')}</span>
                     <span className="text-sm font-medium">{formatDateTime(selectedApproval.submissionDate)}</span>
                   </div>
                 )}
                 
                 <div className='space-y-1'>
-                  <p className='text-sm font-medium text-muted-foreground'>Chi tiết nhân viên nộp:</p>
+                  <p className='text-sm font-medium text-muted-foreground'>{t('approval.submissionDetails')}</p>
                   <p className='text-sm p-3 bg-muted rounded-md whitespace-pre-wrap break-all'>
-                    {selectedApproval.submissionDetails || 'Không có chi tiết.'}
+                    {selectedApproval.submissionDetails || t('approval.noDetails')}
                   </p>
                 </div>
                 
@@ -817,7 +823,7 @@ export default function ApprovalPage() {
                     return (
                       <div className="space-y-2">
                         <p className='text-sm font-medium text-muted-foreground'>
-                          Tệp đính kèm ({attachmentUrls.length}):
+                          {t('approval.attachments', { count: attachmentUrls.length })}
                         </p>
                         <div className="space-y-2 max-h-[200px] overflow-y-auto">
                           {attachmentUrls.map((url, index) => (
@@ -838,7 +844,7 @@ export default function ApprovalPage() {
                                 className="flex-shrink-0"
                               >
                                 <ExternalLink className="mr-2 h-3 w-3" />
-                                Mở file
+                                {t('approval.openFile')}
                               </Button>
                             </div>
                           ))}
@@ -848,9 +854,9 @@ export default function ApprovalPage() {
                   }
                   return (
                     <div className="space-y-2">
-                      <p className='text-sm font-medium text-muted-foreground'>Tệp đính kèm:</p>
+                      <p className='text-sm font-medium text-muted-foreground'>{t('approval.attachmentsLabel')}</p>
                       <p className='text-sm p-3 bg-muted rounded-md text-muted-foreground'>
-                        Không có file đính kèm
+                        {t('approval.noAttachments')}
                       </p>
                     </div>
                   );
@@ -864,12 +870,12 @@ export default function ApprovalPage() {
                     variant="outline"
                     onClick={() => handleActionClick(selectedApproval, 'reject')}
                   >
-                    {selectedApproval.status === 'approved' || selectedApproval.status === 'completed' ? 'Từ chối lại' : 'Từ chối'}
+                    {selectedApproval.status === 'approved' || selectedApproval.status === 'completed' ? t('approval.rejectAgain') : t('approval.reject')}
                   </Button>
                 )}
                 {selectedApproval.status !== 'approved' && (
                   <Button onClick={() => handleActionClick(selectedApproval, 'approve')}>
-                    {selectedApproval.status === 'rejected' ? 'Duyệt lại' : 'Duyệt'}
+                    {selectedApproval.status === 'rejected' ? t('approval.approveAgain') : t('approval.approve')}
                   </Button>
                 )}
                 {selectedApproval.status !== 'completed' && (
@@ -878,7 +884,7 @@ export default function ApprovalPage() {
                     onClick={() => handleActionClick(selectedApproval, 'complete')}
                     className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
                   >
-                    Đánh dấu hoàn thành
+                    {t('approval.markComplete')}
                   </Button>
                 )}
               </div>
@@ -893,10 +899,13 @@ export default function ApprovalPage() {
           <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
             <DialogHeader>
               <DialogTitle className="break-words pr-8">
-                {actionType === 'approve' ? 'Duyệt' : actionType === 'reject' ? 'Từ chối' : 'Đánh dấu hoàn thành'} KPI: {selectedApproval.kpiName}
+                {t('approval.actionTitle', { 
+                  action: actionType === 'approve' ? t('approval.approve') : actionType === 'reject' ? t('approval.reject') : t('approval.markComplete'),
+                  name: selectedApproval.kpiName 
+                })}
               </DialogTitle>
               <DialogDescription className="break-words">
-                Nhân viên: <strong>{selectedApproval.employeeName}</strong>
+                {t('approval.employeeLabel')} <strong>{selectedApproval.employeeName}</strong>
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -904,20 +913,20 @@ export default function ApprovalPage() {
               <div className="space-y-3 border-t pt-4">
                 <h4 className='text-sm font-semibold flex items-center gap-2'>
                   <Clock className="h-4 w-4" />
-                  Thông tin nộp báo cáo
+                  {t('approval.submissionInfo')}
                 </h4>
                 
                 {selectedApproval.submissionDate && (
                   <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                    <span className="text-sm text-muted-foreground">Ngày nộp:</span>
+                    <span className="text-sm text-muted-foreground">{t('approval.submissionDate')}</span>
                     <span className="text-sm font-medium">{formatDateTime(selectedApproval.submissionDate)}</span>
                   </div>
                 )}
                 
                 <div className='space-y-1'>
-                  <p className='text-sm font-medium text-muted-foreground'>Chi tiết nhân viên nộp:</p>
+                  <p className='text-sm font-medium text-muted-foreground'>{t('approval.submissionDetails')}</p>
                   <p className='text-sm p-3 bg-muted rounded-md whitespace-pre-wrap break-all'>
-                    {selectedApproval.submissionDetails || 'Không có chi tiết.'}
+                    {selectedApproval.submissionDetails || t('approval.noDetails')}
                   </p>
                 </div>
                 
@@ -927,7 +936,7 @@ export default function ApprovalPage() {
                     return (
                       <div className="space-y-2">
                         <p className='text-sm font-medium text-muted-foreground'>
-                          Tệp đính kèm ({attachmentUrls.length}):
+                          {t('approval.attachments', { count: attachmentUrls.length })}
                         </p>
                         <div className="space-y-2 max-h-[200px] overflow-y-auto">
                           {attachmentUrls.map((url, index) => (
@@ -948,7 +957,7 @@ export default function ApprovalPage() {
                                 className="flex-shrink-0"
                               >
                                 <ExternalLink className="mr-2 h-3 w-3" />
-                                Mở file
+                                {t('approval.openFile')}
                               </Button>
                             </div>
                           ))}
@@ -958,9 +967,9 @@ export default function ApprovalPage() {
                   }
                   return (
                     <div className="space-y-2">
-                      <p className='text-sm font-medium text-muted-foreground'>Tệp đính kèm:</p>
+                      <p className='text-sm font-medium text-muted-foreground'>{t('approval.attachmentsLabel')}</p>
                       <p className='text-sm p-3 bg-muted rounded-md text-muted-foreground'>
-                        Không có file đính kèm
+                        {t('approval.noAttachments')}
                       </p>
                     </div>
                   );
@@ -968,10 +977,10 @@ export default function ApprovalPage() {
               </div>
               <div className="grid w-full gap-1.5">
                 <Label htmlFor="feedback">
-                  Phản hồi (tùy chọn)
+                  {t('approval.feedback')}
                 </Label>
                 <Textarea 
-                  placeholder="Nhập phản hồi của bạn cho nhân viên..." 
+                  placeholder={t('approval.feedbackPlaceholder')} 
                   id="feedback" 
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
@@ -980,14 +989,14 @@ export default function ApprovalPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsActionModalOpen(false)}>
-                Hủy
+                {t('common.cancel')}
               </Button>
               <Button 
                 onClick={handleConfirm}
                 variant={actionType === 'reject' ? 'destructive' : actionType === 'complete' ? 'default' : 'default'}
                 className={actionType === 'complete' ? 'bg-green-600 hover:bg-green-700' : ''}
               >
-                {actionType === 'approve' ? 'Xác nhận duyệt' : actionType === 'reject' ? 'Xác nhận từ chối' : 'Xác nhận hoàn thành'}
+                {actionType === 'approve' ? t('approval.confirmApprove') : actionType === 'reject' ? t('approval.confirmReject') : t('approval.confirmComplete')}
               </Button>
             </DialogFooter>
           </DialogContent>

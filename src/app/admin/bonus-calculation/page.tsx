@@ -54,6 +54,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import { SessionContext } from '@/contexts/SessionContext';
+import { useTranslation } from '@/hooks/use-translation';
 import { getDefaultPeriod, getCurrentQuarterLabel, generatePeriodOptions, getPeriodLabel } from '@/lib/period-utils';
 import { formatCurrency, parseCurrency, cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -79,6 +80,7 @@ const AddBonusPenaltyDialog: React.FC<{
   kpiRecords: any[];
   periods: any[];
 }> = ({ open, onOpenChange, onSave, employees, kpis, kpiRecords, periods }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     employeeId: '',
     kpiId: 'none',
@@ -186,24 +188,24 @@ const AddBonusPenaltyDialog: React.FC<{
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" />
-              Thêm thưởng/phạt
+              {t('bonusCalculation.addBonusPenalty')}
             </DialogTitle>
             <DialogDescription>
-              Nhập thông tin thưởng hoặc phạt cho nhân viên
+              {t('bonusCalculation.addBonusPenaltyDesc')}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="employee">Nhân viên</Label>
+              <Label htmlFor="employee">{t('bonusCalculation.employee')}</Label>
               <Select value={formData.employeeId} onValueChange={(value) => setFormData(prev => ({ ...prev, employeeId: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn nhân viên" />
+                  <SelectValue placeholder={t('bonusCalculation.selectEmployee')} />
                 </SelectTrigger>
                 <SelectContent>
                   {employees.map(employee => (
                     <SelectItem key={employee.id} value={employee.id}>
-                      {employee.name} - {employee.role?.name || 'N/A'}
+                      {employee.name} - {employee.role?.name || t('bonusCalculation.notAvailable')}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -211,7 +213,7 @@ const AddBonusPenaltyDialog: React.FC<{
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="kpi">KPI (Tùy chọn)</Label>
+              <Label htmlFor="kpi">{t('bonusCalculation.kpi')}</Label>
               <Select 
                 value={formData.kpiId} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, kpiId: value }))}
@@ -220,23 +222,23 @@ const AddBonusPenaltyDialog: React.FC<{
                 <SelectTrigger>
                   <SelectValue placeholder={
                     !formData.employeeId 
-                      ? "Vui lòng chọn nhân viên trước" 
+                      ? t('bonusCalculation.selectEmployeeFirst') 
                       : assignedKpis.length === 0 
-                        ? "Nhân viên chưa được giao KPI nào" 
-                        : "Chọn KPI (không bắt buộc)"
+                        ? t('bonusCalculation.noKpisAssigned') 
+                        : t('bonusCalculation.selectKpiOptional')
                   } />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Không chọn KPI</SelectItem>
+                  <SelectItem value="none">{t('bonusCalculation.noKpi')}</SelectItem>
                   {assignedKpis.length > 0 ? (
                     assignedKpis.map(kpi => (
                       <SelectItem key={kpi.id} value={kpi.id}>
-                        {kpi.name} - {kpi.unit || 'N/A'}
+                        {kpi.name} - {kpi.unit || t('bonusCalculation.notAvailable')}
                       </SelectItem>
                     ))
                   ) : formData.employeeId ? (
                     <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      Không có KPI nào được giao cho nhân viên này
+                      {t('bonusCalculation.noKpisForEmployee')}
                     </div>
                   ) : null}
                 </SelectContent>
@@ -244,24 +246,24 @@ const AddBonusPenaltyDialog: React.FC<{
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="type">Loại</Label>
+              <Label htmlFor="type">{t('bonusCalculation.type')}</Label>
               <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as 'bonus' | 'penalty' }))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="bonus">Thưởng</SelectItem>
-                  <SelectItem value="penalty">Phạt</SelectItem>
+                  <SelectItem value="bonus">{t('bonusCalculation.bonus')}</SelectItem>
+                  <SelectItem value="penalty">{t('bonusCalculation.penalty')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amount">Số tiền (VND)</Label>
+              <Label htmlFor="amount">{t('bonusCalculation.amount')}</Label>
               <Input
                 id="amount"
                 type="text"
-                placeholder="Nhập số tiền"
+                placeholder={t('bonusCalculation.amountPlaceholder')}
                 value={formData.amount}
                 onChange={(e) => {
                   // Remove all non-digit characters except comma
@@ -280,7 +282,7 @@ const AddBonusPenaltyDialog: React.FC<{
             </div>
 
             <div className="space-y-2">
-              <Label>Thời kỳ</Label>
+              <Label>{t('bonusCalculation.period')}</Label>
               <Button
                 variant="outline"
                 className={cn(
@@ -293,19 +295,19 @@ const AddBonusPenaltyDialog: React.FC<{
                 {startDate && endDate ? (
                   <span>{format(startDate, 'dd/MM/yyyy')} - {format(endDate, 'dd/MM/yyyy')}</span>
                 ) : (
-                  <span>Chọn thời kỳ (Từ ngày đến ngày)</span>
+                  <span>{t('bonusCalculation.selectPeriod')}</span>
                 )}
               </Button>
               {startDate && endDate && startDate > endDate && (
-                <p className="text-sm text-destructive">Ngày kết thúc phải sau ngày bắt đầu</p>
+                <p className="text-sm text-destructive">{t('bonusCalculation.endDateAfterStart')}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reason">Lý do</Label>
+              <Label htmlFor="reason">{t('bonusCalculation.reason')}</Label>
               <Textarea
                 id="reason"
-                placeholder="Nhập lý do thưởng/phạt"
+                placeholder={t('bonusCalculation.reasonPlaceholder')}
                 value={formData.reason}
                 onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
               />
@@ -315,14 +317,14 @@ const AddBonusPenaltyDialog: React.FC<{
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4 mr-2" />
-              Hủy
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleSave}
               disabled={!formData.employeeId || !formData.amount || !formData.reason || !startDate || !endDate || (startDate > endDate)}
             >
               <Save className="h-4 w-4 mr-2" />
-              Lưu
+              {t('common.save')}
             </Button>
           </div>
         </DialogContent>
@@ -332,15 +334,15 @@ const AddBonusPenaltyDialog: React.FC<{
       <Dialog open={isDateRangeDialogOpen} onOpenChange={setIsDateRangeDialogOpen}>
         <DialogContent className="sm:max-w-fit">
           <DialogHeader>
-            <DialogTitle>Chọn thời kỳ</DialogTitle>
+            <DialogTitle>{t('bonusCalculation.selectPeriod')}</DialogTitle>
             <DialogDescription>
-              Chọn ngày bắt đầu và ngày kết thúc cho thời kỳ thưởng/phạt
+              {t('bonusCalculation.selectPeriodDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-center">Từ ngày</Label>
+                <Label className="text-sm font-medium text-center">{t('bonusCalculation.fromDate')}</Label>
                 <CalendarComponent
                   initialFocus
                   mode="single"
@@ -351,7 +353,7 @@ const AddBonusPenaltyDialog: React.FC<{
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-center">Đến ngày</Label>
+                <Label className="text-sm font-medium text-center">{t('bonusCalculation.toDate')}</Label>
                 <CalendarComponent
                   mode="single"
                   defaultMonth={endDate || startDate}
@@ -364,13 +366,13 @@ const AddBonusPenaltyDialog: React.FC<{
             </div>
             {startDate && endDate && startDate > endDate && (
               <p className="text-sm text-destructive text-center mt-4">
-                Ngày kết thúc phải sau ngày bắt đầu
+                {t('bonusCalculation.endDateAfterStart')}
               </p>
             )}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsDateRangeDialogOpen(false)}>
-              Hủy
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={() => {
@@ -380,7 +382,7 @@ const AddBonusPenaltyDialog: React.FC<{
               }}
               disabled={!startDate || !endDate || startDate > endDate}
             >
-              Xác nhận
+              {t('common.confirm')}
             </Button>
           </div>
         </DialogContent>
@@ -390,6 +392,7 @@ const AddBonusPenaltyDialog: React.FC<{
 };
 
 export default function BonusCalculationPage() {
+  const { t } = useTranslation();
   const { users, departments, roles, kpis, kpiRecords, loading } = useContext(SupabaseDataContext);
   const { selectedBranch } = useContext(SessionContext);
   const [bonusPenaltyRecords, setBonusPenaltyRecords] = useState<BonusPenaltyRecord[]>([]);
@@ -476,8 +479,8 @@ export default function BonusCalculationPage() {
       console.error('Error loading records:', error);
       toast({
         variant: 'destructive',
-        title: 'Lỗi tải dữ liệu',
-        description: 'Không thể tải dữ liệu thưởng/phạt',
+        title: t('common.error'),
+        description: t('bonusCalculation.loadError'),
       });
     } finally {
       setIsLoading(false);
@@ -550,15 +553,15 @@ export default function BonusCalculationPage() {
       }
       
       toast({
-        title: 'Thành công',
-        description: `Đã thêm ${recordData.type === 'bonus' ? 'thưởng' : 'phạt'} cho nhân viên`,
+        title: t('common.success'),
+        description: t('bonusCalculation.addSuccessDesc', { type: recordData.type === 'bonus' ? t('bonusCalculation.bonus') : t('bonusCalculation.penalty') }),
       });
     } catch (error: any) {
       console.error('Error adding record:', error);
-      const errorMessage = error?.message || 'Không thể thêm bản ghi thưởng/phạt';
+      const errorMessage = error?.message || t('bonusCalculation.addError');
       toast({
         variant: 'destructive',
-        title: 'Lỗi',
+        title: t('common.error'),
         description: errorMessage,
       });
       // Re-throw to prevent form reset on error
@@ -574,15 +577,15 @@ export default function BonusCalculationPage() {
       setBonusPenaltyRecords(prev => prev.filter(record => record.id !== recordId));
       
       toast({
-        title: 'Thành công',
-        description: 'Đã xóa bản ghi thưởng/phạt',
+        title: t('common.success'),
+        description: t('bonusCalculation.deleteSuccess'),
       });
     } catch (error) {
       console.error('Error deleting record:', error);
       toast({
         variant: 'destructive',
-        title: 'Lỗi',
-        description: 'Không thể xóa bản ghi thưởng/phạt',
+        title: t('common.error'),
+        description: t('bonusCalculation.deleteError'),
       });
     }
   };
@@ -590,11 +593,11 @@ export default function BonusCalculationPage() {
   // Handle export data
   const handleExportData = () => {
     const csvContent = [
-      ['Nhân viên', 'KPI', 'Loại', 'Số tiền (VND)', 'Lý do', 'Thời kỳ', 'Ngày tạo'].join(','),
+      [t('bonusCalculation.employee'), t('bonusCalculation.kpi'), t('bonusCalculation.type'), t('bonusCalculation.amount'), t('bonusCalculation.reason'), t('bonusCalculation.period'), t('bonusCalculation.createdAt')].join(','),
       ...bonusPenaltyRecords.map(record => [
-        record.employees?.name || 'N/A',
-        record.kpis?.name || 'Không có KPI',
-        record.type === 'bonus' ? 'Thưởng' : 'Phạt',
+        record.employees?.name || t('bonusCalculation.notAvailable'),
+        record.kpis?.name || t('bonusCalculation.noKpiLabel'),
+        record.type === 'bonus' ? t('bonusCalculation.bonus') : t('bonusCalculation.penalty'),
         record.amount,
         `"${record.reason}"`,
         record.period,
@@ -620,8 +623,8 @@ export default function BonusCalculationPage() {
     document.body.removeChild(link);
     
     toast({
-      title: 'Xuất dữ liệu',
-      description: 'Đã xuất dữ liệu thưởng/phạt thành công.',
+      title: t('common.export'),
+      description: t('bonusCalculation.exportSuccess'),
     });
   };
 
@@ -630,7 +633,7 @@ export default function BonusCalculationPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="space-y-1.5">
-            <CardTitle>Quản lý thưởng phạt</CardTitle>
+            <CardTitle>{t('bonusCalculation.title')}</CardTitle>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             {mounted ? (
@@ -650,7 +653,7 @@ export default function BonusCalculationPage() {
                       {filterStartDate ? (
                         format(filterStartDate, 'dd/MM/yyyy')
                       ) : (
-                        <span>Từ ngày</span>
+                        <span>{t('bonusCalculation.fromDate')}</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -679,7 +682,7 @@ export default function BonusCalculationPage() {
                       {filterEndDate ? (
                         format(filterEndDate, 'dd/MM/yyyy')
                       ) : (
-                        <span>Đến ngày</span>
+                        <span>{t('bonusCalculation.toDate')}</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -704,7 +707,7 @@ export default function BonusCalculationPage() {
                     }}
                     className="h-8 px-2"
                   >
-                    Xóa
+                    {t('common.clear')}
                   </Button>
                 )}
               </div>
@@ -717,20 +720,20 @@ export default function BonusCalculationPage() {
             )}
             {(filterStartDate || filterEndDate) && (
               <div className="text-sm text-muted-foreground">
-                Hiển thị {bonusPenaltyRecords.length} bản ghi
-                {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
-                {filterStartDate && !filterEndDate && ` - Từ ${format(filterStartDate, 'dd/MM/yyyy')}`}
-                {!filterStartDate && filterEndDate && ` - Đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                {t('bonusCalculation.showingRecords', { count: bonusPenaltyRecords.length })}
+                {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                {filterStartDate && !filterEndDate && ` - ${t('common.from')} ${format(filterStartDate, 'dd/MM/yyyy')}`}
+                {!filterStartDate && filterEndDate && ` - ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`}
               </div>
             )}
             <div className="flex gap-2 ml-auto">
               <Button variant="outline" onClick={handleExportData}>
                 <Download className="h-4 w-4 mr-2" />
-                Xuất dữ liệu
+                {t('common.export')}
               </Button>
               <Button onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Thêm thưởng/phạt
+                {t('bonusCalculation.addBonusPenalty')}
               </Button>
             </div>
           </div>
@@ -739,7 +742,7 @@ export default function BonusCalculationPage() {
           {/* Loading state */}
           {loading.users || loading.roles || loading.kpis || isLoading ? (
             <div className="text-center py-8 text-muted-foreground">
-              <div className="text-sm">Đang tải dữ liệu...</div>
+              <div className="text-sm">{t('bonusCalculation.loadingData')}</div>
             </div>
           ) : (
             <>
@@ -750,7 +753,7 @@ export default function BonusCalculationPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <Users className="h-4 w-4" />
-                      Tổng nhân viên
+                      {t('bonusCalculation.totalEmployees')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -762,7 +765,7 @@ export default function BonusCalculationPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-green-600" />
-                      Tổng thưởng
+                      {t('bonusCalculation.totalBonus')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -776,7 +779,7 @@ export default function BonusCalculationPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <TrendingDown className="h-4 w-4 text-red-600" />
-                      Tổng phạt
+                      {t('bonusCalculation.totalPenalty')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -790,7 +793,7 @@ export default function BonusCalculationPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-purple-600" />
-                      Số dư ròng
+                      {t('bonusCalculation.netAmount')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -805,20 +808,20 @@ export default function BonusCalculationPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nhân viên</TableHead>
-                    <TableHead>KPI</TableHead>
-                    <TableHead>Loại</TableHead>
-                    <TableHead>Số tiền</TableHead>
-                    <TableHead>Lý do</TableHead>
-                    <TableHead>Ngày tạo</TableHead>
-                    <TableHead>Thao tác</TableHead>
+                    <TableHead>{t('bonusCalculation.employee')}</TableHead>
+                    <TableHead>{t('bonusCalculation.kpi')}</TableHead>
+                    <TableHead>{t('bonusCalculation.type')}</TableHead>
+                    <TableHead>{t('bonusCalculation.amount')}</TableHead>
+                    <TableHead>{t('bonusCalculation.reason')}</TableHead>
+                    <TableHead>{t('bonusCalculation.createdAt')}</TableHead>
+                    <TableHead>{t('common.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {bonusPenaltyRecords.length > 0 ? bonusPenaltyRecords.map((record) => (
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">
-                        {record.employees?.name || 'N/A'}
+                        {record.employees?.name || t('bonusCalculation.notAvailable')}
                       </TableCell>
                       <TableCell className="text-sm">
                         {record.kpis?.name ? (
@@ -826,17 +829,17 @@ export default function BonusCalculationPage() {
                             <div className="font-medium">{record.kpis.name}</div>
                             {record.kpis.unit && (
                               <div className="text-xs text-muted-foreground">
-                                Đơn vị: {record.kpis.unit}
+                                {t('bonusCalculation.unit')}: {record.kpis.unit}
                               </div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">Không có KPI</span>
+                          <span className="text-muted-foreground">{t('bonusCalculation.noKpiLabel')}</span>
                         )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={record.type === 'bonus' ? 'default' : 'destructive'}>
-                          {record.type === 'bonus' ? 'Thưởng' : 'Phạt'}
+                          {record.type === 'bonus' ? t('bonusCalculation.bonus') : t('bonusCalculation.penalty')}
                         </Badge>
                       </TableCell>
                       <TableCell className={`font-medium ${record.type === 'bonus' ? 'text-green-600' : 'text-red-600'}`}>
@@ -855,7 +858,7 @@ export default function BonusCalculationPage() {
                           onClick={() => handleDeleteRecord(record.id)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Xóa
+                          {t('common.delete')}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -864,8 +867,8 @@ export default function BonusCalculationPage() {
                       <TableCell colSpan={7} className="text-center h-24">
                         <div className="flex flex-col items-center justify-center">
                           <Calculator className="h-8 w-8 text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">Chưa có dữ liệu thưởng/phạt nào</p>
-                          <p className="text-sm text-muted-foreground">Nhấn "Thêm thưởng/phạt" để bắt đầu</p>
+                          <p className="text-muted-foreground">{t('bonusCalculation.noData')}</p>
+                          <p className="text-sm text-muted-foreground">{t('bonusCalculation.noDataDesc')}</p>
                         </div>
                       </TableCell>
                     </TableRow>

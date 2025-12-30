@@ -4,10 +4,11 @@ import { branchService } from '@/services/supabase-service';
 // GET /api/branches/[id] - Get branch by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid branch ID' },
@@ -36,10 +37,11 @@ export async function GET(
 // PUT /api/branches/[id] - Update branch
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid branch ID' },
@@ -62,10 +64,11 @@ export async function PUT(
 // DELETE /api/branches/[id] - Delete branch (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid branch ID' },

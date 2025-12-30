@@ -4,10 +4,10 @@ import { bonusPenaltyService } from '@/services/bonus-penalty-service';
 // PUT /api/bonus-penalty/[id] - Update bonus/penalty record
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     const body = await request.json();
     const record = await bonusPenaltyService.updateRecord(id, body);
     return NextResponse.json({ success: true, data: record });
@@ -23,10 +23,10 @@ export async function PUT(
 // DELETE /api/bonus-penalty/[id] - Delete bonus/penalty record (soft delete)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     await bonusPenaltyService.deleteRecord(id);
     return NextResponse.json({ success: true, message: 'Bonus/penalty record deleted successfully' });
   } catch (error: any) {

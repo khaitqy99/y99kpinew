@@ -4,10 +4,11 @@ import { notificationService } from '@/services/supabase-service';
 // PUT /api/notifications/[id]/read - Mark notification as read
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid notification ID' },

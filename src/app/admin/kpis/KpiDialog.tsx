@@ -26,7 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { Kpi } from '@/services/supabase-service';
-import { getFrequencyLabel } from '@/lib/utils';
+import { useTranslation } from '@/hooks/use-translation';
 
 const KpiDialog: React.FC<{
   open: boolean;
@@ -34,6 +34,7 @@ const KpiDialog: React.FC<{
   kpiToEdit?: Kpi | null;
 }> = React.memo(({ open, onOpenChange, kpiToEdit }) => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { addKpi, editKpi, getDepartmentNames, getFrequencies } = useContext(SupabaseDataContext);
   
   const [name, setName] = useState('');
@@ -44,6 +45,20 @@ const KpiDialog: React.FC<{
   const [frequency, setFrequency] = useState('');
   const [rewardPenaltyConfig, setRewardPenaltyConfig] = useState('');
   const [status, setStatus] = useState<'active' | 'paused'>('active');
+
+  // Get translated frequency label
+  const getFrequencyLabelTranslated = useCallback((frequency: string) => {
+    const key = `kpis.frequency.${frequency?.toLowerCase()}`;
+    const translated = t(key);
+    return translated !== key ? translated : frequency;
+  }, [t]);
+
+  // Get translated status label
+  const getStatusLabelTranslated = useCallback((status: string) => {
+    const key = `kpis.status.${status?.toLowerCase()}`;
+    const translated = t(key);
+    return translated !== key ? translated : status;
+  }, [t]);
 
   // Memoize expensive operations
   const departments = useMemo(() => getDepartmentNames(), []);
@@ -84,8 +99,8 @@ const KpiDialog: React.FC<{
     if (!name || !department || !target || !unit || !frequency) {
         toast({
             variant: "destructive",
-            title: "Lỗi",
-            description: "Vui lòng điền đầy đủ các trường bắt buộc."
+            title: t('common.error'),
+            description: t('kpis.fillRequiredFields')
         });
         return;
     }
@@ -107,48 +122,48 @@ const KpiDialog: React.FC<{
     try {
       if (kpiToEdit) {
         await editKpi(kpiToEdit.id, kpiData as any);
-        toast({ title: 'Thành công', description: 'Đã cập nhật KPI.' });
+        toast({ title: t('common.success'), description: t('kpis.saveSuccess') });
       } else {
         const newKpi: Omit<Kpi, 'id' | 'created_at' | 'updated_at'> = kpiData as any;
         await addKpi(newKpi as any);
-        toast({ title: 'Thành công', description: 'Đã tạo KPI mới.' });
+        toast({ title: t('common.success'), description: t('kpis.createSuccess') });
       }
       onOpenChange(false);
     } catch (e: any) {
       toast({
         variant: 'destructive',
-        title: 'Không thể lưu KPI',
-        description: e?.message || 'Đã xảy ra lỗi khi lưu KPI'
+        title: t('kpis.saveError'),
+        description: e?.message || t('kpis.saveErrorDesc')
       })
     }
-  }, [name, description, department, target, unit, frequency, rewardPenaltyConfig, status, kpiToEdit, editKpi, addKpi, toast, onOpenChange]);
+  }, [name, description, department, target, unit, frequency, rewardPenaltyConfig, status, kpiToEdit, editKpi, addKpi, toast, onOpenChange, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button size="sm" className="h-8 gap-1">
           <PlusCircle className="h-4 w-4" />
-          Tạo KPI mới
+          {t('kpis.createNew')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{kpiToEdit ? 'Sửa KPI' : 'Tạo KPI mới'}</DialogTitle>
+          <DialogTitle>{kpiToEdit ? t('kpis.edit') : t('kpis.createNew')}</DialogTitle>
           <DialogDescription>
-            Điền thông tin chi tiết để {kpiToEdit ? 'cập nhật' : 'thiết lập'} một KPI.
+            {kpiToEdit ? t('kpis.edit') : t('kpis.createNew')}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Tên KPI</Label>
+              <Label htmlFor="name">{t('kpis.name')}</Label>
               <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Tăng trưởng doanh thu"/>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="department">Phòng ban</Label>
+              <Label htmlFor="department">{t('kpis.department')}</Label>
               <Select value={department} onValueChange={setDepartment}>
                 <SelectTrigger id="department">
-                  <SelectValue placeholder="Chọn phòng ban" />
+                  <SelectValue placeholder={t('kpis.selectDepartment')} />
                 </SelectTrigger>
                 <SelectContent>
                   {departments.map(dep => (
@@ -159,27 +174,27 @@ const KpiDialog: React.FC<{
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="description">Mô tả</Label>
+            <Label htmlFor="description">{t('kpis.description')}</Label>
             <Textarea id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Mô tả chi tiết mục tiêu, cách đo lường và ý nghĩa của KPI..." />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="target">Mục tiêu</Label>
+              <Label htmlFor="target">{t('kpis.target')}</Label>
               <Input id="target" type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="100"/>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unit">Đơn vị</Label>
+              <Label htmlFor="unit">{t('kpis.unit')}</Label>
               <Input id="unit" value={unit} onChange={e => setUnit(e.target.value)} placeholder="%, VNĐ, sản phẩm..." />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="frequency">Tần suất</Label>
+              <Label htmlFor="frequency">{t('kpis.frequency')}</Label>
               <Select value={frequency} onValueChange={setFrequency}>
                 <SelectTrigger id="frequency">
-                  <SelectValue placeholder="Chọn tần suất đo lường" />
+                  <SelectValue placeholder={t('kpis.selectFrequency')} />
                 </SelectTrigger>
                 <SelectContent>
                   {frequencies.map(freq => (
-                    <SelectItem key={freq} value={freq}>{getFrequencyLabel(freq)}</SelectItem>
+                    <SelectItem key={freq} value={freq}>{getFrequencyLabelTranslated(freq)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -187,7 +202,7 @@ const KpiDialog: React.FC<{
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="reward-penalty">Cấu hình Thưởng/Phạt</Label>
+              <Label htmlFor="reward-penalty">{t('kpis.rewardPenaltyConfig')}</Label>
               <Textarea
                 id="reward-penalty"
                 value={rewardPenaltyConfig}
@@ -196,22 +211,22 @@ const KpiDialog: React.FC<{
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="status">Trạng thái</Label>
+              <Label htmlFor="status">{t('kpis.status')}</Label>
               <Select value={status} onValueChange={(value) => setStatus(value as 'active' | 'paused')}>
                 <SelectTrigger id="status">
-                  <SelectValue placeholder="Chọn trạng thái" />
+                  <SelectValue placeholder={t('kpis.selectStatus')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Đang hoạt động</SelectItem>
-                  <SelectItem value="paused">Tạm dừng</SelectItem>
+                  <SelectItem value="active">{getStatusLabelTranslated('active')}</SelectItem>
+                  <SelectItem value="paused">{getStatusLabelTranslated('paused')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Hủy</Button>
-          <Button type="submit" onClick={handleSave}>Lưu thay đổi</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
+          <Button type="submit" onClick={handleSave}>{t('common.save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

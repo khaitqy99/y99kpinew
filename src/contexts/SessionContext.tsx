@@ -60,7 +60,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
 
-  // Load selected branch from sessionStorage on mount
+  // Load selected branch and language from storage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedBranch = sessionStorage.getItem('selectedBranch');
@@ -70,6 +70,12 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
         } catch (e) {
           console.error('Error parsing saved branch:', e);
         }
+      }
+      
+      // Load language preference from localStorage (persists across sessions)
+      const savedLanguage = localStorage.getItem('language');
+      if (savedLanguage && (savedLanguage === 'vi' || savedLanguage === 'en')) {
+        setLanguage(savedLanguage);
       }
     }
   }, []);
@@ -134,6 +140,10 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
 
   const handleSetLanguage = (lang: string) => {
     setLanguage(lang);
+    // Save language preference to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('language', lang);
+    }
   };
 
   const handleSetSelectedBranch = (branch: SelectedBranch) => {

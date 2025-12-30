@@ -60,16 +60,25 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import { type KpiRecord } from '@/services/supabase-service';
+import { useTranslation } from '@/hooks/use-translation';
+import viTranslations from '@/lib/translations/vi.json';
+import enTranslations from '@/lib/translations/en.json';
 
-const statusConfig: { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
-  not_started: { label: 'Chưa bắt đầu', variant: 'secondary' },
-  in_progress: { label: 'Đang thực hiện', variant: 'default' },
-  completed: { label: 'Hoàn thành', variant: 'outline' },
-  overdue: { label: 'Quá hạn', variant: 'destructive' },
-  pending_approval: { label: 'Chờ duyệt', variant: 'secondary' },
-  approved: { label: 'Đã duyệt', variant: 'default' },
-  rejected: { label: 'Từ chối', variant: 'destructive' },
+const translations: Record<string, any> = {
+  vi: viTranslations,
+  en: enTranslations,
 };
+
+// Status config will be created dynamically with translations
+const getStatusConfig = (t: (key: string) => string): { [key: string]: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } } => ({
+  not_started: { label: t('assign.status.notStarted'), variant: 'secondary' },
+  in_progress: { label: t('assign.status.inProgress'), variant: 'default' },
+  completed: { label: t('assign.status.completed'), variant: 'outline' },
+  overdue: { label: t('assign.status.overdue'), variant: 'destructive' },
+  pending_approval: { label: t('assign.status.pendingApproval'), variant: 'secondary' },
+  approved: { label: t('assign.status.approved'), variant: 'default' },
+  rejected: { label: t('assign.status.rejected'), variant: 'destructive' },
+});
 
 type AssignedKpiDetails = KpiRecord & {
     employeeName?: string;
@@ -86,7 +95,10 @@ type AssignedKpiDetails = KpiRecord & {
 
 export default function AssignKpiPage() {
   const { toast } = useToast();
+  const { t, language } = useTranslation();
   const { users, kpis, kpiRecords, assignKpi, departments, deleteKpiRecord, updateKpiRecordStatus } = React.useContext(SupabaseDataContext);
+  
+  const statusConfig = React.useMemo(() => getStatusConfig(t), [t, language]);
   
   // Fix hydration mismatch by only rendering Select/Popover after mount
   const [mounted, setMounted] = React.useState(false);
@@ -130,7 +142,7 @@ export default function AssignKpiPage() {
   const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = React.useState(false);
 
   // Calculate period from date range (format: yyyy-MM-dd to yyyy-MM-dd)
-  const calculatePeriodFromDate = (startDate: Date, endDate: Date): string => {
+  const calculatePeriodFromDate = React.useCallback((startDate: Date, endDate: Date): string => {
     const formatDate = (date: Date): string => {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -138,8 +150,8 @@ export default function AssignKpiPage() {
       return `${year}-${month}-${day}`;
     };
     
-    return `${formatDate(startDate)} to ${formatDate(endDate)}`;
-  };
+    return `${formatDate(startDate)} ${t('assign.periodSeparator')} ${formatDate(endDate)}`;
+  }, [t]);
 
   const getAssignedKpis = (records: any[]): AssignedKpiDetails[] => {
     if (!records || records.length === 0) return [];
@@ -201,10 +213,10 @@ export default function AssignKpiPage() {
         
         return {
             ...restRecord,
-            employeeName: employee?.name || 'N/A',
+            employeeName: employee?.name || t('assign.notAvailable'),
             employeeAvatar: employee?.avatar || '',
-            departmentName: safeDepartments.find((d: any) => d.id === record.department_id)?.name || 'N/A',
-            kpiName: kpi?.name || 'N/A',
+            departmentName: safeDepartments.find((d: any) => d.id === record.department_id)?.name || t('assign.notAvailable'),
+            kpiName: kpi?.name || t('assign.notAvailable'),
             kpiDescription: kpi?.description || '',
             kpiUnit: kpi?.unit || '',
             kpiRewardPenalty: typeof kpi?.reward_penalty_config === 'string' 
@@ -248,8 +260,8 @@ export default function AssignKpiPage() {
     if (selectedKpis.length === 0 || !startDate || !endDate) {
         toast({
             variant: 'destructive',
-            title: 'Lỗi!',
-            description: 'Vui lòng chọn ít nhất một KPI và điền đầy đủ thông tin để giao KPI.'
+            title: t('common.error'),
+            description: t('assign.fillRequiredFields')
         });
         return;
     }
@@ -257,8 +269,8 @@ export default function AssignKpiPage() {
     if (assignmentType === 'employee' && !selectedEmployee) {
         toast({
             variant: 'destructive',
-            title: 'Lỗi!',
-            description: 'Vui lòng chọn nhân viên.'
+            title: t('common.error'),
+            description: t('assign.selectEmployee')
         });
         return;
     }
@@ -266,8 +278,8 @@ export default function AssignKpiPage() {
     if (assignmentType === 'department' && !selectedDepartmentId) {
         toast({
             variant: 'destructive',
-            title: 'Lỗi!',
-            description: 'Vui lòng chọn phòng ban.'
+            title: t('common.error'),
+            description: t('assign.selectDepartment')
         });
         return;
     }
@@ -300,14 +312,14 @@ export default function AssignKpiPage() {
             if (departmentEmployees.length === 0) {
                 toast({
                     variant: 'destructive',
-                    title: 'Lỗi!',
-                    description: 'Phòng ban này chưa có nhân viên nào.'
+                    title: t('common.error'),
+                    description: t('assign.noEmployeesInDepartment')
                 });
                 return;
             }
 
             // Tạo KPI record cho từng nhân viên trong phòng ban với tất cả KPI đã chọn
-            const departmentName = safeDepartments.find((d: any) => d.id === selectedDepartmentId)?.name || 'phòng ban';
+            const departmentName = safeDepartments.find((d: any) => d.id === selectedDepartmentId)?.name || t('assign.department');
             
             // Prepare all records first - for each employee and each selected KPI
             const recordsToCreate: any[] = [];
@@ -351,7 +363,11 @@ export default function AssignKpiPage() {
                     if (existing?.exists) {
                         const employee = departmentEmployees.find((e: any) => e.id === record.employee_id);
                         const kpi = selectedKpis.find((k: any) => k.id === record.kpi_id);
-                        errors.push(`Nhân viên ${employee?.name || 'N/A'}: KPI "${kpi?.name || 'N/A'}" đã được giao trong kỳ ${calculatePeriodFromDate(startDateValue, endDateValue)}`);
+                        errors.push(t('assign.duplicateAssignment', { 
+                            employee: employee?.name || t('assign.notAvailable'), 
+                            kpi: kpi?.name || t('assign.notAvailable'),
+                            period: calculatePeriodFromDate(startDateValue, endDateValue)
+                        }));
                         errorCount++;
                         continue;
                     }
@@ -378,25 +394,38 @@ export default function AssignKpiPage() {
                 } catch (error: any) {
                     console.error(`Error assigning KPI to employee ${employee?.name}:`, error);
                     errorCount++;
-                    errors.push(`Nhân viên ${employee?.name || 'N/A'}, KPI "${kpi?.name || 'N/A'}": ${error?.message || 'Lỗi không xác định'}`);
+                    errors.push(t('assign.assignmentError', {
+                        employee: employee?.name || t('assign.notAvailable'),
+                        kpi: kpi?.name || t('assign.notAvailable'),
+                        error: error?.message || t('assign.unknownError')
+                    }));
                 }
             }
 
             const kpiNames = selectedKpis.map(k => k.name).join(', ');
             if (errorCount === 0) {
                 toast({
-                    title: 'Thành công!',
-                    description: `Đã giao ${selectedKpis.length} KPI (${kpiNames}) cho ${successCount} nhân viên trong ${departmentName}.`
+                    title: t('common.success'),
+                    description: t('assign.assignSuccessDepartment', {
+                        kpiCount: selectedKpis.length,
+                        kpiNames,
+                        employeeCount: successCount,
+                        departmentName
+                    })
                 });
             } else {
                 const errorMessage = errors.length > 0 
-                    ? errors.slice(0, 3).join('; ') + (errors.length > 3 ? ` và ${errors.length - 3} lỗi khác...` : '')
-                    : `${errorCount} bản ghi gặp lỗi`;
+                    ? errors.slice(0, 3).join('; ') + (errors.length > 3 ? ` ${t('assign.andMoreErrors', { count: errors.length - 3 })}` : '')
+                    : t('assign.recordsError', { count: errorCount });
                 
                 toast({
                     variant: 'destructive',
-                    title: 'Cảnh báo!',
-                    description: `Đã giao ${selectedKpis.length} KPI cho ${successCount} bản ghi. ${errorMessage}`
+                    title: t('assign.warning'),
+                    description: t('assign.assignPartialSuccessDepartment', {
+                        kpiCount: selectedKpis.length,
+                        successCount,
+                        errorMessage
+                    })
                 });
             }
         } else {
@@ -431,25 +460,37 @@ export default function AssignKpiPage() {
                 } catch (error: any) {
                     console.error(`Error assigning KPI ${kpi.name}:`, error);
                     errorCount++;
-                    errors.push(`KPI "${kpi.name}": ${error?.message || 'Lỗi không xác định'}`);
+                    errors.push(t('assign.kpiError', {
+                        kpi: kpi.name,
+                        error: error?.message || t('assign.unknownError')
+                    }));
                 }
             }
 
             const kpiNames = selectedKpis.map(k => k.name).join(', ');
             if (errorCount === 0) {
                 toast({
-                    title: 'Thành công!',
-                    description: `Đã giao ${selectedKpis.length} KPI (${kpiNames}) cho ${selectedEmployee?.name}.`
+                    title: t('common.success'),
+                    description: t('assign.assignSuccessEmployee', {
+                        kpiCount: selectedKpis.length,
+                        kpiNames,
+                        employeeName: selectedEmployee?.name || ''
+                    })
                 });
             } else {
                 const errorMessage = errors.length > 0 
-                    ? errors.slice(0, 3).join('; ') + (errors.length > 3 ? ` và ${errors.length - 3} lỗi khác...` : '')
-                    : `${errorCount} KPI gặp lỗi`;
+                    ? errors.slice(0, 3).join('; ') + (errors.length > 3 ? ` ${t('assign.andMoreErrors', { count: errors.length - 3 })}` : '')
+                    : t('assign.kpisError', { count: errorCount });
                 
                 toast({
                     variant: 'destructive',
-                    title: 'Cảnh báo!',
-                    description: `Đã giao ${successCount}/${selectedKpis.length} KPI cho ${selectedEmployee?.name}. ${errorMessage}`
+                    title: t('assign.warning'),
+                    description: t('assign.assignPartialSuccessEmployee', {
+                        successCount,
+                        totalCount: selectedKpis.length,
+                        employeeName: selectedEmployee?.name || '',
+                        errorMessage
+                    })
                 });
             }
         }
@@ -460,8 +501,8 @@ export default function AssignKpiPage() {
         console.error('Error assigning KPI:', error);
         toast({
             variant: 'destructive',
-            title: 'Lỗi!',
-            description: error?.message || error?.details || 'Không thể giao KPI. Vui lòng thử lại.'
+            title: t('common.error'),
+            description: error?.message || error?.details || t('assign.assignError')
         });
         // Không đóng dialog nếu có lỗi để người dùng có thể thử lại
     }
@@ -490,8 +531,8 @@ export default function AssignKpiPage() {
     try {
       await deleteKpiRecord(recordToCancel.id.toString());
       toast({
-        title: 'Thành công!',
-        description: `Đã hủy giao KPI "${recordToCancel.kpiName}".`
+        title: t('common.success'),
+        description: t('assign.cancelSuccess', { kpiName: recordToCancel.kpiName })
       });
       setIsCancelDialogOpen(false);
       setRecordToCancel(null);
@@ -499,8 +540,8 @@ export default function AssignKpiPage() {
       console.error('Error canceling KPI assignment:', error);
       toast({
         variant: 'destructive',
-        title: 'Lỗi!',
-        description: error?.message || error?.details || 'Không thể hủy giao KPI. Vui lòng thử lại.'
+        title: t('common.error'),
+        description: error?.message || error?.details || t('assign.cancelError')
       });
     }
   }
@@ -512,17 +553,17 @@ export default function AssignKpiPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>KPI đã giao</CardTitle>
+              <CardTitle>{t('assign.title')}</CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-4">
               {mounted ? (
                 <>
                   <Select value={filterEmployeeId} onValueChange={setFilterEmployeeId}>
                     <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Tất cả nhân viên" />
+                      <SelectValue placeholder={t('assign.allEmployees')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tất cả nhân viên</SelectItem>
+                      <SelectItem value="all">{t('assign.allEmployees')}</SelectItem>
                       {safeUsers.filter((user: any) => {
                         // Filter out admins (level >= 4)
                         const level = user.level || user.roles?.level || 0;
@@ -542,10 +583,10 @@ export default function AssignKpiPage() {
                   </Select>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Tất cả trạng thái" />
+                      <SelectValue placeholder={t('assign.allStatuses')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                      <SelectItem value="all">{t('assign.allStatuses')}</SelectItem>
                       {Object.entries(statusConfig).map(([key, config]) => (
                         <SelectItem key={key} value={key}>
                           {config.label}
@@ -569,7 +610,7 @@ export default function AssignKpiPage() {
                           {filterStartDate ? (
                             format(filterStartDate, 'dd/MM/yyyy')
                           ) : (
-                            <span>Từ ngày</span>
+                            <span>{t('assign.fromDate')}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -598,7 +639,7 @@ export default function AssignKpiPage() {
                           {filterEndDate ? (
                             format(filterEndDate, 'dd/MM/yyyy')
                           ) : (
-                            <span>Đến ngày</span>
+                            <span>{t('assign.toDate')}</span>
                           )}
                         </Button>
                       </PopoverTrigger>
@@ -624,7 +665,7 @@ export default function AssignKpiPage() {
                         }}
                         className="h-8 px-2"
                       >
-                        Xóa
+                        {t('common.clear')}
                       </Button>
                     )}
                   </div>
@@ -639,14 +680,14 @@ export default function AssignKpiPage() {
               )}
               {(filterStartDate || filterEndDate || filterStatus !== 'all' || filterEmployeeId !== 'all') && (
                 <div className="text-sm text-muted-foreground">
-                  Hiển thị {assignedKpis.length} KPI
+                  {t('assign.showingKpis', { count: assignedKpis.length })}
                   {filterEmployeeId !== 'all' && (() => {
                     const employeeName = safeUsers.find((e: any) => e.id === filterEmployeeId)?.name || '';
-                    return ` của ${employeeName}`;
+                    return ` ${t('assign.of')} ${employeeName}`;
                   })()}
-                  {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
-                  {filterStartDate && !filterEndDate && ` - Từ ${format(filterStartDate, 'dd/MM/yyyy')}`}
-                  {!filterStartDate && filterEndDate && ` - Đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                  {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                  {filterStartDate && !filterEndDate && ` - ${t('common.from')} ${format(filterStartDate, 'dd/MM/yyyy')}`}
+                  {!filterStartDate && filterEndDate && ` - ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`}
                   {filterStatus !== 'all' && ` - ${statusConfig[filterStatus]?.label || filterStatus}`}
                 </div>
               )}
@@ -655,7 +696,7 @@ export default function AssignKpiPage() {
                 disabled={safeUsers.length === 0 || safeKpis.length === 0}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Giao KPI
+                {t('assign.assignKpi')}
               </Button>
             </div>
           </div>
@@ -664,11 +705,11 @@ export default function AssignKpiPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[150px]">Người nhận</TableHead>
-                <TableHead className="min-w-[200px]">Tên KPI</TableHead>
-                <TableHead className="min-w-[150px]">Thời gian</TableHead>
-                <TableHead className="min-w-[150px]">Tiến độ</TableHead>
-                <TableHead>Trạng thái</TableHead>
+                <TableHead className="min-w-[150px]">{t('assign.table.assignee')}</TableHead>
+                <TableHead className="min-w-[200px]">{t('assign.table.kpiName')}</TableHead>
+                <TableHead className="min-w-[150px]">{t('assign.table.time')}</TableHead>
+                <TableHead className="min-w-[150px]">{t('assign.table.progress')}</TableHead>
+                <TableHead>{t('assign.table.status')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -707,7 +748,7 @@ export default function AssignKpiPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusConfig[item.status as keyof typeof statusConfig]?.variant || 'default'}>
-                      {statusConfig[item.status as keyof typeof statusConfig]?.label || 'Không xác định'}
+                      {statusConfig[item.status as keyof typeof statusConfig]?.label || t('assign.unknown')}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -716,8 +757,8 @@ export default function AssignKpiPage() {
                   <TableCell colSpan={5} className="text-center h-24">
                     <div className="flex flex-col items-center justify-center">
                       <CalendarIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">Chưa có KPI nào được giao</p>
-                      <p className="text-sm text-muted-foreground">Giao KPI cho nhân viên hoặc phòng ban để bắt đầu</p>
+                      <p className="text-muted-foreground">{t('assign.noKpisAssigned')}</p>
+                      <p className="text-sm text-muted-foreground">{t('assign.noKpisAssignedDesc')}</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -745,7 +786,7 @@ export default function AssignKpiPage() {
                             </Avatar>
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold break-words">{selectedRecord.employeeName}</p>
-                              <p className="text-sm text-muted-foreground">Nhân viên thực hiện</p>
+                              <p className="text-sm text-muted-foreground">{t('assign.employeePerformer')}</p>
                             </div>
                           </>
                         ) : (
@@ -755,7 +796,7 @@ export default function AssignKpiPage() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold break-words">{selectedRecord.departmentName}</p>
-                              <p className="text-sm text-muted-foreground">Phòng ban thực hiện</p>
+                              <p className="text-sm text-muted-foreground">{t('assign.departmentPerformer')}</p>
                             </div>
                           </>
                         )}
@@ -763,15 +804,15 @@ export default function AssignKpiPage() {
 
                     <div className="grid grid-cols-2 gap-4 rounded-lg border p-4">
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Mục tiêu</p>
+                            <p className="text-sm font-medium text-muted-foreground">{t('assign.target')}</p>
                             <p className="text-lg font-semibold">{selectedRecord.target} {selectedRecord.kpiUnit}</p>
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Thực tế</p>
+                            <p className="text-sm font-medium text-muted-foreground">{t('assign.actual')}</p>
                             <p className="text-lg font-semibold">{selectedRecord.actual} {selectedRecord.kpiUnit}</p>
                         </div>
                          <div className="col-span-2">
-                             <p className="text-sm font-medium text-muted-foreground mb-1">Tiến độ hoàn thành</p>
+                             <p className="text-sm font-medium text-muted-foreground mb-1">{t('assign.completionProgress')}</p>
                              <div className="flex items-center gap-2">
                                  <Progress value={selectedRecord.completionPercentage} className="h-2 flex-1" />
                                  <span className="font-semibold text-sm">{selectedRecord.completionPercentage}%</span>
@@ -780,19 +821,19 @@ export default function AssignKpiPage() {
                     </div>
                      <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                            <p className="font-medium text-muted-foreground">Trạng thái</p>
+                            <p className="font-medium text-muted-foreground">{t('assign.status')}</p>
                             <Badge variant={statusConfig[selectedRecord.status]?.variant || 'default'}>
-                              {statusConfig[selectedRecord.status]?.label || 'Không xác định'}
+                              {statusConfig[selectedRecord.status]?.label || t('assign.unknown')}
                             </Badge>
                         </div>
                          <div>
-                            <p className="font-medium text-muted-foreground">Thời gian</p>
+                            <p className="font-medium text-muted-foreground">{t('assign.time')}</p>
                             <p className="break-words">{format(new Date((selectedRecord as any).start_date), 'dd/MM/yy')} - {format(new Date((selectedRecord as any).end_date), 'dd/MM/yy')}</p>
                         </div>
                     </div>
                     {selectedRecord.kpiRewardPenalty && (
                         <div className="w-full min-w-0">
-                             <p className="font-medium text-muted-foreground text-sm">Cấu hình Thưởng/Phạt</p>
+                             <p className="font-medium text-muted-foreground text-sm">{t('assign.rewardPenaltyConfig')}</p>
                              <pre className="text-sm p-2 bg-muted rounded-md mt-1 break-words whitespace-pre-wrap max-w-full overflow-x-auto font-mono">
                                  {(() => {
                                      try {
@@ -819,7 +860,7 @@ export default function AssignKpiPage() {
                         }}
                     >
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Hủy giao KPI
+                        {t('assign.cancelAssignment')}
                     </Button>
                     <div className="flex gap-2">
                         {selectedRecord.status !== 'completed' && (
@@ -830,25 +871,25 @@ export default function AssignKpiPage() {
                                         try {
                                             await updateKpiRecordStatus(selectedRecord.id.toString(), 'completed');
                                             toast({
-                                                title: 'Thành công!',
-                                                description: `Đã đánh dấu KPI "${selectedRecord.kpiName}" là hoàn thành.`
+                                                title: t('common.success'),
+                                                description: t('assign.markCompleteSuccess', { kpiName: selectedRecord.kpiName })
                                             });
                                             setDetailModalOpen(false);
                                         } catch (error: any) {
                                             toast({
                                                 variant: 'destructive',
-                                                title: 'Lỗi!',
-                                                description: error?.message || 'Không thể đánh dấu hoàn thành KPI. Vui lòng thử lại.'
+                                                title: t('common.error'),
+                                                description: error?.message || t('assign.markCompleteError')
                                             });
                                         }
                                     }
                                 }}
                                 className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
                             >
-                                Đánh dấu hoàn thành
+                                {t('assign.markComplete')}
                             </Button>
                         )}
-                        <Button variant="outline" onClick={() => setDetailModalOpen(false)}>Đóng</Button>
+                        <Button variant="outline" onClick={() => setDetailModalOpen(false)}>{t('common.close')}</Button>
                     </div>
                 </DialogFooter>
             </DialogContent>
@@ -859,9 +900,9 @@ export default function AssignKpiPage() {
       <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
         <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Giao KPI</DialogTitle>
+            <DialogTitle>{t('assign.assignKpi')}</DialogTitle>
             <DialogDescription>
-              Chọn loại giao KPI (nhân viên hoặc phòng ban), KPI và thời gian để giao việc.
+              {t('assign.assignKpiDesc')}
             </DialogDescription>
           </DialogHeader>
           
@@ -870,20 +911,20 @@ export default function AssignKpiPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {/* Assignment Type Select */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Loại giao</label>
+                  <label className="text-sm font-medium">{t('assign.assignmentType')}</label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" className="w-full justify-between">
-                        <span>{assignmentType === 'employee' ? 'Nhân viên' : 'Phòng ban'}</span>
+                        <span>{assignmentType === 'employee' ? t('assign.employee') : t('assign.department')}</span>
                         <ChevronDown className="h-4 w-4 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-64">
                       <DropdownMenuItem onSelect={() => setAssignmentType('employee')}>
-                        Nhân viên
+                        {t('assign.employee')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setAssignmentType('department')}>
-                        Phòng ban
+                        {t('assign.department')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -892,7 +933,7 @@ export default function AssignKpiPage() {
                 {/* Employee Select */}
                 {assignmentType === 'employee' && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Nhân viên</label>
+                    <label className="text-sm font-medium">{t('assign.employee')}</label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between">
@@ -901,7 +942,7 @@ export default function AssignKpiPage() {
                               <AvatarImage src={selectedEmployee?.avatar} />
                               <AvatarFallback>{selectedEmployee?.name?.charAt(0)}</AvatarFallback>
                             </Avatar>
-                            <span className="truncate">{selectedEmployee?.name || 'Chọn nhân viên'}</span>
+                            <span className="truncate">{selectedEmployee?.name || t('assign.selectEmployee')}</span>
                           </div>
                           <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0 ml-2" />
                         </Button>
@@ -924,11 +965,11 @@ export default function AssignKpiPage() {
                 {/* Department Select */}
                 {assignmentType === 'department' && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Phòng ban</label>
+                    <label className="text-sm font-medium">{t('assign.department')}</label>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="w-full justify-between">
-                          <span>{safeDepartments.find((d: any) => d.id === selectedDepartmentId)?.name || 'Chọn phòng ban'}</span>
+                          <span>{safeDepartments.find((d: any) => d.id === selectedDepartmentId)?.name || t('assign.selectDepartment')}</span>
                           <ChevronDown className="h-4 w-4 opacity-50" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -942,10 +983,12 @@ export default function AssignKpiPage() {
                     </DropdownMenu>
                     {selectedDepartmentId && (
                       <p className="text-xs text-muted-foreground">
-                        KPI sẽ được tự động giao cho {safeUsers.filter((emp: any) => {
-                          const level = emp.level || emp.roles?.level || 0;
-                          return level < 4 && Number(emp.department_id) === Number(selectedDepartmentId);
-                        }).length} nhân viên trong phòng ban này
+                        {t('assign.autoAssignToEmployees', {
+                          count: safeUsers.filter((emp: any) => {
+                            const level = emp.level || emp.roles?.level || 0;
+                            return level < 4 && Number(emp.department_id) === Number(selectedDepartmentId);
+                          }).length
+                        })}
                       </p>
                     )}
                   </div>
@@ -953,7 +996,7 @@ export default function AssignKpiPage() {
                 
                 {/* KPI Multi-Select */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Chọn KPI</label>
+                  <label className="text-sm font-medium">{t('assign.selectKpi')}</label>
                   <Button 
                     variant="outline" 
                     className="w-full justify-between" 
@@ -962,10 +1005,10 @@ export default function AssignKpiPage() {
                   >
                     <span className='truncate'>
                       {selectedKpis.length === 0 
-                        ? 'Chọn KPI' 
+                        ? t('assign.selectKpi') 
                         : selectedKpis.length === 1 
                         ? selectedKpis[0].name 
-                        : `Đã chọn ${selectedKpis.length} KPI`}
+                        : t('assign.selectedKpis', { count: selectedKpis.length })}
                     </span>
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
@@ -989,19 +1032,22 @@ export default function AssignKpiPage() {
                   )}
                   {assignmentType === 'department' && selectedDepartmentId && filteredKpis.length > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      {filteredKpis.length} KPI của phòng ban này
+                      {t('assign.departmentKpis', { count: filteredKpis.length })}
                     </p>
                   )}
                   {assignmentType === 'employee' && selectedEmployee && filteredKpis.length > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      {filteredKpis.length} KPI của phòng ban {safeDepartments.find((d: any) => d.id === selectedEmployee?.department_id)?.name || ''}
+                      {t('assign.employeeDepartmentKpis', {
+                        count: filteredKpis.length,
+                        departmentName: safeDepartments.find((d: any) => d.id === selectedEmployee?.department_id)?.name || ''
+                      })}
                     </p>
                   )}
                 </div>
                 
                 {/* Date Range Picker */}
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium">Thời gian thực hiện</label>
+                  <label className="text-sm font-medium">{t('assign.executionTime')}</label>
                   <Button
                     variant={'outline'}
                     className={cn(
@@ -1014,7 +1060,7 @@ export default function AssignKpiPage() {
                     {startDate && endDate ? (
                       <span>{format(startDate, 'dd/MM/yyyy')} - {format(endDate, 'dd/MM/yyyy')}</span>
                     ) : (
-                      <span>Chọn thời gian (Từ ngày đến ngày)</span>
+                      <span>{t('assign.selectTimeRange')}</span>
                     )}
                   </Button>
                 </div>
@@ -1023,10 +1069,10 @@ export default function AssignKpiPage() {
               <div className="text-center py-8 text-muted-foreground">
                 <div className="text-sm">
                   {safeUsers.length === 0 && safeKpis.length === 0 
-                    ? 'Chưa có nhân viên và KPI nào.' 
+                    ? t('assign.noUsersAndKpis')
                     : safeUsers.length === 0 
-                      ? 'Chưa có nhân viên nào.' 
-                      : 'Chưa có KPI nào.'
+                      ? t('assign.noUsers')
+                      : t('assign.noKpis')
                   }
                 </div>
               </div>
@@ -1035,13 +1081,13 @@ export default function AssignKpiPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAssignDialogOpen(false)}>
-              Hủy
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleAssignKpi}
               disabled={safeUsers.length === 0 || safeKpis.length === 0}
             >
-              Giao KPI
+              {t('assign.assignKpi')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1051,13 +1097,13 @@ export default function AssignKpiPage() {
       <Dialog open={isKpiDialogOpen} onOpenChange={setIsKpiDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Chọn KPI</DialogTitle>
+            <DialogTitle>{t('assign.selectKpi')}</DialogTitle>
             <DialogDescription>
               {assignmentType === 'department' && selectedDepartmentId
-                ? `Chọn KPI để giao cho phòng ban ${safeDepartments.find((d: any) => d.id === selectedDepartmentId)?.name || ''}`
+                ? t('assign.selectKpiForDepartment', { departmentName: safeDepartments.find((d: any) => d.id === selectedDepartmentId)?.name || '' })
                 : assignmentType === 'employee' && selectedEmployee
-                ? `Chọn KPI để giao cho ${selectedEmployee?.name || ''}`
-                : 'Chọn một hoặc nhiều KPI để giao'}
+                ? t('assign.selectKpiForEmployee', { employeeName: selectedEmployee?.name || '' })
+                : t('assign.selectOneOrMoreKpis')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -1111,7 +1157,7 @@ export default function AssignKpiPage() {
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                          <span>Mục tiêu: {kpi.target} {kpi.unit}</span>
+                          <span>{t('assign.target')}: {kpi.target} {kpi.unit}</span>
                           {kpi.department && (
                             <span>• {kpi.department}</span>
                           )}
@@ -1124,16 +1170,16 @@ export default function AssignKpiPage() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 {assignmentType === 'department' && !selectedDepartmentId
-                  ? 'Vui lòng chọn phòng ban trước'
+                  ? t('assign.selectDepartmentFirst')
                   : assignmentType === 'employee' && !selectedEmployee
-                  ? 'Vui lòng chọn nhân viên trước'
-                  : 'Không có KPI nào cho phòng ban này'}
+                  ? t('assign.selectEmployeeFirst')
+                  : t('assign.noKpisForDepartment')}
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsKpiDialogOpen(false)}>
-              Đóng
+              {t('common.close')}
             </Button>
             <Button 
               onClick={() => {
@@ -1143,7 +1189,7 @@ export default function AssignKpiPage() {
               }}
               disabled={selectedKpis.length === 0}
             >
-              Xác nhận ({selectedKpis.length})
+              {t('assign.confirm')} ({selectedKpis.length})
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1153,15 +1199,15 @@ export default function AssignKpiPage() {
       <Dialog open={isDateRangeDialogOpen} onOpenChange={setIsDateRangeDialogOpen}>
         <DialogContent className="sm:max-w-fit">
           <DialogHeader>
-            <DialogTitle>Chọn thời gian thực hiện</DialogTitle>
+            <DialogTitle>{t('assign.selectExecutionTime')}</DialogTitle>
             <DialogDescription>
-              Chọn ngày bắt đầu và ngày kết thúc cho KPI được giao
+              {t('assign.selectStartEndDate')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-center">Từ ngày</Label>
+                <Label className="text-sm font-medium text-center">{t('assign.fromDate')}</Label>
                 <CalendarComponent
                   initialFocus
                   mode="single"
@@ -1172,7 +1218,7 @@ export default function AssignKpiPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-center">Đến ngày</Label>
+                <Label className="text-sm font-medium text-center">{t('assign.toDate')}</Label>
                 <CalendarComponent
                   mode="single"
                   defaultMonth={endDate || startDate}
@@ -1186,7 +1232,7 @@ export default function AssignKpiPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDateRangeDialogOpen(false)}>
-              Hủy
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={() => {
@@ -1196,7 +1242,7 @@ export default function AssignKpiPage() {
               }}
               disabled={!startDate || !endDate || startDate > endDate}
             >
-              Xác nhận
+              {t('assign.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1206,19 +1252,21 @@ export default function AssignKpiPage() {
       <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận hủy giao KPI</AlertDialogTitle>
+            <AlertDialogTitle>{t('assign.confirmCancelTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn hủy giao KPI "{recordToCancel?.kpiName}" cho {recordToCancel?.assignmentType === 'employee' ? recordToCancel?.employeeName : recordToCancel?.departmentName}? 
-              Hành động này không thể hoàn tác.
+              {t('assign.confirmCancelDesc', {
+                kpiName: recordToCancel?.kpiName || '',
+                assignee: recordToCancel?.assignmentType === 'employee' ? recordToCancel?.employeeName : recordToCancel?.departmentName || ''
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmCancel} 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Xác nhận hủy
+              {t('assign.confirmCancel')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

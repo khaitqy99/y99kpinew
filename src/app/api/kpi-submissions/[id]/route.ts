@@ -4,10 +4,11 @@ import { kpiSubmissionService } from '@/services/supabase-service';
 // GET /api/kpi-submissions/[id] - Get KPI submission by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid KPI submission ID' },
@@ -36,10 +37,11 @@ export async function GET(
 // PUT /api/kpi-submissions/[id] - Update KPI submission
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid KPI submission ID' },
@@ -62,10 +64,11 @@ export async function PUT(
 // DELETE /api/kpi-submissions/[id] - Delete KPI submission
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid KPI submission ID' },

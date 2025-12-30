@@ -4,10 +4,11 @@ import { kpiRecordService } from '@/services/supabase-service';
 // PUT /api/kpi-records/[id]/update-actual - Update actual value of KPI record
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid KPI record ID' },

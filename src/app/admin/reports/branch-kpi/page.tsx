@@ -4,6 +4,7 @@ import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { SessionContext } from '@/contexts/SessionContext';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { useTranslation } from '@/hooks/use-translation';
 import {
   Card,
   CardContent,
@@ -64,6 +65,7 @@ interface EmployeeReport {
 }
 
 export default function BranchKpiReportPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { selectedBranch } = useContext(SessionContext);
   const { allDepartments, allUsers, branches } = useContext(SupabaseDataContext);
@@ -265,18 +267,18 @@ export default function BranchKpiReportPage() {
         
         // Show helpful message if no data
         if (deptReports.length === 0 && empReports.length === 0) {
-          const branchName = safeBranches.find((b: any) => b.id === selectedBranchId)?.name || 'N/A';
+          const branchName = safeBranches.find((b: any) => b.id === selectedBranchId)?.name || t('reports.notAvailable');
           toast({
-            title: 'Thông báo',
-            description: `Không có dữ liệu KPI cho chi nhánh "${branchName}". Vui lòng kiểm tra xem đã có KPI records được tạo chưa.`,
+            title: t('common.success'),
+            description: t('reports.noDataMessage', { name: branchName }),
             duration: 4000,
           });
         }
       } else {
         toast({
           variant: 'destructive',
-          title: 'Lỗi',
-          description: result.error || 'Không thể tải báo cáo KPI',
+          title: t('common.error'),
+          description: result.error || t('reports.loadError'),
         });
       }
 
@@ -305,8 +307,8 @@ export default function BranchKpiReportPage() {
       console.error('Error fetching reports:', error);
       toast({
         variant: 'destructive',
-        title: 'Lỗi',
-        description: 'Không thể tải báo cáo KPI. Vui lòng thử lại.',
+        title: t('common.error'),
+        description: t('reports.loadError'),
       });
     } finally {
       setLoading(false);
@@ -315,13 +317,13 @@ export default function BranchKpiReportPage() {
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      completed: { label: 'Hoàn thành', variant: 'default' },
-      approved: { label: 'Đã duyệt', variant: 'default' },
-      pending_approval: { label: 'Chờ duyệt', variant: 'secondary' },
-      in_progress: { label: 'Đang thực hiện', variant: 'outline' },
-      not_started: { label: 'Chưa bắt đầu', variant: 'outline' },
-      rejected: { label: 'Từ chối', variant: 'destructive' },
-      overdue: { label: 'Quá hạn', variant: 'destructive' },
+      completed: { label: t('reports.status.completed'), variant: 'default' },
+      approved: { label: t('reports.status.approved'), variant: 'default' },
+      pending_approval: { label: t('reports.status.pendingApproval'), variant: 'secondary' },
+      in_progress: { label: t('reports.status.inProgress'), variant: 'outline' },
+      not_started: { label: t('reports.status.notStarted'), variant: 'outline' },
+      rejected: { label: t('reports.status.rejected'), variant: 'destructive' },
+      overdue: { label: t('reports.status.overdue'), variant: 'destructive' },
     };
 
     const statusInfo = statusMap[status] || { label: status, variant: 'outline' as const };
@@ -337,14 +339,14 @@ export default function BranchKpiReportPage() {
     if (!selectedBranchId || (departmentReports.length === 0 && employeeReports.length === 0)) {
       toast({
         variant: 'destructive',
-        title: 'Lỗi',
-        description: 'Không có dữ liệu để xuất.',
+        title: t('common.error'),
+        description: t('reports.noDataToExport'),
       });
       return;
     }
 
     try {
-      const selectedBranchName = safeBranches.find((b: any) => b.id === selectedBranchId)?.name || 'N/A';
+      const selectedBranchName = safeBranches.find((b: any) => b.id === selectedBranchId)?.name || t('reports.notAvailable');
       const dateLabel = filterStartDate && filterEndDate
         ? `${format(filterStartDate, 'yyyy-MM-dd')}_to_${format(filterEndDate, 'yyyy-MM-dd')}`
         : filterStartDate
@@ -357,33 +359,33 @@ export default function BranchKpiReportPage() {
       const csvRows: string[] = [];
       
       // Add header with metadata
-      csvRows.push(`Báo cáo KPI Chi nhánh: ${selectedBranchName}`);
+      csvRows.push(`${t('reports.csvReportTitle')}: ${selectedBranchName}`);
       if (filterStartDate && filterEndDate) {
-        csvRows.push(`Thời gian: ${format(filterStartDate, 'dd/MM/yyyy')} đến ${format(filterEndDate, 'dd/MM/yyyy')}`);
+        csvRows.push(`${t('reports.csvTime')}: ${format(filterStartDate, 'dd/MM/yyyy')} ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`);
       } else if (filterStartDate) {
-        csvRows.push(`Thời gian: Từ ${format(filterStartDate, 'dd/MM/yyyy')}`);
+        csvRows.push(`${t('reports.csvTime')}: ${t('common.from')} ${format(filterStartDate, 'dd/MM/yyyy')}`);
       } else if (filterEndDate) {
-        csvRows.push(`Thời gian: Đến ${format(filterEndDate, 'dd/MM/yyyy')}`);
+        csvRows.push(`${t('reports.csvTime')}: ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`);
       } else {
-        csvRows.push(`Thời gian: Tất cả`);
+        csvRows.push(`${t('reports.csvTime')}: ${t('reports.allTime')}`);
       }
-      csvRows.push(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`);
+      csvRows.push(`${t('reports.csvExportDate')}: ${new Date().toLocaleDateString('vi-VN')}`);
       csvRows.push(''); // Empty line
       
       // Export Department Reports
       if (departmentReports.length > 0) {
-        csvRows.push('=== BÁO CÁO KPI THEO PHÒNG BAN ===');
+        csvRows.push(`=== ${t('reports.csvDepartmentReport')} ===`);
         csvRows.push('');
         
         // Department summary header
         csvRows.push([
-          'Mã phòng ban',
-          'Tên phòng ban',
-          'Tổng KPI',
-          'KPI hoàn thành',
-          'Tiến độ trung bình (%)',
-          'Tổng thưởng (VND)',
-          'Tổng phạt (VND)'
+          t('reports.csvDepartmentCode'),
+          t('reports.csvDepartmentName'),
+          t('reports.csvTotalKpis'),
+          t('reports.csvCompletedKpis'),
+          t('reports.csvAverageProgress'),
+          t('reports.csvTotalBonus'),
+          t('reports.csvTotalPenalty')
         ].join(','));
         
         // Department summary rows
@@ -400,24 +402,24 @@ export default function BranchKpiReportPage() {
         });
         
         csvRows.push('');
-        csvRows.push('=== CHI TIẾT KPI PHÒNG BAN ===');
+        csvRows.push(`=== ${t('reports.csvDepartmentDetails')} ===`);
         csvRows.push('');
         
         // Department KPI details header
         csvRows.push([
-          'Mã phòng ban',
-          'Tên phòng ban',
-          'Tên KPI',
-          'Người thực hiện',
-          'Mã nhân viên',
-          'Mục tiêu',
-          'Thực tế',
-          'Đơn vị',
-          'Tiến độ (%)',
-          'Thưởng (VND)',
-          'Phạt (VND)',
-          'Trạng thái',
-          'Thời kỳ'
+          t('reports.csvDepartmentCode'),
+          t('reports.csvDepartmentName'),
+          t('reports.csvKpiName'),
+          t('reports.csvPerformer'),
+          t('reports.csvEmployeeCode'),
+          t('reports.csvTarget'),
+          t('reports.csvActual'),
+          t('reports.csvUnit'),
+          t('reports.csvProgress'),
+          t('reports.csvBonus'),
+          t('reports.csvPenalty'),
+          t('reports.csvStatus'),
+          t('reports.csvPeriod')
         ].join(','));
         
         // Department KPI details rows
@@ -429,8 +431,8 @@ export default function BranchKpiReportPage() {
             csvRows.push([
               dept.departmentCode || '',
               `"${dept.departmentName}"`,
-              `"${kpi.name || 'N/A'}"`,
-              isEmployeeKpi && employeeInfo ? `"${employeeInfo.name}"` : '"Phòng ban"',
+              `"${kpi.name || t('reports.notAvailable')}"`,
+              isEmployeeKpi && employeeInfo ? `"${employeeInfo.name}"` : `"${t('reports.departmentType')}"`,
               isEmployeeKpi && employeeInfo ? (employeeInfo.code || '') : '',
               (kpi.target || 0).toString(),
               (record.actual || 0).toString(),
@@ -449,19 +451,19 @@ export default function BranchKpiReportPage() {
       
       // Export Employee Reports
       if (employeeReports.length > 0) {
-        csvRows.push('=== BÁO CÁO KPI THEO CÁ NHÂN ===');
+        csvRows.push(`=== ${t('reports.csvEmployeeReport')} ===`);
         csvRows.push('');
         
         // Employee summary header
         csvRows.push([
-          'Mã nhân viên',
-          'Tên nhân viên',
-          'Phòng ban',
-          'Tổng KPI',
-          'KPI hoàn thành',
-          'Tiến độ trung bình (%)',
-          'Tổng thưởng (VND)',
-          'Tổng phạt (VND)'
+          t('reports.csvEmployeeCode'),
+          t('reports.csvEmployeeName'),
+          t('reports.csvDepartment'),
+          t('reports.csvTotalKpis'),
+          t('reports.csvCompletedKpis'),
+          t('reports.csvAverageProgress'),
+          t('reports.csvTotalBonus'),
+          t('reports.csvTotalPenalty')
         ].join(','));
         
         // Employee summary rows
@@ -479,23 +481,23 @@ export default function BranchKpiReportPage() {
         });
         
         csvRows.push('');
-        csvRows.push('=== CHI TIẾT KPI CÁ NHÂN ===');
+        csvRows.push(`=== ${t('reports.csvEmployeeDetails')} ===`);
         csvRows.push('');
         
         // Employee KPI details header
         csvRows.push([
-          'Mã nhân viên',
-          'Tên nhân viên',
-          'Phòng ban',
-          'Tên KPI',
-          'Mục tiêu',
-          'Thực tế',
-          'Đơn vị',
-          'Tiến độ (%)',
-          'Thưởng (VND)',
-          'Phạt (VND)',
-          'Trạng thái',
-          'Thời kỳ'
+          t('reports.csvEmployeeCode'),
+          t('reports.csvEmployeeName'),
+          t('reports.csvDepartment'),
+          t('reports.csvKpiName'),
+          t('reports.csvTarget'),
+          t('reports.csvActual'),
+          t('reports.csvUnit'),
+          t('reports.csvProgress'),
+          t('reports.csvBonus'),
+          t('reports.csvPenalty'),
+          t('reports.csvStatus'),
+          t('reports.csvPeriod')
         ].join(','));
         
         // Employee KPI details rows
@@ -506,7 +508,7 @@ export default function BranchKpiReportPage() {
               emp.employeeCode || '',
               `"${emp.employeeName}"`,
               `"${emp.departmentName}"`,
-              `"${kpi.name || 'N/A'}"`,
+              `"${kpi.name || t('reports.notAvailable')}"`,
               (kpi.target || 0).toString(),
               (record.actual || 0).toString(),
               kpi.unit || '',
@@ -539,15 +541,15 @@ export default function BranchKpiReportPage() {
       URL.revokeObjectURL(url);
       
       toast({
-        title: 'Xuất dữ liệu thành công',
-        description: `Đã xuất báo cáo KPI cho chi nhánh ${selectedBranchName}`,
+        title: t('reports.exportSuccess'),
+        description: t('reports.exportSuccessDesc', { name: selectedBranchName }),
       });
     } catch (error: any) {
       console.error('Error exporting report:', error);
       toast({
         variant: 'destructive',
-        title: 'Lỗi',
-        description: 'Không thể xuất báo cáo. Vui lòng thử lại.',
+        title: t('common.error'),
+        description: t('reports.exportError'),
       });
     }
   };
@@ -557,9 +559,9 @@ export default function BranchKpiReportPage() {
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>Chọn chi nhánh</CardTitle>
+            <CardTitle>{t('reports.selectBranch')}</CardTitle>
             <CardDescription>
-              Vui lòng chọn chi nhánh để xem báo cáo KPI
+              {t('reports.selectBranchDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -569,7 +571,7 @@ export default function BranchKpiReportPage() {
                 onValueChange={(value) => setSelectedBranchId(parseInt(value, 10))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn chi nhánh" />
+                  <SelectValue placeholder={t('reports.selectBranch')} />
                 </SelectTrigger>
                 <SelectContent>
                   {safeBranches.map((branch: any) => (
@@ -581,7 +583,7 @@ export default function BranchKpiReportPage() {
               </Select>
             ) : (
               <div className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                Chọn chi nhánh
+                {t('reports.selectBranch')}
               </div>
             )}
           </CardContent>
@@ -590,7 +592,7 @@ export default function BranchKpiReportPage() {
     );
   }
 
-  const selectedBranchName = safeBranches.find((b: any) => b.id === selectedBranchId)?.name || 'N/A';
+  const selectedBranchName = safeBranches.find((b: any) => b.id === selectedBranchId)?.name || t('reports.notAvailable');
   const totalKpis = departmentReports.reduce((sum, d) => sum + d.totalKpis, 0) +
     employeeReports.reduce((sum, e) => sum + e.totalKpis, 0);
   const totalCompleted = departmentReports.reduce((sum, d) => sum + d.completedKpis, 0) +
@@ -609,26 +611,26 @@ export default function BranchKpiReportPage() {
         {/* Header with period selector */}
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Báo cáo KPI Chi nhánh</CardTitle>
+            <CardTitle>{t('reports.title')}</CardTitle>
             <CardDescription className="mt-1">
-              Xem báo cáo KPI theo phòng ban và cá nhân
+              {t('reports.subtitle')}
               {filterStartDate && filterEndDate && (
                 <span className="ml-2 text-muted-foreground">
-                  - {format(filterStartDate, 'dd/MM/yyyy')} đến {format(filterEndDate, 'dd/MM/yyyy')}
+                  - {format(filterStartDate, 'dd/MM/yyyy')} {t('common.to')} {format(filterEndDate, 'dd/MM/yyyy')}
                 </span>
               )}
               {filterStartDate && !filterEndDate && (
                 <span className="ml-2 text-muted-foreground">
-                  - Từ {format(filterStartDate, 'dd/MM/yyyy')}
+                  - {t('common.from')} {format(filterStartDate, 'dd/MM/yyyy')}
                 </span>
               )}
               {!filterStartDate && filterEndDate && (
                 <span className="ml-2 text-muted-foreground">
-                  - Đến {format(filterEndDate, 'dd/MM/yyyy')}
+                  - {t('common.to')} {format(filterEndDate, 'dd/MM/yyyy')}
                 </span>
               )}
               {!filterStartDate && !filterEndDate && (
-                <span className="ml-2 text-muted-foreground">- Tất cả thời gian</span>
+                <span className="ml-2 text-muted-foreground">- {t('reports.allTime')}</span>
               )}
             </CardDescription>
           </div>
@@ -640,7 +642,7 @@ export default function BranchKpiReportPage() {
                 onValueChange={(value) => setSelectedBranchId(parseInt(value, 10))}
               >
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Chọn chi nhánh" />
+                  <SelectValue placeholder={t('reports.selectBranch')} />
                 </SelectTrigger>
                 <SelectContent>
                   {safeBranches.map((branch: any) => (
@@ -653,7 +655,7 @@ export default function BranchKpiReportPage() {
             )}
             {!mounted && safeBranches.length > 0 && (
               <div className="h-10 w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm">
-                Chọn chi nhánh
+                {t('reports.selectBranch')}
               </div>
             )}
             <div className="flex items-center gap-2">
@@ -674,7 +676,7 @@ export default function BranchKpiReportPage() {
                         {filterStartDate ? (
                           format(filterStartDate, 'dd/MM/yyyy')
                         ) : (
-                          <span>Từ ngày</span>
+                          <span>{t('reports.fromDate')}</span>
                         )}
                       </Button>
                     </PopoverTrigger>
@@ -703,7 +705,7 @@ export default function BranchKpiReportPage() {
                         {filterEndDate ? (
                           format(filterEndDate, 'dd/MM/yyyy')
                         ) : (
-                          <span>Đến ngày</span>
+                          <span>{t('reports.toDate')}</span>
                         )}
                       </Button>
                     </PopoverTrigger>
@@ -723,10 +725,10 @@ export default function BranchKpiReportPage() {
               ) : (
                 <>
                   <div className="h-10 w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
-                    Từ ngày
+                    {t('reports.fromDate')}
                   </div>
                   <div className="h-10 w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
-                    Đến ngày
+                    {t('reports.toDate')}
                   </div>
                 </>
               )}
@@ -740,7 +742,7 @@ export default function BranchKpiReportPage() {
                   }}
                   className="h-8 px-2"
                 >
-                  Xóa
+                  {t('reports.clear')}
                 </Button>
               )}
             </div>
@@ -749,20 +751,20 @@ export default function BranchKpiReportPage() {
               disabled={loading || !selectedBranchId}
               variant="outline"
               size="sm"
-              title="Làm mới dữ liệu"
+              title={t('reports.refreshTooltip')}
             >
               <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
-              Làm mới
+              {t('reports.refresh')}
             </Button>
             <Button 
               onClick={handleExportReport} 
               disabled={loading || !selectedBranchId || (departmentReports.length === 0 && employeeReports.length === 0)}
               variant="outline"
               size="sm"
-              title="Xuất báo cáo ra file CSV"
+              title={t('reports.exportTooltip')}
             >
               <Download className="h-4 w-4 mr-2" />
-              Export
+              {t('common.export')}
             </Button>
           </div>
         </div>
@@ -771,46 +773,46 @@ export default function BranchKpiReportPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Phòng ban</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('reports.departments')}</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{departmentReports.length}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Phòng ban có KPI
+                {t('reports.departmentsWithKpi')}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Nhân viên</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('reports.employees')}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{employeeReports.length}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Nhân viên có KPI
+                {t('reports.employeesWithKpi')}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tổng KPI</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('reports.totalKpis')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalKpis}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {totalCompleted}/{totalKpis} hoàn thành ({overallProgress.toFixed(1)}%)
+                {t('reports.completedCount', { completed: totalCompleted, total: totalKpis })} ({overallProgress.toFixed(1)}%)
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tổng thưởng</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('reports.totalBonus')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -818,14 +820,14 @@ export default function BranchKpiReportPage() {
                 {formatCurrency(totalBonus)} VNĐ
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Thưởng của chi nhánh
+                {t('reports.branchBonus')}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tổng phạt</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('reports.totalPenalty')}</CardTitle>
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
@@ -833,7 +835,7 @@ export default function BranchKpiReportPage() {
                 {formatCurrency(totalPenalty)} VNĐ
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Phạt của chi nhánh
+                {t('reports.branchPenalty')}
               </p>
             </CardContent>
           </Card>
@@ -844,15 +846,15 @@ export default function BranchKpiReportPage() {
           <TabsList>
             <TabsTrigger value="department">
               <Building2 className="h-4 w-4 mr-2" />
-              KPI Phòng ban
+              {t('reports.departmentTab')}
             </TabsTrigger>
             <TabsTrigger value="employee">
               <Users className="h-4 w-4 mr-2" />
-              KPI Cá nhân
+              {t('reports.employeeTab')}
             </TabsTrigger>
             <TabsTrigger value="kpi-summary">
               <Target className="h-4 w-4 mr-2" />
-              Tổng hợp KPI
+              {t('reports.kpiSummaryTab')}
             </TabsTrigger>
           </TabsList>
 
@@ -861,9 +863,9 @@ export default function BranchKpiReportPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Báo cáo KPI theo Phòng ban</CardTitle>
+                    <CardTitle>{t('reports.departmentReportTitle')}</CardTitle>
                     <CardDescription>
-                      Tổng hợp KPI của các phòng ban và nhân viên trong chi nhánh {selectedBranchName}
+                      {t('reports.departmentReportDesc', { name: selectedBranchName })}
                     </CardDescription>
                   </div>
                   <Select
@@ -871,10 +873,10 @@ export default function BranchKpiReportPage() {
                     onValueChange={(value) => setSelectedDepartmentId(value)}
                   >
                     <SelectTrigger className="w-[250px]">
-                      <SelectValue placeholder="Chọn phòng ban" />
+                      <SelectValue placeholder={t('reports.selectDepartment')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tất cả phòng ban</SelectItem>
+                      <SelectItem value="all">{t('reports.allDepartments')}</SelectItem>
                       {branchDepartments.map((dept: any) => (
                         <SelectItem key={dept.id} value={dept.id.toString()}>
                           {dept.name}
@@ -893,11 +895,11 @@ export default function BranchKpiReportPage() {
                   <div className="flex items-center justify-center py-12 text-muted-foreground">
                     <div className="text-center max-w-md">
                       <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm font-medium">Chưa có dữ liệu KPI phòng ban</p>
+                      <p className="text-sm font-medium">{t('reports.noDepartmentData')}</p>
                       <p className="text-xs mt-1">
                         {filterStartDate || filterEndDate
-                          ? 'Không có dữ liệu KPI cho phòng ban nào trong khoảng thời gian đã chọn'
-                          : 'Chưa có dữ liệu KPI cho phòng ban. Báo cáo này bao gồm KPI được gán trực tiếp cho phòng ban và KPI của các nhân viên trong phòng ban.'}
+                          ? t('reports.noDepartmentDataFiltered')
+                          : t('reports.noDepartmentDataDesc')}
                       </p>
                     </div>
                   </div>
@@ -912,7 +914,7 @@ export default function BranchKpiReportPage() {
                       <div className="flex items-center justify-center py-12 text-muted-foreground">
                         <div className="text-center">
                           <Building2 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">Không có dữ liệu KPI cho phòng ban đã chọn</p>
+                          <p className="text-sm">{t('reports.noDepartmentSelected')}</p>
                         </div>
                       </div>
                     );
@@ -933,7 +935,7 @@ export default function BranchKpiReportPage() {
                             <div>
                               <CardTitle className="text-lg">{dept.departmentName}</CardTitle>
                               <CardDescription className="mt-1">
-                                Mã: {dept.departmentCode}
+                                {t('reports.code', { code: dept.departmentCode })}
                               </CardDescription>
                             </div>
                             <div className="text-right">
@@ -941,7 +943,7 @@ export default function BranchKpiReportPage() {
                                 {dept.averageProgress.toFixed(1)}%
                               </div>
                               <div className="text-sm text-muted-foreground">
-                                Tiến độ trung bình
+                                {t('reports.averageProgress')}
                               </div>
                             </div>
                           </div>
@@ -949,25 +951,25 @@ export default function BranchKpiReportPage() {
                             <div className="flex items-center gap-2">
                               <Target className="h-4 w-4 text-muted-foreground" />
                               <span className="text-sm">
-                                Tổng: {dept.totalKpis} KPI
+                                {t('reports.total', { count: dept.totalKpis })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
                               <span className="text-sm">
-                                Hoàn thành: {dept.completedKpis}/{dept.totalKpis}
+                                {t('reports.completedCount', { completed: dept.completedKpis, total: dept.totalKpis })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <TrendingUp className="h-4 w-4 text-green-600" />
                               <span className="text-sm">
-                                Thưởng: {formatCurrency(dept.totalBonus || 0)} VNĐ
+                                {t('reports.bonus', { amount: formatCurrency(dept.totalBonus || 0) })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <TrendingDown className="h-4 w-4 text-red-600" />
                               <span className="text-sm">
-                                Phạt: {formatCurrency(dept.totalPenalty || 0)} VNĐ
+                                {t('reports.penalty', { amount: formatCurrency(dept.totalPenalty || 0) })}
                               </span>
                             </div>
                           </div>
@@ -976,7 +978,7 @@ export default function BranchKpiReportPage() {
                           <div className="space-y-4">
                             <div>
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium">Tiến độ chung</span>
+                                <span className="text-sm font-medium">{t('reports.generalProgress')}</span>
                                 <span className="text-sm text-muted-foreground">
                                   {dept.averageProgress.toFixed(1)}%
                                 </span>
@@ -987,18 +989,18 @@ export default function BranchKpiReportPage() {
                               />
                             </div>
                             <div className="border-t pt-4">
-                              <h4 className="font-semibold mb-3">Chi tiết KPI</h4>
+                              <h4 className="font-semibold mb-3">{t('reports.kpiDetails')}</h4>
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead>Tên KPI</TableHead>
-                                    <TableHead>Người thực hiện</TableHead>
-                                    <TableHead>Mục tiêu</TableHead>
-                                    <TableHead>Thực tế</TableHead>
-                                    <TableHead>Tiến độ</TableHead>
-                                    <TableHead>Thưởng</TableHead>
-                                    <TableHead>Phạt</TableHead>
-                                    <TableHead>Trạng thái</TableHead>
+                                    <TableHead>{t('reports.kpiName')}</TableHead>
+                                    <TableHead>{t('reports.performer')}</TableHead>
+                                    <TableHead>{t('reports.target')}</TableHead>
+                                    <TableHead>{t('reports.actual')}</TableHead>
+                                    <TableHead>{t('reports.progress')}</TableHead>
+                                    <TableHead>{t('bonusCalculation.bonus')}</TableHead>
+                                    <TableHead>{t('bonusCalculation.penalty')}</TableHead>
+                                    <TableHead>{t('reports.statusColumn')}</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1014,7 +1016,7 @@ export default function BranchKpiReportPage() {
                                         onClick={() => handleViewKpiDetail(record)}
                                       >
                                         <TableCell className="font-medium">
-                                          {kpi.name || 'N/A'}
+                                          {kpi.name || t('reports.notAvailable')}
                                         </TableCell>
                                         <TableCell>
                                           {isEmployeeKpi && employeeInfo ? (
@@ -1026,7 +1028,7 @@ export default function BranchKpiReportPage() {
                                             </div>
                                           ) : (
                                             <Badge variant="outline" className="text-xs">
-                                              Phòng ban
+                                              {t('reports.departmentType')}
                                             </Badge>
                                           )}
                                         </TableCell>
@@ -1074,11 +1076,11 @@ export default function BranchKpiReportPage() {
                               <div className="flex items-center justify-end gap-6 mt-4 text-sm">
                                 <div className="flex items-center gap-2 text-green-600 font-medium">
                                   <TrendingUp className="h-4 w-4" />
-                                  Tổng thưởng: {formatCurrency(detailBonusTotal)} VNĐ
+                                  {t('reports.totalBonusLabel', { amount: formatCurrency(detailBonusTotal) })}
                                 </div>
                                 <div className="flex items-center gap-2 text-red-600 font-medium">
                                   <TrendingDown className="h-4 w-4" />
-                                  Tổng phạt: {formatCurrency(detailPenaltyTotal)} VNĐ
+                                  {t('reports.totalPenaltyLabel', { amount: formatCurrency(detailPenaltyTotal) })}
                                 </div>
                               </div>
                             </div>
@@ -1099,9 +1101,9 @@ export default function BranchKpiReportPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Báo cáo KPI theo Cá nhân</CardTitle>
+                    <CardTitle>{t('reports.employeeReportTitle')}</CardTitle>
                     <CardDescription>
-                      Tổng hợp KPI của các nhân viên trong chi nhánh {selectedBranchName}
+                      {t('reports.employeeReportDesc', { name: selectedBranchName })}
                     </CardDescription>
                   </div>
                   <Select
@@ -1109,13 +1111,13 @@ export default function BranchKpiReportPage() {
                     onValueChange={(value) => setSelectedEmployeeId(value)}
                   >
                     <SelectTrigger className="w-[250px]">
-                      <SelectValue placeholder="Chọn nhân viên" />
+                      <SelectValue placeholder={t('reports.selectEmployee')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tất cả nhân viên</SelectItem>
+                      <SelectItem value="all">{t('reports.allEmployees')}</SelectItem>
                       {branchEmployees.map((emp: any) => (
                         <SelectItem key={emp.id} value={emp.id.toString()}>
-                          {emp.name} - {emp.employee_code || 'N/A'}
+                          {emp.name} - {emp.employee_code || t('reports.notAvailable')}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1131,14 +1133,14 @@ export default function BranchKpiReportPage() {
                   <div className="flex items-center justify-center py-12 text-muted-foreground">
                     <div className="text-center max-w-md">
                       <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm font-medium">Chưa có dữ liệu KPI cá nhân</p>
+                      <p className="text-sm font-medium">{t('reports.noEmployeeData')}</p>
                       <p className="text-xs mt-1">
                         {filterStartDate || filterEndDate
-                          ? 'Không có dữ liệu KPI cho nhân viên nào trong khoảng thời gian đã chọn'
-                          : 'Chưa có dữ liệu KPI được gán trực tiếp cho nhân viên. KPI cá nhân là các KPI records có employee_id và department_id = null.'}
+                          ? t('reports.noEmployeeDataFiltered')
+                          : t('reports.noEmployeeDataDesc')}
                       </p>
                       <p className="text-xs mt-2 text-muted-foreground/80">
-                        💡 Lưu ý: KPI được gán cho phòng ban sẽ hiển thị ở tab "KPI Phòng ban"
+                        💡 {t('reports.noteDepartmentKpis')}
                       </p>
                     </div>
                   </div>
@@ -1153,7 +1155,7 @@ export default function BranchKpiReportPage() {
                       <div className="flex items-center justify-center py-12 text-muted-foreground">
                         <div className="text-center">
                           <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                          <p className="text-sm">Không có dữ liệu KPI cho nhân viên đã chọn</p>
+                          <p className="text-sm">{t('reports.noEmployeeSelected')}</p>
                         </div>
                       </div>
                     );
@@ -1174,7 +1176,7 @@ export default function BranchKpiReportPage() {
                             <div>
                               <CardTitle className="text-lg">{emp.employeeName}</CardTitle>
                               <CardDescription className="mt-1">
-                                Mã NV: {emp.employeeCode} | Phòng ban: {emp.departmentName}
+                                {t('reports.employeeCodeLabel', { code: emp.employeeCode, name: emp.departmentName })}
                               </CardDescription>
                             </div>
                             <div className="text-right">
@@ -1182,7 +1184,7 @@ export default function BranchKpiReportPage() {
                                 {emp.averageProgress.toFixed(1)}%
                               </div>
                               <div className="text-sm text-muted-foreground">
-                                Tiến độ trung bình
+                                {t('reports.averageProgress')}
                               </div>
                             </div>
                           </div>
@@ -1190,25 +1192,25 @@ export default function BranchKpiReportPage() {
                             <div className="flex items-center gap-2">
                               <Target className="h-4 w-4 text-muted-foreground" />
                               <span className="text-sm">
-                                Tổng: {emp.totalKpis} KPI
+                                {t('reports.total', { count: emp.totalKpis })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
                               <span className="text-sm">
-                                Hoàn thành: {emp.completedKpis}/{emp.totalKpis}
+                                {t('reports.completedCount', { completed: emp.completedKpis, total: emp.totalKpis })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <TrendingUp className="h-4 w-4 text-green-600" />
                               <span className="text-sm">
-                                Thưởng: {formatCurrency(emp.totalBonus || 0)} VNĐ
+                                {t('reports.bonus', { amount: formatCurrency(emp.totalBonus || 0) })}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <TrendingDown className="h-4 w-4 text-red-600" />
                               <span className="text-sm">
-                                Phạt: {formatCurrency(emp.totalPenalty || 0)} VNĐ
+                                {t('reports.penalty', { amount: formatCurrency(emp.totalPenalty || 0) })}
                               </span>
                             </div>
                           </div>
@@ -1217,7 +1219,7 @@ export default function BranchKpiReportPage() {
                           <div className="space-y-4">
                             <div>
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium">Tiến độ chung</span>
+                                <span className="text-sm font-medium">{t('reports.generalProgress')}</span>
                                 <span className="text-sm text-muted-foreground">
                                   {emp.averageProgress.toFixed(1)}%
                                 </span>
@@ -1228,17 +1230,17 @@ export default function BranchKpiReportPage() {
                               />
                             </div>
                             <div className="border-t pt-4">
-                              <h4 className="font-semibold mb-3">Chi tiết KPI</h4>
+                              <h4 className="font-semibold mb-3">{t('reports.kpiDetails')}</h4>
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead>Tên KPI</TableHead>
-                                    <TableHead>Mục tiêu</TableHead>
-                                    <TableHead>Thực tế</TableHead>
-                                    <TableHead>Tiến độ</TableHead>
-                                    <TableHead>Thưởng</TableHead>
-                                    <TableHead>Phạt</TableHead>
-                                    <TableHead>Trạng thái</TableHead>
+                                    <TableHead>{t('reports.kpiName')}</TableHead>
+                                    <TableHead>{t('reports.target')}</TableHead>
+                                    <TableHead>{t('reports.actual')}</TableHead>
+                                    <TableHead>{t('reports.progress')}</TableHead>
+                                    <TableHead>{t('bonusCalculation.bonus')}</TableHead>
+                                    <TableHead>{t('bonusCalculation.penalty')}</TableHead>
+                                    <TableHead>{t('reports.statusColumn')}</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -1252,7 +1254,7 @@ export default function BranchKpiReportPage() {
                                         onClick={() => handleViewKpiDetail(record)}
                                       >
                                         <TableCell className="font-medium">
-                                          {kpi.name || 'N/A'}
+                                          {kpi.name || t('reports.notAvailable')}
                                         </TableCell>
                                         <TableCell>
                                           {kpi.target || 0} {kpi.unit || ''}
@@ -1298,11 +1300,11 @@ export default function BranchKpiReportPage() {
                               <div className="flex items-center justify-end gap-6 mt-4 text-sm">
                                 <div className="flex items-center gap-2 text-green-600 font-medium">
                                   <TrendingUp className="h-4 w-4" />
-                                  Tổng thưởng: {formatCurrency(detailBonusTotal)} VNĐ
+                                  {t('reports.totalBonusLabel', { amount: formatCurrency(detailBonusTotal) })}
                                 </div>
                                 <div className="flex items-center gap-2 text-red-600 font-medium">
                                   <TrendingDown className="h-4 w-4" />
-                                  Tổng phạt: {formatCurrency(detailPenaltyTotal)} VNĐ
+                                  {t('reports.totalPenaltyLabel', { amount: formatCurrency(detailPenaltyTotal) })}
                                 </div>
                               </div>
                             </div>
@@ -1322,9 +1324,9 @@ export default function BranchKpiReportPage() {
             <Card>
               <CardHeader>
                 <div>
-                  <CardTitle>Báo cáo Tiến độ chung theo KPI</CardTitle>
+                  <CardTitle>{t('reports.kpiSummaryTitle')}</CardTitle>
                   <CardDescription>
-                    Tổng hợp tiến độ của từng KPI trên tất cả phòng ban và nhân viên trong chi nhánh {selectedBranchName}
+                    {t('reports.kpiSummaryDesc', { name: selectedBranchName })}
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -1337,11 +1339,11 @@ export default function BranchKpiReportPage() {
                   <div className="flex items-center justify-center py-12 text-muted-foreground">
                     <div className="text-center max-w-md">
                       <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm font-medium">Chưa có dữ liệu KPI</p>
+                      <p className="text-sm font-medium">{t('reports.noKpiData')}</p>
                       <p className="text-xs mt-1">
                         {filterStartDate || filterEndDate
-                          ? 'Không có dữ liệu KPI trong khoảng thời gian đã chọn'
-                          : 'Chưa có dữ liệu KPI để hiển thị báo cáo tổng hợp.'}
+                          ? t('reports.noKpiDataFiltered')
+                          : t('reports.noKpiDataDesc')}
                       </p>
                     </div>
                   </div>
@@ -1396,8 +1398,8 @@ export default function BranchKpiReportPage() {
                                   </CardDescription>
                                 )}
                                 <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                  <span>Đơn vị: {summary.kpiUnit || 'N/A'}</span>
-                                  <span>Mục tiêu: {summary.kpiTarget || 0} {summary.kpiUnit || ''}</span>
+                                  <span>{t('reports.unit', { unit: summary.kpiUnit || t('reports.notAvailable') })}</span>
+                                  <span>{t('reports.targetWithAmount', { target: (summary.kpiTarget || 0).toLocaleString('vi-VN'), unit: summary.kpiUnit || '' })}</span>
                                 </div>
                               </div>
                               <div className="text-right">
@@ -1405,10 +1407,10 @@ export default function BranchKpiReportPage() {
                                   {averageProgress.toFixed(1)}%
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  Tiến độ chung
+                                  {t('reports.generalProgress')}
                                 </div>
                                 <div className="text-xs text-muted-foreground mt-1">
-                                  {totalAssignments} {totalAssignments === 1 ? 'người' : 'người'} đang thực hiện
+                                  {t('reports.peopleWorking', { count: totalAssignments, plural: totalAssignments === 1 ? t('reports.person') : t('reports.people') })}
                                 </div>
                               </div>
                             </div>
@@ -1416,37 +1418,37 @@ export default function BranchKpiReportPage() {
                               <div className="flex items-center gap-2">
                                 <Target className="h-4 w-4 text-muted-foreground" />
                                 <span className="text-sm">
-                                  Tổng: {totalAssignments} gán
+                                  {t('reports.totalAssignments', { count: totalAssignments })}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Building2 className="h-4 w-4 text-blue-600" />
                                 <span className="text-sm">
-                                  Phòng ban: {departmentAssignments}
+                                  {t('reports.departmentAssignments', { count: departmentAssignments })}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Users className="h-4 w-4 text-green-600" />
                                 <span className="text-sm">
-                                  Nhân viên: {employeeAssignments}
+                                  {t('reports.employeeAssignments', { count: employeeAssignments })}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                                 <span className="text-sm">
-                                  Hoàn thành: {completedCount}/{totalAssignments}
+                                  {t('reports.completedAssignments', { completed: completedCount, total: totalAssignments })}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <TrendingUp className="h-4 w-4 text-green-600" />
                                 <span className="text-sm">
-                                  Thưởng: {formatCurrency(totalBonus)} VNĐ
+                                  {t('reports.bonus', { amount: formatCurrency(totalBonus) })}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <TrendingDown className="h-4 w-4 text-red-600" />
                                 <span className="text-sm">
-                                  Phạt: {formatCurrency(totalPenalty)} VNĐ
+                                  {t('reports.penalty', { amount: formatCurrency(totalPenalty) })}
                                 </span>
                               </div>
                             </div>
@@ -1456,9 +1458,9 @@ export default function BranchKpiReportPage() {
                               <div>
                                 <div className="flex items-center justify-between mb-2">
                                   <div>
-                                    <span className="text-sm font-medium">Tiến độ chung của KPI</span>
+                                    <span className="text-sm font-medium">{t('reports.kpiGeneralProgress')}</span>
                                     <span className="text-xs text-muted-foreground ml-2">
-                                      ({totalAssignments} {totalAssignments === 1 ? 'người' : 'người'} đang thực hiện)
+                                      ({t('reports.peopleWorking', { count: totalAssignments, plural: totalAssignments === 1 ? t('reports.person') : t('reports.people') })})
                                     </span>
                                   </div>
                                   <span className="text-sm font-semibold">
@@ -1471,26 +1473,26 @@ export default function BranchKpiReportPage() {
                                 />
                                 <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
                                   <span>
-                                    Phòng ban: {departmentAssignments} | Nhân viên: {employeeAssignments}
+                                    {t('reports.departmentAssignments', { count: departmentAssignments })} | {t('reports.employeeAssignments', { count: employeeAssignments })}
                                   </span>
                                   <span>
-                                    Hoàn thành: {completedCount}/{totalAssignments}
+                                    {t('reports.completedAssignments', { completed: completedCount, total: totalAssignments })}
                                   </span>
                                 </div>
                               </div>
                               <div className="border-t pt-4">
-                                <h4 className="font-semibold mb-3">Chi tiết theo Phòng ban/Nhân viên</h4>
+                                <h4 className="font-semibold mb-3">{t('reports.detailsByDepartmentEmployee')}</h4>
                                 <Table>
                                   <TableHeader>
                                     <TableRow>
-                                      <TableHead>Người thực hiện</TableHead>
-                                      <TableHead>Loại</TableHead>
-                                      <TableHead>Mục tiêu</TableHead>
-                                      <TableHead>Thực tế</TableHead>
-                                      <TableHead>Tiến độ</TableHead>
-                                      <TableHead>Thưởng</TableHead>
-                                      <TableHead>Phạt</TableHead>
-                                      <TableHead>Trạng thái</TableHead>
+                                      <TableHead>{t('reports.assignee')}</TableHead>
+                                      <TableHead>{t('reports.type')}</TableHead>
+                                      <TableHead>{t('reports.target')}</TableHead>
+                                      <TableHead>{t('reports.actual')}</TableHead>
+                                      <TableHead>{t('reports.progress')}</TableHead>
+                                      <TableHead>{t('bonusCalculation.bonus')}</TableHead>
+                                      <TableHead>{t('bonusCalculation.penalty')}</TableHead>
+                                      <TableHead>{t('reports.statusColumn')}</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -1499,14 +1501,14 @@ export default function BranchKpiReportPage() {
                                       const isEmployeeKpi = record.source === 'employee';
                                       const isDepartmentKpi = record.source === 'department';
                                       
-                                      let assigneeName = 'N/A';
+                                      let assigneeName = t('reports.notAvailable');
                                       let assigneeCode = '';
                                       
                                       if (isEmployeeKpi && record.employees) {
-                                        assigneeName = record.employees.name || 'N/A';
+                                        assigneeName = record.employees.name || t('reports.notAvailable');
                                         assigneeCode = record.employees.employee_code || '';
                                       } else if (isDepartmentKpi && record.departments) {
-                                        assigneeName = record.departments.name || 'N/A';
+                                        assigneeName = record.departments.name || t('reports.notAvailable');
                                         assigneeCode = record.departments.code || '';
                                       }
 
@@ -1529,11 +1531,11 @@ export default function BranchKpiReportPage() {
                                           <TableCell>
                                             {isEmployeeKpi ? (
                                               <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
-                                                Nhân viên
+                                                {t('reports.employeeType')}
                                               </Badge>
                                             ) : (
                                               <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                                                Phòng ban
+                                                {t('reports.departmentType')}
                                               </Badge>
                                             )}
                                           </TableCell>
@@ -1581,11 +1583,11 @@ export default function BranchKpiReportPage() {
                                 <div className="flex items-center justify-end gap-6 mt-4 text-sm">
                                   <div className="flex items-center gap-2 text-green-600 font-medium">
                                     <TrendingUp className="h-4 w-4" />
-                                    Tổng thưởng: {formatCurrency(totalBonus)} VNĐ
+                                    {t('reports.totalBonusLabel', { amount: formatCurrency(totalBonus) })}
                                   </div>
                                   <div className="flex items-center gap-2 text-red-600 font-medium">
                                     <TrendingDown className="h-4 w-4" />
-                                    Tổng phạt: {formatCurrency(totalPenalty)} VNĐ
+                                    {t('reports.totalPenaltyLabel', { amount: formatCurrency(totalPenalty) })}
                                   </div>
                                 </div>
                               </div>

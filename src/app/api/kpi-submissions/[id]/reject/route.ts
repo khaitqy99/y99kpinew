@@ -4,10 +4,11 @@ import { kpiSubmissionService } from '@/services/supabase-service';
 // PUT /api/kpi-submissions/[id]/reject - Reject KPI submission
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam, 10);
     if (isNaN(id)) {
       return NextResponse.json(
         { success: false, error: 'Invalid KPI submission ID' },

@@ -38,11 +38,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { useTranslation } from '@/hooks/use-translation';
 
-// Helper function to get month name in Vietnamese
-const getMonthName = (monthIndex: number) => {
-  const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
-  return months[monthIndex];
+// Helper function to get month name based on language
+const getMonthName = (monthIndex: number, lang: string) => {
+  const viMonths = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+  const enMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return (lang === 'en' ? enMonths : viMonths)[monthIndex];
 };
 
 // Helper function to calculate completion rate for a month
@@ -69,6 +71,7 @@ const calculateMonthlyCompletionRate = (records: any[], targetMonth: number, tar
 
 export default function AdminDashboardPage() {
   const { kpiRecords, users, kpis, loading } = useContext(SupabaseDataContext);
+  const { t, language } = useTranslation();
 
   // Ensure arrays are defined before using filter
   const safeKpiRecords = kpiRecords || [];
@@ -90,7 +93,7 @@ export default function AdminDashboardPage() {
       const completionRate = calculateMonthlyCompletionRate(safeKpiRecords, targetMonth, targetYear);
       
       chartData.push({
-        name: getMonthName(targetMonth),
+        name: getMonthName(targetMonth, language),
         completed: completionRate,
         month: targetMonth,
         year: targetYear,
@@ -104,13 +107,13 @@ export default function AdminDashboardPage() {
     }
     
     return chartData;
-  }, [safeKpiRecords]);
+  }, [safeKpiRecords, language]);
 
   // Show loading state while data is being fetched - AFTER all hooks
   if (loading.kpiRecords || loading.users || loading.kpis) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
-        <div className="text-lg">Đang tải dữ liệu...</div>
+        <div className="text-lg">{t('adminDashboard.loading')}</div>
       </div>
     );
   }
@@ -122,7 +125,7 @@ export default function AdminDashboardPage() {
         id: record.id,
         title: kpi?.name || 'N/A',
         assignee: employee?.name || 'N/A',
-        status: 'Chờ duyệt',
+        status: t('adminDashboard.status.pending'),
     }
   });
 
@@ -142,52 +145,52 @@ export default function AdminDashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tổng KPI</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('adminDashboard.totalKpis')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalKpis}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {safeKpis.length} KPI được định nghĩa
+                {t('adminDashboard.totalKpiDefined', { count: safeKpis.length })}
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Đang chờ duyệt</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('adminDashboard.pendingApproval')}</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{pendingCount}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {pendingCount > 0 ? 'Cần được duyệt' : 'Không có KPI chờ duyệt'}
+                {pendingCount > 0 ? t('adminDashboard.needsApproval') : t('adminDashboard.noPendingKpis')}
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Nhân viên</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('adminDashboard.employees')}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{employeeCount}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Nhân viên trong hệ thống
+                {t('adminDashboard.employeesInSystem')}
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tỷ lệ hoàn thành</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('adminDashboard.completionRate')}</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{completionRate.toFixed(1)}%</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {completedCount}/{totalKpis} KPI hoàn thành
+                {t('adminDashboard.completedCount', { completed: completedCount, total: totalKpis })}
               </p>
             </CardContent>
           </Card>
@@ -195,9 +198,9 @@ export default function AdminDashboardPage() {
         <div className="grid gap-4 md:gap-6 lg:grid-cols-2 xl:grid-cols-3">
           <Card className="xl:col-span-2">
             <CardHeader>
-              <CardTitle>Tỷ lệ hoàn thành KPI</CardTitle>
+              <CardTitle>{t('adminDashboard.chartTitle')}</CardTitle>
               <CardDescription>
-                Biểu đồ hoàn thành KPI trong 6 tháng gần nhất.
+                {t('adminDashboard.chartDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -230,7 +233,7 @@ export default function AdminDashboardPage() {
                         const totalRecords = props.payload.totalRecords;
                         return [
                           `${value}%`,
-                          `Tỷ lệ hoàn thành (${totalRecords} KPI)`
+                          t('adminDashboard.completionTooltip', { total: totalRecords })
                         ];
                       }}
                       labelFormatter={(label: string, payload: any[]) => {
@@ -252,8 +255,8 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                   <div className="text-center">
                     <Target className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Chưa có dữ liệu KPI</p>
-                    <p className="text-xs">Dữ liệu sẽ hiển thị khi có KPI được tạo</p>
+                      <p className="text-sm">{t('adminDashboard.noKpiData')}</p>
+                      <p className="text-xs">{t('adminDashboard.noKpiDataDesc')}</p>
                   </div>
                 </div>
               )}
@@ -261,20 +264,20 @@ export default function AdminDashboardPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>{t('adminDashboard.quickActions')}</CardTitle>
               <CardDescription>
-                Thực hiện các tác vụ nhanh tại đây.
+                {t('adminDashboard.quickActionsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <Button asChild><Link href="/admin/kpis">Tạo KPI mới</Link></Button>
-              <Button variant="outline" asChild><Link href="/admin/assign">Giao KPI</Link></Button>
-              <Button variant="outline" asChild><Link href="/admin/approval">Duyệt KPI</Link></Button>
+              <Button asChild><Link href="/admin/kpis">{t('adminDashboard.createNewKpi')}</Link></Button>
+              <Button variant="outline" asChild><Link href="/admin/assign">{t('adminDashboard.assignKpi')}</Link></Button>
+              <Button variant="outline" asChild><Link href="/admin/approval">{t('adminDashboard.approveKpi')}</Link></Button>
               <Button variant="outline" asChild>
-                <Link href="/settings">Tạo phòng ban</Link>
+                <Link href="/settings">{t('adminDashboard.createDepartment')}</Link>
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/settings">Tạo nhân viên</Link>
+                <Link href="/settings">{t('adminDashboard.createEmployee')}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -282,14 +285,14 @@ export default function AdminDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center">
             <div className="grid gap-2">
-              <CardTitle>KPI chờ duyệt</CardTitle>
+              <CardTitle>{t('adminDashboard.pendingKpiTitle')}</CardTitle>
               <CardDescription>
-                Danh sách các KPI đang chờ được phê duyệt.
+                {t('adminDashboard.pendingKpiDesc')}
               </CardDescription>
             </div>
             <Button asChild size="sm" className="ml-auto gap-1">
               <Link href="/admin/approval">
-                Xem tất cả
+                {t('adminDashboard.viewAll')}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -298,9 +301,9 @@ export default function AdminDashboardPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tên KPI</TableHead>
-                  <TableHead>Nhân viên</TableHead>
-                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>{t('adminDashboard.table.kpiName')}</TableHead>
+                  <TableHead>{t('adminDashboard.table.employee')}</TableHead>
+                  <TableHead>{t('adminDashboard.table.status')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -319,7 +322,7 @@ export default function AdminDashboardPage() {
                     <TableCell colSpan={3} className="text-center h-24">
                       <div className="flex flex-col items-center justify-center">
                         <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
-                        <p className="text-muted-foreground">Không có KPI nào chờ duyệt</p>
+                        <p className="text-muted-foreground">{t('adminDashboard.noPendingKpiRow')}</p>
                       </div>
                     </TableCell>
                   </TableRow>

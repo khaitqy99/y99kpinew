@@ -1,5 +1,5 @@
 'use client';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -20,6 +20,7 @@ import {
   User,
   Calendar,
   Building2,
+  Globe,
 } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -32,38 +33,52 @@ import {
 } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { NotificationPanel } from './notification-panel';
 import { SessionContext } from '@/contexts/SessionContext';
-
-const adminNavItems = [
-  { href: '/admin/dashboard', icon: Shield, label: 'Admin Dashboard' },
-  { href: '/admin/kpis', icon: FileText, label: 'Quản lý KPI' },
-  { href: '/admin/daily-kpi-progress', icon: Calendar, label: 'Tiến độ hàng ngày' },
-  { href: '/admin/assign', icon: CheckCircle2, label: 'Giao KPI' },
-  { href: '/admin/approval', icon: FileCheck, label: 'Duyệt KPI' },
-  { href: '/admin/bonus-calculation', icon: Calculator, label: 'Tính thưởng' },
-  { href: '/admin/reports/branch-kpi', icon: Activity, label: 'Báo cáo KPI' },
-  { href: '/settings', icon: Settings, label: 'Cài đặt' },
-];
-
-const employeeNavItems = [
-  { href: '/employee/dashboard', icon: LayoutDashboard, label: 'Dashboard của tôi' },
-  { href: '/employee/kpis', icon: Target, label: 'Tất cả KPI' },
-  { href: '/employee/kpi-bonus-penalty', icon: DollarSign, label: 'Thưởng & Phạt' },
-  { href: '/employee/account', icon: User, label: 'Quản lý tài khoản' },
-];
+import { useTranslation } from '@/hooks/use-translation';
 
 export function AppShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, logout, selectedBranch } = useContext(SessionContext);
+  const { user, logout, selectedBranch, language, setLanguage } = useContext(SessionContext);
+  const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const isMobile = useIsMobile();
 
   if (!user) {
     return null;
   }
+
+  const adminNavItems = useMemo(
+    () => [
+      { href: '/admin/dashboard', icon: Shield, label: t('nav.adminDashboard') },
+      { href: '/admin/kpis', icon: FileText, label: t('nav.manageKpi') },
+      { href: '/admin/daily-kpi-progress', icon: Calendar, label: t('nav.dailyProgress') },
+      { href: '/admin/assign', icon: CheckCircle2, label: t('nav.assignKpi') },
+      { href: '/admin/approval', icon: FileCheck, label: t('nav.approval') },
+      { href: '/admin/bonus-calculation', icon: Calculator, label: t('nav.bonusCalculation') },
+      { href: '/admin/reports/branch-kpi', icon: Activity, label: t('nav.branchReport') },
+      { href: '/settings', icon: Settings, label: t('nav.settings') },
+    ],
+    [t]
+  );
+
+  const employeeNavItems = useMemo(
+    () => [
+      { href: '/employee/dashboard', icon: LayoutDashboard, label: t('nav.myDashboard') },
+      { href: '/employee/kpis', icon: Target, label: t('nav.allKpi') },
+      { href: '/employee/kpi-bonus-penalty', icon: DollarSign, label: t('nav.bonusPenalty') },
+      { href: '/employee/account', icon: User, label: t('nav.account') },
+    ],
+    [t]
+  );
 
   const navItems = user.role === 'admin' ? adminNavItems : employeeNavItems;
   const activeItem = navItems.find(item => pathname.startsWith(item.href));
@@ -243,7 +258,7 @@ export function AppShellContent({ children }: { children: React.ReactNode }) {
                  {selectedBranch ? (
                    <span className="hidden md:inline">{selectedBranch.name}</span>
                  ) : (
-                   <span className="hidden md:inline">Chọn chi nhánh</span>
+                   <span className="hidden md:inline">{t('nav.selectBranch')}</span>
                  )}
                </Button>
              </Link>
@@ -256,6 +271,34 @@ export function AppShellContent({ children }: { children: React.ReactNode }) {
                </span>
              </div>
            )}
+           <DropdownMenu>
+             <DropdownMenuTrigger asChild>
+               <Button variant="outline" size="sm" className="gap-2">
+                 <Globe className="h-4 w-4" />
+                 <span className="hidden md:inline">
+                   {language === 'vi' ? 'Tiếng Việt' : 'English'}
+                 </span>
+               </Button>
+             </DropdownMenuTrigger>
+             <DropdownMenuContent align="end">
+               <DropdownMenuItem
+                 onClick={() => setLanguage('vi')}
+                 className={language === 'vi' ? 'bg-accent' : ''}
+               >
+                 <span className="mr-2">🇻🇳</span>
+                 Tiếng Việt
+                 {language === 'vi' && <span className="ml-auto">✓</span>}
+               </DropdownMenuItem>
+               <DropdownMenuItem
+                 onClick={() => setLanguage('en')}
+                 className={language === 'en' ? 'bg-accent' : ''}
+               >
+                 <span className="mr-2">🇬🇧</span>
+                 English
+                 {language === 'en' && <span className="ml-auto">✓</span>}
+               </DropdownMenuItem>
+             </DropdownMenuContent>
+           </DropdownMenu>
            <NotificationPanel />
          </div>
        </header>
@@ -302,6 +345,34 @@ export function AppShellContent({ children }: { children: React.ReactNode }) {
                 </span>
               </div>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Globe className="h-3.5 w-3.5" />
+                  <span className="text-xs">
+                    {language === 'vi' ? 'VI' : 'EN'}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => setLanguage('vi')}
+                  className={language === 'vi' ? 'bg-accent' : ''}
+                >
+                  <span className="mr-2">🇻🇳</span>
+                  Tiếng Việt
+                  {language === 'vi' && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setLanguage('en')}
+                  className={language === 'en' ? 'bg-accent' : ''}
+                >
+                  <span className="mr-2">🇬🇧</span>
+                  English
+                  {language === 'en' && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <NotificationPanel />
           </div>
         </header>

@@ -62,8 +62,10 @@ import { SessionContext } from '@/contexts/SessionContext';
 import { formatDateToLocal, getRoleLabel, cn } from '@/lib/utils';
 import type { Employee } from '@/services/supabase-service';
 import { roleService, employeeService } from '@/services/supabase-service';
+import { useTranslation } from '@/hooks/use-translation';
 
 export function UsersDepartmentsTab() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { 
       users, addUser, updateUser, deleteUser,
@@ -122,15 +124,15 @@ export function UsersDepartmentsTab() {
   // Department handlers
   const handleCreateDepartment = async () => {
     if (!newDeptName.trim()) {
-        toast({ variant: 'destructive', title: 'Lỗi', description: 'Tên phòng ban không được để trống.' });
+        toast({ variant: 'destructive', title: t('common.error'), description: t('settings.departmentNameRequiredError') });
         return;
     }
     if (departments.some(dept => dept.name === newDeptName.trim())) {
-        toast({ variant: 'destructive', title: 'Lỗi', description: 'Phòng ban đã tồn tại.' });
+        toast({ variant: 'destructive', title: t('common.error'), description: t('settings.departmentExistsError') });
         return;
     }
     if (!newDeptBranchId) {
-        toast({ variant: 'destructive', title: 'Lỗi', description: 'Vui lòng chọn chi nhánh cho phòng ban.' });
+        toast({ variant: 'destructive', title: t('common.error'), description: t('settings.branchRequiredError') });
         return;
     }
     
@@ -138,7 +140,7 @@ export function UsersDepartmentsTab() {
       await addDepartment({
         name: newDeptName.trim(),
         code: newDeptCode.trim() || newDeptName.trim().toUpperCase().replace(/\s+/g, '_'),
-        description: newDeptDescription.trim() || `Phòng ban ${newDeptName.trim()}`,
+        description: newDeptDescription.trim() || `${t('settings.department')} ${newDeptName.trim()}`,
         branch_id: newDeptBranchId ? parseInt(newDeptBranchId, 10) : null
       });
       
@@ -147,15 +149,15 @@ export function UsersDepartmentsTab() {
       setNewDeptDescription('');
       setNewDeptBranchId(selectedBranch?.id?.toString() || '');
       toast({
-          title: 'Thành công!',
-          description: 'Đã tạo phòng ban mới.'
+          title: t('settings.createSuccess'),
+          description: t('settings.createSuccessDesc')
       });
     } catch (error) {
       console.error('Error creating department:', error);
       toast({ 
         variant: 'destructive', 
-        title: 'Lỗi', 
-        description: 'Không thể tạo phòng ban. Vui lòng thử lại.' 
+        title: t('common.error'), 
+        description: t('settings.createError')
       });
     }
   };
@@ -171,15 +173,15 @@ export function UsersDepartmentsTab() {
 
   const handleUpdateDepartment = async () => {
     if (!editDeptName.trim()) {
-      toast({ variant: 'destructive', title: 'Lỗi', description: 'Tên phòng ban không được để trống.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: t('settings.departmentNameRequiredError') });
       return;
     }
     if (departments.some(dept => dept.name === editDeptName.trim() && dept.id !== selectedDeptForEdit.id)) {
-      toast({ variant: 'destructive', title: 'Lỗi', description: 'Phòng ban đã tồn tại.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: t('settings.departmentExistsError') });
       return;
     }
     if (!editDeptBranchId) {
-      toast({ variant: 'destructive', title: 'Lỗi', description: 'Vui lòng chọn chi nhánh cho phòng ban.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: t('settings.branchRequiredError') });
       return;
     }
 
@@ -187,22 +189,22 @@ export function UsersDepartmentsTab() {
       await updateDepartment(selectedDeptForEdit.id.toString(), {
         name: editDeptName.trim(),
         code: editDeptCode.trim() || editDeptName.trim().toUpperCase().replace(/\s+/g, '_'),
-        description: editDeptDescription.trim() || `Phòng ban ${editDeptName.trim()}`,
+        description: editDeptDescription.trim() || t('settings.descriptionPlaceholder'),
         branch_id: editDeptBranchId ? parseInt(editDeptBranchId, 10) : null
       });
       
       setIsDeptEditDialogOpen(false);
       setSelectedDeptForEdit(null);
       toast({
-        title: 'Thành công!',
-        description: 'Đã cập nhật phòng ban.'
+        title: t('settings.updateSuccess'),
+        description: t('settings.updateSuccessDesc')
       });
     } catch (error: any) {
       console.error('Error updating department:', error);
       toast({ 
         variant: 'destructive', 
-        title: 'Lỗi', 
-        description: error?.message || 'Không thể cập nhật phòng ban. Vui lòng thử lại.' 
+        title: t('common.error'), 
+        description: error?.message || t('settings.updateError')
       });
     }
   };
@@ -225,8 +227,8 @@ export function UsersDepartmentsTab() {
     if (hasEmployees) {
       toast({ 
         variant: 'destructive', 
-        title: 'Lỗi', 
-        description: 'Không thể xóa phòng ban vì còn nhân viên trong phòng ban này.' 
+        title: t('common.error'), 
+        description: t('settings.hasEmployeesError')
       });
       setIsDeptDeleteDialogOpen(false);
       setSelectedDeptForDelete(null);
@@ -238,29 +240,29 @@ export function UsersDepartmentsTab() {
       setIsDeptDeleteDialogOpen(false);
       setSelectedDeptForDelete(null);
       toast({
-        title: 'Thành công!',
-        description: 'Đã xóa phòng ban.'
+        title: t('settings.deleteSuccess'),
+        description: t('settings.deleteSuccessDesc')
       });
     } catch (error: any) {
       console.error('Error deleting department:', error);
       toast({ 
         variant: 'destructive', 
-        title: 'Lỗi', 
-        description: error?.message || 'Không thể xóa phòng ban. Vui lòng thử lại.' 
+        title: t('common.error'), 
+        description: error?.message || t('settings.deleteError')
       });
     }
   };
   
   const handleCreateUser = async () => {
     if (!newUserName.trim() || !newUserEmail.trim() || newUserDepts.length === 0 || !newUserPassword.trim()) {
-        toast({ variant: 'destructive', title: 'Lỗi', description: 'Vui lòng điền đầy đủ thông tin nhân viên bao gồm mật khẩu và ít nhất một phòng ban.' });
+        toast({ variant: 'destructive', title: t('common.error'), description: t('settings.fillRequiredInfoError') });
         return;
     }
     
     // Validate all selected departments
     const selectedDepts = departments.filter(d => newUserDepts.includes(d.id));
     if (selectedDepts.length !== newUserDepts.length) {
-        toast({ variant: 'destructive', title: 'Lỗi', description: 'Một hoặc nhiều phòng ban không hợp lệ.' });
+        toast({ variant: 'destructive', title: t('common.error'), description: t('settings.invalidDepartmentsError') });
         return;
     }
     
@@ -270,8 +272,8 @@ export function UsersDepartmentsTab() {
         if (invalidDepts.length > 0) {
             toast({ 
                 variant: 'destructive', 
-                title: 'Lỗi', 
-                description: `Một hoặc nhiều phòng ban chưa được gán cho chi nhánh "${selectedBranch.name}". Vui lòng cập nhật phòng ban trước khi tạo nhân viên.` 
+                title: t('common.error'), 
+                description: t('settings.departmentsNotAssignedError', { name: selectedBranch.name })
             });
             return;
         }
@@ -310,7 +312,7 @@ export function UsersDepartmentsTab() {
         avatar_url: `https://picsum.photos/seed/${Date.now()}/40/40`,
         role_id: roleId,
         department_id: primaryDeptId, // Primary department for backward compatibility
-        position: newUserPosition || 'Nhân viên',
+        position: newUserPosition || t('settings.employee'),
         level: level,
         currency: 'VND',
         hire_date: formatDateToLocal(new Date()), // Format YYYY-MM-DD using local timezone
@@ -334,8 +336,8 @@ export function UsersDepartmentsTab() {
           // Log but don't fail the entire operation - user is already created
           toast({
             variant: 'destructive',
-            title: 'Cảnh báo',
-            description: 'Nhân viên đã được tạo nhưng có lỗi khi gán phòng ban. Vui lòng cập nhật lại.'
+            title: t('settings.warning'),
+            description: t('settings.employeeCreatedButDeptError')
           });
         }
       }
@@ -349,15 +351,15 @@ export function UsersDepartmentsTab() {
       setNewUserPassword('');
       
       toast({
-          title: 'Thành công!',
-          description: 'Đã tạo người dùng mới.'
+          title: t('settings.createEmployeeSuccess'),
+          description: t('settings.createEmployeeSuccessDesc')
       });
     } catch (error: any) {
       console.error('Error creating user:', error?.message || error, error);
       toast({ 
         variant: 'destructive', 
-        title: 'Lỗi', 
-        description: error?.message || 'Không thể tạo người dùng. Vui lòng thử lại.' 
+        title: t('common.error'), 
+        description: error?.message || t('settings.createEmployeeError')
       });
     }
   };
@@ -397,14 +399,14 @@ export function UsersDepartmentsTab() {
 
   const handleUpdateUser = async () => {
     if (!editUserName.trim() || !editUserEmail.trim() || editUserDepts.length === 0) {
-      toast({ variant: 'destructive', title: 'Lỗi', description: 'Vui lòng điền đầy đủ thông tin bắt buộc và chọn ít nhất một phòng ban.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: t('settings.departmentsRequiredError') });
       return;
     }
 
     // Validate all selected departments
     const selectedDepts = departments.filter(d => editUserDepts.includes(d.id));
     if (selectedDepts.length !== editUserDepts.length) {
-      toast({ variant: 'destructive', title: 'Lỗi', description: 'Một hoặc nhiều phòng ban không hợp lệ.' });
+      toast({ variant: 'destructive', title: t('common.error'), description: t('settings.invalidDepartmentsError') });
       return;
     }
 
@@ -432,7 +434,7 @@ export function UsersDepartmentsTab() {
         email: editUserEmail.trim(),
         department_id: primaryDeptId, // Primary department for backward compatibility
         role_id: role.id,
-        position: editUserPosition.trim() || 'Nhân viên',
+        position: editUserPosition.trim() || t('settings.employee'),
         level: level,
         status: editUserStatus,
       });
@@ -443,15 +445,15 @@ export function UsersDepartmentsTab() {
       setIsUserEditDialogOpen(false);
       setSelectedUserForEdit(null);
       toast({
-        title: 'Thành công!',
-        description: 'Đã cập nhật thông tin nhân viên.'
+        title: t('settings.updateEmployeeSuccess'),
+        description: t('settings.updateEmployeeSuccessDesc')
       });
     } catch (error: any) {
       console.error('Error updating user:', error);
       toast({ 
         variant: 'destructive', 
-        title: 'Lỗi', 
-        description: error?.message || 'Không thể cập nhật nhân viên. Vui lòng thử lại.' 
+        title: t('common.error'), 
+        description: error?.message || t('settings.updateEmployeeError')
       });
     }
   };
@@ -469,15 +471,15 @@ export function UsersDepartmentsTab() {
       setIsUserDeleteDialogOpen(false);
       setSelectedUserForDelete(null);
       toast({
-        title: 'Thành công!',
-        description: 'Đã xóa nhân viên.'
+        title: t('settings.deleteEmployeeSuccess'),
+        description: t('settings.deleteEmployeeSuccessDesc')
       });
     } catch (error: any) {
       console.error('Error deleting user:', error);
       toast({ 
         variant: 'destructive', 
-        title: 'Lỗi', 
-        description: error?.message || 'Không thể xóa nhân viên. Vui lòng thử lại.' 
+        title: t('common.error'), 
+        description: error?.message || t('settings.deleteEmployeeError')
       });
     }
   };
@@ -489,27 +491,27 @@ export function UsersDepartmentsTab() {
         {/* Department Management */}
         <Card>
           <CardHeader>
-            <CardTitle>Quản lý phòng ban</CardTitle>
+            <CardTitle>{t('settings.departmentManagement')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="space-y-3">
                 <div className="space-y-2">
-                    <Label htmlFor="new-dept">Tên phòng ban mới</Label>
-                    <Input id="new-dept" value={newDeptName} onChange={e => setNewDeptName(e.target.value)} placeholder="VD: Chăm sóc khách hàng" />
+                    <Label htmlFor="new-dept">{t('settings.newDepartmentName')}</Label>
+                    <Input id="new-dept" value={newDeptName} onChange={e => setNewDeptName(e.target.value)} placeholder={t('settings.newDepartmentNamePlaceholder')} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="new-dept-code">Mã phòng ban</Label>
-                    <Input id="new-dept-code" value={newDeptCode} onChange={e => setNewDeptCode(e.target.value)} placeholder="VD: CSKH" />
+                    <Label htmlFor="new-dept-code">{t('settings.departmentCode')}</Label>
+                    <Input id="new-dept-code" value={newDeptCode} onChange={e => setNewDeptCode(e.target.value)} placeholder={t('settings.departmentCodePlaceholder')} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="new-dept-desc">Mô tả</Label>
-                    <Textarea id="new-dept-desc" value={newDeptDescription} onChange={e => setNewDeptDescription(e.target.value)} placeholder="Mô tả phòng ban..." />
+                    <Label htmlFor="new-dept-desc">{t('settings.description')}</Label>
+                    <Textarea id="new-dept-desc" value={newDeptDescription} onChange={e => setNewDeptDescription(e.target.value)} placeholder={t('settings.descriptionPlaceholder')} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="new-dept-branch">Chi nhánh *</Label>
+                    <Label htmlFor="new-dept-branch">{t('settings.branchRequired')}</Label>
                     <Select value={newDeptBranchId} onValueChange={setNewDeptBranchId}>
                         <SelectTrigger id="new-dept-branch">
-                            <SelectValue placeholder="Chọn chi nhánh" />
+                            <SelectValue placeholder={t('settings.selectBranch')} />
                         </SelectTrigger>
                         <SelectContent>
                             {branches.map(branch => (
@@ -519,23 +521,23 @@ export function UsersDepartmentsTab() {
                     </Select>
                     {selectedBranch && !newDeptBranchId && (
                         <p className="text-xs text-muted-foreground">
-                            Chi nhánh hiện tại: {selectedBranch.name}
+                            {t('settings.currentBranch', { name: selectedBranch.name })}
                         </p>
                     )}
                 </div>
                 <Button onClick={handleCreateDepartment} className="w-full">
-                    <PlusCircle className='h-4 w-4 mr-2' /> Tạo phòng ban
+                    <PlusCircle className='h-4 w-4 mr-2' /> {t('settings.createDepartment')}
                 </Button>
             </div>
             <Separator />
-             <h3 className="text-sm font-medium">Danh sách phòng ban</h3>
+             <h3 className="text-sm font-medium">{t('settings.departmentList')}</h3>
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Tên phòng ban</TableHead>
-                        <TableHead>Mã phòng ban</TableHead>
-                        <TableHead>Chi nhánh</TableHead>
-                        <TableHead>Nhân viên</TableHead>
+                        <TableHead>{t('settings.departmentName')}</TableHead>
+                        <TableHead>{t('settings.departmentCode')}</TableHead>
+                        <TableHead>{t('settings.branch')}</TableHead>
+                        <TableHead>{t('settings.employees')}</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                 </TableHeader>
@@ -552,11 +554,11 @@ export function UsersDepartmentsTab() {
                                               (user.department_id ? [user.department_id] : []);
                             return userDeptIds.includes(dept.id);
                         }).length;
-                        const branchName = branches.find(b => b.id === dept.branch_id)?.name || 'Chưa gán';
+                        const branchName = branches.find(b => b.id === dept.branch_id)?.name || t('settings.notAssigned');
                         return (
                             <TableRow key={dept.id}>
                                 <TableCell className="font-medium">{dept.name}</TableCell>
-                                <TableCell>{dept.code || 'N/A'}</TableCell>
+                                <TableCell>{dept.code || t('settings.notAvailable')}</TableCell>
                                 <TableCell className="text-sm">{branchName}</TableCell>
                                 <TableCell className="text-center">{employeeCount}</TableCell>
                                 <TableCell>
@@ -569,14 +571,14 @@ export function UsersDepartmentsTab() {
                                     <DropdownMenuContent align="end">
                                       <DropdownMenuItem onClick={() => handleEditDepartment(dept)}>
                                         <Pencil className="h-4 w-4 mr-2" />
-                                        Sửa
+                                        {t('settings.edit')}
                                       </DropdownMenuItem>
                                       <DropdownMenuItem 
                                         onClick={() => handleDeleteDepartment(dept)}
                                         className="text-destructive"
                                       >
                                         <Trash2 className="h-4 w-4 mr-2" />
-                                        Xóa
+                                        {t('settings.delete')}
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
@@ -588,8 +590,8 @@ export function UsersDepartmentsTab() {
                             <TableCell colSpan={5} className="text-center h-24">
                                 <div className="flex flex-col items-center justify-center">
                                     <PlusCircle className="h-8 w-8 text-muted-foreground mb-2" />
-                                    <p className="text-muted-foreground">Chưa có phòng ban nào</p>
-                                    <p className="text-sm text-muted-foreground">Tạo phòng ban mới để bắt đầu</p>
+                                    <p className="text-muted-foreground">{t('settings.noDepartments')}</p>
+                                    <p className="text-sm text-muted-foreground">{t('settings.noDepartmentsDesc')}</p>
                                 </div>
                             </TableCell>
                         </TableRow>
@@ -602,21 +604,21 @@ export function UsersDepartmentsTab() {
         {/* User Management */}
         <Card>
           <CardHeader>
-            <CardTitle>Quản lý người dùng</CardTitle>
+            <CardTitle>{t('settings.userManagement')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-4">
                   <div className="space-y-2">
-                      <Label htmlFor="new-user-name">Tên nhân viên</Label>
-                      <Input id="new-user-name" value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="VD: Nguyễn Văn B" />
+                      <Label htmlFor="new-user-name">{t('settings.employeeName')}</Label>
+                      <Input id="new-user-name" value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder={t('settings.employeeNamePlaceholder')} />
                   </div>
                    <div className="space-y-2">
-                      <Label htmlFor="new-user-email">Email</Label>
-                      <Input id="new-user-email" type="email" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="VD: nvb@example.com" />
+                      <Label htmlFor="new-user-email">{t('settings.email')}</Label>
+                      <Input id="new-user-email" type="email" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder={t('settings.emailPlaceholder')} />
                   </div>
                    <div className="space-y-2">
-                      <Label htmlFor="new-user-dept">Phòng ban * (có thể chọn nhiều)</Label>
+                      <Label htmlFor="new-user-dept">{t('settings.departmentsRequired')}</Label>
                       <Popover>
                           <PopoverTrigger asChild>
                               <Button
@@ -628,15 +630,15 @@ export function UsersDepartmentsTab() {
                                   )}
                               >
                                   {newUserDepts.length > 0
-                                      ? `${newUserDepts.length} phòng ban đã chọn`
-                                      : "Chọn phòng ban"}
+                                      ? t('settings.departmentsSelected', { count: newUserDepts.length })
+                                      : t('settings.selectDepartments')}
                                   <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                               </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-full p-0" align="start">
                               <div className="max-h-60 overflow-y-auto p-2">
                                   {departments.length === 0 ? (
-                                      <p className="text-sm text-muted-foreground p-2">Chưa có phòng ban nào</p>
+                                      <p className="text-sm text-muted-foreground p-2">{t('settings.noDepartmentsAvailable')}</p>
                                   ) : (
                                       departments.map(dept => {
                                           const branchName = branches.find(b => b.id === dept.branch_id)?.name || '';
@@ -697,42 +699,42 @@ export function UsersDepartmentsTab() {
                </div>
                <div className="space-y-4">
                   <div className="space-y-2">
-                      <Label htmlFor="new-user-role">Vai trò</Label>
+                      <Label htmlFor="new-user-role">{t('settings.role')}</Label>
                       <Select value={newUserRole} onValueChange={(value: 'admin' | 'manager' | 'employee') => setNewUserRole(value)}>
                           <SelectTrigger id="new-user-role">
-                              <SelectValue placeholder="Chọn vai trò" />
+                              <SelectValue placeholder={t('settings.selectRole')} />
                           </SelectTrigger>
                           <SelectContent>
-                              <SelectItem value="employee">Nhân viên</SelectItem>
-                              <SelectItem value="manager">Quản lý</SelectItem>
-                              <SelectItem value="admin">Quản trị viên</SelectItem>
+                              <SelectItem value="employee">{t('settings.employee')}</SelectItem>
+                              <SelectItem value="manager">{t('settings.manager')}</SelectItem>
+                              <SelectItem value="admin">{t('settings.admin')}</SelectItem>
                           </SelectContent>
                       </Select>
                   </div>
                   <div className="space-y-2">
-                      <Label htmlFor="new-user-position">Vị trí</Label>
-                      <Input id="new-user-position" value={newUserPosition} onChange={e => setNewUserPosition(e.target.value)} placeholder="VD: Chuyên viên" />
+                      <Label htmlFor="new-user-position">{t('settings.position')}</Label>
+                      <Input id="new-user-position" value={newUserPosition} onChange={e => setNewUserPosition(e.target.value)} placeholder={t('settings.positionPlaceholder')} />
                   </div>
                   <div className="space-y-2">
-                      <Label htmlFor="new-user-password">Mật khẩu</Label>
-                      <Input id="new-user-password" type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} placeholder="Nhập mật khẩu cho tài khoản" />
+                      <Label htmlFor="new-user-password">{t('settings.password')}</Label>
+                      <Input id="new-user-password" type="password" value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} placeholder={t('settings.passwordPlaceholder')} />
                   </div>
                </div>
              </div>
              <div className="flex justify-center">
                <Button className="w-full md:w-auto" onClick={handleCreateUser}>
-                  <PlusCircle className='h-4 w-4 mr-2' /> Tạo nhân viên
+                  <PlusCircle className='h-4 w-4 mr-2' /> {t('settings.createEmployee')}
               </Button>
              </div>
                <Separator />
-               <h3 className="text-sm font-medium">Danh sách nhân viên</h3>
+               <h3 className="text-sm font-medium">{t('settings.employeeList')}</h3>
               <Table>
                   <TableHeader>
                       <TableRow>
-                          <TableHead>Tên</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Phòng ban</TableHead>
-                          <TableHead>Vai trò</TableHead>
+                          <TableHead>{t('settings.name')}</TableHead>
+                          <TableHead>{t('settings.email')}</TableHead>
+                          <TableHead>{t('settings.department')}</TableHead>
+                          <TableHead>{t('settings.role')}</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                   </TableHeader>
@@ -748,13 +750,13 @@ export function UsersDepartmentsTab() {
                                               <div key={dept.id} className="text-sm">
                                                   {dept.name}
                                                   {idx === 0 && user.all_departments.length > 1 && (
-                                                      <span className="text-xs text-muted-foreground ml-1">(chính)</span>
+                                                      <span className="text-xs text-muted-foreground ml-1">{t('settings.primary')}</span>
                                                   )}
                                               </div>
                                           ))}
                                       </div>
                                   ) : (
-                                      user.departments?.name || 'N/A'
+                                      user.departments?.name || t('settings.notAvailable')
                                   )}
                               </TableCell>
                               <TableCell>{getRoleLabel(user.roles?.name)}</TableCell>
@@ -768,14 +770,14 @@ export function UsersDepartmentsTab() {
                                   <DropdownMenuContent align="end">
                                     <DropdownMenuItem onClick={() => handleEditUser(user)}>
                                       <Pencil className="h-4 w-4 mr-2" />
-                                      Sửa
+                                      {t('settings.edit')}
                                     </DropdownMenuItem>
                                     <DropdownMenuItem 
                                       onClick={() => handleDeleteUser(user)}
                                       className="text-destructive"
                                     >
                                       <Trash2 className="h-4 w-4 mr-2" />
-                                      Xóa
+                                      {t('settings.delete')}
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -786,8 +788,8 @@ export function UsersDepartmentsTab() {
                               <TableCell colSpan={5} className="text-center h-24">
                                   <div className="flex flex-col items-center justify-center">
                                       <PlusCircle className="h-8 w-8 text-muted-foreground mb-2" />
-                                      <p className="text-muted-foreground">Chưa có nhân viên nào</p>
-                                      <p className="text-sm text-muted-foreground">Tạo nhân viên mới để bắt đầu</p>
+                                      <p className="text-muted-foreground">{t('settings.noEmployees')}</p>
+                                      <p className="text-sm text-muted-foreground">{t('settings.noEmployeesDesc')}</p>
                                   </div>
                               </TableCell>
                           </TableRow>
@@ -802,45 +804,45 @@ export function UsersDepartmentsTab() {
       <Dialog open={isDeptEditDialogOpen} onOpenChange={setIsDeptEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Sửa phòng ban</DialogTitle>
+            <DialogTitle>{t('settings.editDepartment')}</DialogTitle>
             <DialogDescription>
-              Cập nhật thông tin phòng ban
+              {t('settings.editDepartmentDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-dept-name">Tên phòng ban *</Label>
+              <Label htmlFor="edit-dept-name">{t('settings.departmentNameRequired')}</Label>
               <Input
                 id="edit-dept-name"
                 value={editDeptName}
                 onChange={(e) => setEditDeptName(e.target.value)}
-                placeholder="VD: Chăm sóc khách hàng"
+                placeholder={t('settings.newDepartmentNamePlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-dept-code">Mã phòng ban</Label>
+              <Label htmlFor="edit-dept-code">{t('settings.departmentCode')}</Label>
               <Input
                 id="edit-dept-code"
                 value={editDeptCode}
                 onChange={(e) => setEditDeptCode(e.target.value)}
-                placeholder="VD: CSKH"
+                placeholder={t('settings.departmentCodePlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-dept-desc">Mô tả</Label>
+              <Label htmlFor="edit-dept-desc">{t('settings.description')}</Label>
               <Textarea
                 id="edit-dept-desc"
                 value={editDeptDescription}
                 onChange={(e) => setEditDeptDescription(e.target.value)}
-                placeholder="Mô tả phòng ban..."
+                placeholder={t('settings.descriptionPlaceholder')}
                 rows={3}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-dept-branch">Chi nhánh *</Label>
+              <Label htmlFor="edit-dept-branch">{t('settings.branchRequired')}</Label>
               <Select value={editDeptBranchId} onValueChange={setEditDeptBranchId}>
                 <SelectTrigger id="edit-dept-branch">
-                  <SelectValue placeholder="Chọn chi nhánh" />
+                  <SelectValue placeholder={t('settings.selectBranch')} />
                 </SelectTrigger>
                 <SelectContent>
                   {branches.map(branch => (
@@ -852,10 +854,10 @@ export function UsersDepartmentsTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeptEditDialogOpen(false)}>
-              Hủy
+              {t('settings.cancel')}
             </Button>
             <Button onClick={handleUpdateDepartment}>
-              Cập nhật
+              {t('settings.update')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -865,18 +867,17 @@ export function UsersDepartmentsTab() {
       <AlertDialog open={isDeptDeleteDialogOpen} onOpenChange={setIsDeptDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa phòng ban</AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.confirmDeleteDepartment')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa phòng ban "{selectedDeptForDelete?.name}"? 
-              Hành động này không thể hoàn tác. Phòng ban sẽ bị vô hiệu hóa thay vì xóa hoàn toàn.
+              {t('settings.confirmDeleteDepartmentDesc', { name: selectedDeptForDelete?.name || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedDeptForDelete(null)}>
-              Hủy
+              {t('settings.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteDepartment} className="bg-destructive text-destructive-foreground">
-              Xóa
+              {t('settings.deleteAction')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -886,36 +887,36 @@ export function UsersDepartmentsTab() {
       <Dialog open={isUserEditDialogOpen} onOpenChange={setIsUserEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Sửa thông tin nhân viên</DialogTitle>
+            <DialogTitle>{t('settings.editEmployee')}</DialogTitle>
             <DialogDescription>
-              Cập nhật thông tin nhân viên
+              {t('settings.editEmployeeDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-user-name">Tên nhân viên *</Label>
+                <Label htmlFor="edit-user-name">{t('settings.employeeNameRequired')}</Label>
                 <Input
                   id="edit-user-name"
                   value={editUserName}
                   onChange={(e) => setEditUserName(e.target.value)}
-                  placeholder="VD: Nguyễn Văn B"
+                  placeholder={t('settings.employeeNamePlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-user-email">Email *</Label>
+                <Label htmlFor="edit-user-email">{t('settings.emailRequired')}</Label>
                 <Input
                   id="edit-user-email"
                   type="email"
                   value={editUserEmail}
                   onChange={(e) => setEditUserEmail(e.target.value)}
-                  placeholder="VD: nvb@example.com"
+                  placeholder={t('settings.emailPlaceholder')}
                 />
               </div>
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-user-dept">Phòng ban * (có thể chọn nhiều)</Label>
+                <Label htmlFor="edit-user-dept">{t('settings.departmentsRequired')}</Label>
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
@@ -927,15 +928,15 @@ export function UsersDepartmentsTab() {
                             )}
                         >
                             {editUserDepts.length > 0
-                                ? `${editUserDepts.length} phòng ban đã chọn`
-                                : "Chọn phòng ban"}
+                                ? t('settings.departmentsSelected', { count: editUserDepts.length })
+                                : t('settings.selectDepartments')}
                             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-full p-0" align="start">
                         <div className="max-h-60 overflow-y-auto p-2">
                             {departments.length === 0 ? (
-                                <p className="text-sm text-muted-foreground p-2">Chưa có phòng ban nào</p>
+                                <p className="text-sm text-muted-foreground p-2">{t('settings.noDepartmentsAvailable')}</p>
                             ) : (
                                 departments.map(dept => {
                                     const branchName = branches.find(b => b.id === dept.branch_id)?.name || '';
@@ -996,40 +997,40 @@ export function UsersDepartmentsTab() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-user-role">Vai trò</Label>
+                <Label htmlFor="edit-user-role">{t('settings.role')}</Label>
                 <Select value={editUserRole} onValueChange={(value: 'admin' | 'manager' | 'employee') => setEditUserRole(value)}>
                   <SelectTrigger id="edit-user-role">
-                    <SelectValue placeholder="Chọn vai trò" />
+                    <SelectValue placeholder={t('settings.selectRole')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="employee">Nhân viên</SelectItem>
-                    <SelectItem value="manager">Quản lý</SelectItem>
-                    <SelectItem value="admin">Quản trị viên</SelectItem>
+                    <SelectItem value="employee">{t('settings.employee')}</SelectItem>
+                    <SelectItem value="manager">{t('settings.manager')}</SelectItem>
+                    <SelectItem value="admin">{t('settings.admin')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-user-position">Vị trí</Label>
+                <Label htmlFor="edit-user-position">{t('settings.position')}</Label>
                 <Input
                   id="edit-user-position"
                   value={editUserPosition}
                   onChange={(e) => setEditUserPosition(e.target.value)}
-                  placeholder="VD: Chuyên viên"
+                  placeholder={t('settings.positionPlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-user-status">Trạng thái</Label>
+                <Label htmlFor="edit-user-status">{t('settings.status')}</Label>
                 <Select value={editUserStatus} onValueChange={(value: 'active' | 'inactive' | 'suspended' | 'terminated') => setEditUserStatus(value)}>
                   <SelectTrigger id="edit-user-status">
-                    <SelectValue placeholder="Chọn trạng thái" />
+                    <SelectValue placeholder={t('settings.selectStatus')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Hoạt động</SelectItem>
-                    <SelectItem value="inactive">Không hoạt động</SelectItem>
-                    <SelectItem value="suspended">Tạm ngưng</SelectItem>
-                    <SelectItem value="terminated">Đã chấm dứt</SelectItem>
+                    <SelectItem value="active">{t('settings.active')}</SelectItem>
+                    <SelectItem value="inactive">{t('settings.inactive')}</SelectItem>
+                    <SelectItem value="suspended">{t('settings.suspended')}</SelectItem>
+                    <SelectItem value="terminated">{t('settings.terminated')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1037,10 +1038,10 @@ export function UsersDepartmentsTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsUserEditDialogOpen(false)}>
-              Hủy
+              {t('settings.cancel')}
             </Button>
             <Button onClick={handleUpdateUser}>
-              Cập nhật
+              {t('settings.update')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1050,18 +1051,17 @@ export function UsersDepartmentsTab() {
       <AlertDialog open={isUserDeleteDialogOpen} onOpenChange={setIsUserDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa nhân viên</AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.confirmDeleteEmployee')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa nhân viên "{selectedUserForDelete?.name}"? 
-              Hành động này không thể hoàn tác. Nhân viên sẽ bị vô hiệu hóa thay vì xóa hoàn toàn.
+              {t('settings.confirmDeleteEmployeeDesc', { name: selectedUserForDelete?.name || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedUserForDelete(null)}>
-              Hủy
+              {t('settings.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteUser} className="bg-destructive text-destructive-foreground">
-              Xóa
+              {t('settings.deleteAction')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

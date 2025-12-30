@@ -30,6 +30,7 @@ import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { Kpi } from '@/services/supabase-service';
 import Link from 'next/link';
 import { getFrequencyLabel } from '@/lib/utils';
+import { useTranslation } from '@/hooks/use-translation';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,15 +47,15 @@ const KpiDialog = React.lazy(() => import('./KpiDialog'));
 const KpiDetailDialog = React.lazy(() => import('./KpiDetailDialog'));
 
 // Simple loading component
-const LoadingSpinner = () => (
+const LoadingSpinner = ({ t }: { t: (key: string) => string }) => (
   <div className="flex items-center justify-center p-8">
     <Loader2 className="h-8 w-8 animate-spin" />
-    <span className="ml-2">Đang tải...</span>
+    <span className="ml-2">{t('common.loading')}</span>
   </div>
 );
 
 // Memoized TableRow component for better performance
-const KpiTableRow = React.memo(({ kpi, onRowClick }: { kpi: Kpi; onRowClick: (kpi: Kpi) => void }) => (
+const KpiTableRow = React.memo(({ kpi, onRowClick, t, getFrequencyLabel }: { kpi: Kpi; onRowClick: (kpi: Kpi) => void; t: (key: string) => string; getFrequencyLabel: (freq: string) => string }) => (
   <TableRow onClick={() => onRowClick(kpi)} className="cursor-pointer hover:bg-muted/50">
     <TableCell className="font-medium w-[25%]">{kpi.name}</TableCell>
     <TableCell className="w-[20%]">{kpi.department}</TableCell>
@@ -62,7 +63,7 @@ const KpiTableRow = React.memo(({ kpi, onRowClick }: { kpi: Kpi; onRowClick: (kp
     <TableCell className="w-[15%]">{getFrequencyLabel(kpi.frequency)}</TableCell>
     <TableCell className="w-[15%]">
       <Badge variant={kpi.status === 'active' ? 'default' : 'secondary'}>
-        {kpi.status === 'active' ? 'Đang hoạt động' : 'Tạm dừng'}
+        {kpi.status === 'active' ? t('kpis.status.active') : t('kpis.status.inactive')}
       </Badge>
     </TableCell>
     <TableCell className="w-[10%]">
@@ -75,6 +76,7 @@ KpiTableRow.displayName = 'KpiTableRow';
 
 export default function KpiListPage() {
   const { kpis, deleteKpi } = useContext(SupabaseDataContext);
+  const { t, language } = useTranslation();
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDetailDialogOpen, setDetailDialogOpen] = useState(false);
   const [kpiToEdit, setKpiToEdit] = useState<Kpi | null>(null);
@@ -82,6 +84,14 @@ export default function KpiListPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [kpiToDelete, setKpiToDelete] = useState<Kpi | null>(null);
   const { toast } = useToast();
+
+  // Get frequency label with translation support
+  const getFrequencyLabelTranslated = useCallback((frequency: string) => {
+    const key = `kpis.frequency.${frequency?.toLowerCase()}`;
+    const translated = t(key);
+    // If translation not found, fallback to original function
+    return translated !== key ? translated : getFrequencyLabel(frequency);
+  }, [t]);
 
   // Memoize expensive operations
   const memoizedKpis = useMemo(() => kpis, [kpis]);
@@ -113,19 +123,19 @@ export default function KpiListPage() {
       await deleteKpi(kpiToDelete.id);
       toast({
         variant: 'destructive',
-        title: 'Đã xóa',
-        description: 'Đã xóa KPI khỏi hệ thống.',
+        title: t('kpis.deleteSuccess'),
+        description: t('kpis.deleteSuccessDesc'),
       });
       setIsDeleteDialogOpen(false);
       setKpiToDelete(null);
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Lỗi',
-        description: error?.message || 'Không thể xóa KPI',
+        title: t('common.error'),
+        description: error?.message || t('kpis.deleteError'),
       });
     }
-  }, [kpiToDelete, deleteKpi, toast]);
+  }, [kpiToDelete, deleteKpi, toast, t]);
 
   const handleOpenEditDialog = useCallback((isOpen: boolean) => {
     if (!isOpen) {
@@ -139,16 +149,16 @@ export default function KpiListPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="space-y-1.5">
-            <CardTitle>Quản lý KPI</CardTitle>
+            <CardTitle>{t('kpis.title')}</CardTitle>
           </div>
           <div className="flex gap-2">
             <Link href="/admin/bonus-calculation">
               <Button variant="outline" size="sm">
                 <Calculator className="h-4 w-4 mr-2" />
-                Tính thưởng
+                {t('kpis.calculateBonus')}
               </Button>
             </Link>
-            <Suspense fallback={<Button size="sm" disabled><Loader2 className="h-4 w-4 mr-2 animate-spin" />Tạo KPI...</Button>}>
+            <Suspense fallback={<Button size="sm" disabled><Loader2 className="h-4 w-4 mr-2 animate-spin" />{t('kpis.creating')}...</Button>}>
               <KpiDialog 
                 open={isEditDialogOpen} 
                 onOpenChange={handleOpenEditDialog} 
@@ -161,26 +171,26 @@ export default function KpiListPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[25%]">Tên KPI</TableHead>
-                <TableHead className="w-[20%]">Phòng ban</TableHead>
-                <TableHead className="w-[15%]">Mục tiêu</TableHead>
-                <TableHead className="w-[15%]">Tần suất</TableHead>
-                <TableHead className="w-[15%]">Trạng thái</TableHead>
+                <TableHead className="w-[25%]">{t('kpis.table.name')}</TableHead>
+                <TableHead className="w-[20%]">{t('kpis.table.department')}</TableHead>
+                <TableHead className="w-[15%]">{t('kpis.table.target')}</TableHead>
+                <TableHead className="w-[15%]">{t('kpis.table.frequency')}</TableHead>
+                <TableHead className="w-[15%]">{t('kpis.table.status')}</TableHead>
                 <TableHead className="w-[10%]">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t('common.actions')}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {memoizedKpis.length > 0 ? memoizedKpis.map((kpi) => (
-                <KpiTableRow key={kpi.id} kpi={kpi} onRowClick={handleRowClick} />
+                <KpiTableRow key={kpi.id} kpi={kpi} onRowClick={handleRowClick} t={t} getFrequencyLabel={getFrequencyLabelTranslated} />
               )) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center h-24">
                     <div className="flex flex-col items-center justify-center">
                       <PlusCircle className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">Chưa có KPI nào</p>
-                      <p className="text-sm text-muted-foreground">Tạo KPI mới để bắt đầu</p>
+                      <p className="text-muted-foreground">{t('kpis.noKpis')}</p>
+                      <p className="text-sm text-muted-foreground">{t('kpis.noKpisDesc')}</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -190,7 +200,7 @@ export default function KpiListPage() {
         </CardContent>
       </Card>
       
-      <Suspense fallback={<LoadingSpinner />}>
+      <Suspense fallback={<LoadingSpinner t={t} />}>
         <KpiDetailDialog 
           kpi={kpiToView} 
           open={isDetailDialogOpen} 
@@ -204,15 +214,15 @@ export default function KpiListPage() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa KPI</AlertDialogTitle>
+            <AlertDialogTitle>{t('kpis.deleteConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa KPI "{kpiToDelete?.name}"? Hành động này không thể hoàn tác.
+              {t('kpis.deleteConfirmDesc', { name: kpiToDelete?.name || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Xóa
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

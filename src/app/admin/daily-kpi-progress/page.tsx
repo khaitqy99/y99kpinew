@@ -52,6 +52,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import { formatDateToLocal, cn } from '@/lib/utils';
 import type { Kpi, DailyKpiProgress } from '@/services/supabase-service';
+import { useTranslation } from '@/hooks/use-translation';
 import { format } from 'date-fns';
 import {
   Popover,
@@ -72,6 +73,7 @@ import {
 
 export default function DailyKpiProgressPage() {
   const { toast } = useToast();
+  const { t, language } = useTranslation();
   const { 
     users, 
     departments, 
@@ -162,8 +164,8 @@ export default function DailyKpiProgressPage() {
         !dailyFormData.kpiName || !dailyFormData.actualResult) {
       toast({
         variant: "destructive",
-        title: "Lỗi",
-        description: "Vui lòng điền đầy đủ các trường bắt buộc."
+        title: t('common.error'),
+        description: t('dailyProgress.fillRequiredFields')
       });
       return;
     }
@@ -173,8 +175,8 @@ export default function DailyKpiProgressPage() {
     if (isNaN(actualResult) || actualResult < 0) {
       toast({
         variant: "destructive",
-        title: "Lỗi",
-        description: "Kết quả thực tế phải là số hợp lệ và không âm."
+        title: t('common.error'),
+        description: t('dailyProgress.invalidResult')
       });
       return;
     }
@@ -190,8 +192,8 @@ export default function DailyKpiProgressPage() {
       if (!selectedDepartment) {
         toast({
           variant: "destructive",
-          title: "Lỗi",
-          description: "Không tìm thấy phòng ban được chọn."
+          title: t('common.error'),
+          description: t('dailyProgress.departmentNotFound')
         });
         return;
       }
@@ -199,8 +201,8 @@ export default function DailyKpiProgressPage() {
       if (!selectedEmployee) {
         toast({
           variant: "destructive",
-          title: "Lỗi",
-          description: "Không tìm thấy nhân viên được chọn."
+          title: t('common.error'),
+          description: t('dailyProgress.employeeNotFound')
         });
         return;
       }
@@ -208,8 +210,8 @@ export default function DailyKpiProgressPage() {
       if (!selectedKpi) {
         toast({
           variant: "destructive",
-          title: "Lỗi",
-          description: "Không tìm thấy KPI được chọn."
+          title: t('common.error'),
+          description: t('dailyProgress.kpiNotFound')
         });
         return;
       }
@@ -233,8 +235,8 @@ export default function DailyKpiProgressPage() {
       await addDailyKpiProgress(progressData);
       
       toast({
-        title: 'Thành công',
-        description: 'Đã thêm tiến độ hàng ngày mới.'
+        title: t('common.success'),
+        description: t('dailyProgress.addSuccess')
       });
 
       // Reset form
@@ -251,13 +253,13 @@ export default function DailyKpiProgressPage() {
       console.error('Error submitting daily KPI progress:', error);
       toast({
         variant: 'destructive',
-        title: 'Lỗi',
-        description: error?.message || 'Không thể lưu tiến độ hàng ngày'
+        title: t('common.error'),
+        description: error?.message || t('dailyProgress.saveError')
       });
     } finally {
       setLoading(false);
     }
-  }, [dailyFormData, departments, users, kpis, addDailyKpiProgress, toast]);
+  }, [dailyFormData, departments, users, kpis, addDailyKpiProgress, toast, t]);
 
   const handleEditDailyRecord = useCallback((record: DailyKpiProgress) => {
     setDailyFormData({
@@ -285,25 +287,25 @@ export default function DailyKpiProgressPage() {
     try {
       await deleteDailyKpiProgress(recordToDelete.id);
       toast({
-        title: 'Đã xóa',
-        description: 'Đã xóa bản ghi tiến độ hàng ngày.'
+        title: t('dailyProgress.deleteSuccess'),
+        description: t('dailyProgress.deleteSuccessDesc')
       });
       setIsDeleteDialogOpen(false);
       setRecordToDelete(null);
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Lỗi',
-        description: error?.message || 'Không thể xóa bản ghi tiến độ'
+        title: t('common.error'),
+        description: error?.message || t('dailyProgress.deleteError')
       });
     }
-  }, [recordToDelete, deleteDailyKpiProgress, toast]);
+  }, [recordToDelete, deleteDailyKpiProgress, toast, t]);
 
   // Show loading state if context is still loading
   if (contextLoading.dailyKpiProgress || contextLoading.users || contextLoading.departments || contextLoading.kpis) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center">
-        <div className="text-lg">Đang tải dữ liệu...</div>
+        <div className="text-lg">{t('common.loading')}</div>
       </div>
     );
   }
@@ -316,15 +318,15 @@ export default function DailyKpiProgressPage() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg font-semibold">Bản ghi tiến độ</CardTitle>
+                    <CardTitle className="text-lg font-semibold">{t('dailyProgress.title')}</CardTitle>
                   </div>
                   <div className="flex flex-wrap gap-2 items-center">
                     <Select value={filterDepartment} onValueChange={setFilterDepartment}>
                       <SelectTrigger className="w-48 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                        <SelectValue placeholder="Lọc theo phòng ban" />
+                        <SelectValue placeholder={t('dailyProgress.filterByDepartment')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Tất cả phòng ban</SelectItem>
+                        <SelectItem value="all">{t('dailyProgress.allDepartments')}</SelectItem>
                         {departments.map(dept => (
                           <SelectItem key={dept.id} value={dept.name}>
                             {dept.name}
@@ -334,10 +336,10 @@ export default function DailyKpiProgressPage() {
                     </Select>
                     <Select value={filterEmployee} onValueChange={setFilterEmployee}>
                       <SelectTrigger className="w-48 border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                        <SelectValue placeholder="Lọc theo nhân viên" />
+                        <SelectValue placeholder={t('dailyProgress.filterByEmployee')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Tất cả nhân viên</SelectItem>
+                        <SelectItem value="all">{t('dailyProgress.allEmployees')}</SelectItem>
                         {users && users.length > 0 ? users.filter((user: any) => {
                           // Filter out admins (level >= 4)
                           const level = user.level || user.roles?.level || 0;
@@ -347,7 +349,7 @@ export default function DailyKpiProgressPage() {
                             {user.name}
                           </SelectItem>
                         )) : (
-                          <SelectItem value="no-users" disabled>Chưa có nhân viên</SelectItem>
+                          <SelectItem value="no-users" disabled>{t('dailyProgress.noEmployees')}</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
@@ -367,7 +369,7 @@ export default function DailyKpiProgressPage() {
                             {filterStartDate ? (
                               format(filterStartDate, 'dd/MM/yyyy')
                             ) : (
-                              <span>Từ ngày</span>
+                              <span>{t('dailyProgress.fromDate')}</span>
                             )}
                           </Button>
                         </PopoverTrigger>
@@ -396,7 +398,7 @@ export default function DailyKpiProgressPage() {
                             {filterEndDate ? (
                               format(filterEndDate, 'dd/MM/yyyy')
                             ) : (
-                              <span>Đến ngày</span>
+                              <span>{t('dailyProgress.toDate')}</span>
                             )}
                           </Button>
                         </PopoverTrigger>
@@ -422,21 +424,21 @@ export default function DailyKpiProgressPage() {
                           }}
                           className="h-8 px-2"
                         >
-                          Xóa
+                          {t('common.clear')}
                         </Button>
                       )}
                     </div>
                     {(filterStartDate || filterEndDate || filterDepartment !== 'all' || filterEmployee !== 'all') && (
                       <div className="text-sm text-muted-foreground">
-                        Hiển thị {filteredProgress.length} bản ghi
+                        {t('dailyProgress.showingRecords', { count: filteredProgress.length })}
                         {filterDepartment !== 'all' && ` - ${filterDepartment}`}
                         {filterEmployee !== 'all' && (() => {
                           const employeeName = users.find((e: any) => e.id?.toString() === filterEmployee)?.name || '';
                           return employeeName ? ` - ${employeeName}` : '';
                         })()}
-                        {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
-                        {filterStartDate && !filterEndDate && ` - Từ ${format(filterStartDate, 'dd/MM/yyyy')}`}
-                        {!filterStartDate && filterEndDate && ` - Đến ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                        {filterStartDate && filterEndDate && ` - ${format(filterStartDate, 'dd/MM/yyyy')} ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`}
+                        {filterStartDate && !filterEndDate && ` - ${t('common.from')} ${format(filterStartDate, 'dd/MM/yyyy')}`}
+                        {!filterStartDate && filterEndDate && ` - ${t('common.to')} ${format(filterEndDate, 'dd/MM/yyyy')}`}
                       </div>
                     )}
                     <Button 
@@ -453,7 +455,7 @@ export default function DailyKpiProgressPage() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Thêm tiến độ
+                      {t('dailyProgress.addProgress')}
                     </Button>
                   </div>
                 </div>
@@ -463,13 +465,13 @@ export default function DailyKpiProgressPage() {
                   <Table>
                     <TableHeader>
                       <TableRow className="border-gray-200">
-                        <TableHead className="font-semibold text-gray-700">Ngày</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Bộ phận</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Người chịu trách nhiệm</TableHead>
-                        <TableHead className="font-semibold text-gray-700">KPI</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Kết quả</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Ghi chú</TableHead>
-                        <TableHead className="font-semibold text-gray-700">Thao tác</TableHead>
+                        <TableHead className="font-semibold text-gray-700">{t('dailyProgress.table.date')}</TableHead>
+                        <TableHead className="font-semibold text-gray-700">{t('dailyProgress.table.department')}</TableHead>
+                        <TableHead className="font-semibold text-gray-700">{t('dailyProgress.table.responsiblePerson')}</TableHead>
+                        <TableHead className="font-semibold text-gray-700">{t('dailyProgress.table.kpi')}</TableHead>
+                        <TableHead className="font-semibold text-gray-700">{t('dailyProgress.table.result')}</TableHead>
+                        <TableHead className="font-semibold text-gray-700">{t('dailyProgress.table.notes')}</TableHead>
+                        <TableHead className="font-semibold text-gray-700">{t('common.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -541,8 +543,8 @@ export default function DailyKpiProgressPage() {
                           <TableCell colSpan={7} className="text-center py-12">
                             <div className="flex flex-col items-center justify-center">
                               <Clock className="h-12 w-12 text-gray-400 mb-4" />
-                              <p className="text-gray-500 font-medium">Chưa có bản ghi tiến độ</p>
-                              <p className="text-sm text-gray-400 mt-1">Thêm tiến độ mới để bắt đầu</p>
+                              <p className="text-gray-500 font-medium">{t('dailyProgress.noRecords')}</p>
+                              <p className="text-sm text-gray-400 mt-1">{t('dailyProgress.noRecordsDesc')}</p>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -560,17 +562,17 @@ export default function DailyKpiProgressPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" />
-              {dailyFormData.kpiName ? 'Sửa tiến độ' : 'Thêm tiến độ'}
+              {dailyFormData.kpiName ? t('dailyProgress.editProgress') : t('dailyProgress.addProgress')}
             </DialogTitle>
             <DialogDescription>
-              {dailyFormData.kpiName ? 'Cập nhật thông tin tiến độ KPI' : 'Thêm bản ghi tiến độ KPI mới'}
+              {dailyFormData.kpiName ? t('dailyProgress.editProgressDesc') : t('dailyProgress.addProgressDesc')}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="date" className="text-sm font-medium">Ngày *</Label>
+                <Label htmlFor="date" className="text-sm font-medium">{t('dailyProgress.form.date')} *</Label>
                 <Input
                   id="date"
                   type="date"
@@ -581,13 +583,13 @@ export default function DailyKpiProgressPage() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="department" className="text-sm font-medium">Bộ phận *</Label>
+                <Label htmlFor="department" className="text-sm font-medium">{t('dailyProgress.form.department')} *</Label>
                 <Select 
                   value={dailyFormData.department} 
                   onValueChange={(value) => setDailyFormData(prev => ({ ...prev, department: value }))}
                 >
                   <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                    <SelectValue placeholder="Chọn bộ phận" />
+                    <SelectValue placeholder={t('dailyProgress.form.selectDepartment')} />
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map(dept => (
@@ -603,13 +605,13 @@ export default function DailyKpiProgressPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="responsiblePerson" className="text-sm font-medium">Người chịu trách nhiệm *</Label>
+                <Label htmlFor="responsiblePerson" className="text-sm font-medium">{t('dailyProgress.form.responsiblePerson')} *</Label>
                 <Select 
                   value={dailyFormData.responsiblePerson} 
                   onValueChange={(value) => setDailyFormData(prev => ({ ...prev, responsiblePerson: value }))}
                 >
                   <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                    <SelectValue placeholder="Chọn người chịu trách nhiệm" />
+                    <SelectValue placeholder={t('dailyProgress.form.selectResponsiblePerson')} />
                   </SelectTrigger>
                   <SelectContent>
                     {users.filter((user: any) => {
@@ -629,13 +631,13 @@ export default function DailyKpiProgressPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="kpiName" className="text-sm font-medium">Tên KPI *</Label>
+                <Label htmlFor="kpiName" className="text-sm font-medium">{t('dailyProgress.form.kpiName')} *</Label>
                 <Select 
                   value={dailyFormData.kpiName} 
                   onValueChange={(value) => setDailyFormData(prev => ({ ...prev, kpiName: value }))}
                 >
                   <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                    <SelectValue placeholder="Chọn KPI" />
+                    <SelectValue placeholder={t('dailyProgress.form.selectKpi')} />
                   </SelectTrigger>
                   <SelectContent>
                     {kpis.map(kpi => (
@@ -651,24 +653,24 @@ export default function DailyKpiProgressPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="actualResult" className="text-sm font-medium">Kết quả thực tế *</Label>
+                <Label htmlFor="actualResult" className="text-sm font-medium">{t('dailyProgress.form.actualResult')} *</Label>
                 <Input
                   id="actualResult"
                   type="number"
                   value={dailyFormData.actualResult}
                   onChange={(e) => setDailyFormData(prev => ({ ...prev, actualResult: e.target.value }))}
-                  placeholder="Nhập kết quả thực tế"
+                  placeholder={t('dailyProgress.form.actualResultPlaceholder')}
                   className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm font-medium">Ghi chú</Label>
+                <Label htmlFor="notes" className="text-sm font-medium">{t('dailyProgress.form.notes')}</Label>
                 <Textarea
                   id="notes"
                   value={dailyFormData.notes}
                   onChange={(e) => setDailyFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Ghi chú về tiến độ thực hiện..."
+                  placeholder={t('dailyProgress.form.notesPlaceholder')}
                   rows={3}
                   className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
@@ -682,7 +684,7 @@ export default function DailyKpiProgressPage() {
               onClick={() => setIsDailyFormOpen(false)}
               disabled={loading}
             >
-              Hủy
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleDailyFormSubmit} 
@@ -691,12 +693,12 @@ export default function DailyKpiProgressPage() {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Đang lưu...
+                  {t('dailyProgress.saving')}
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4 mr-2" />
-                  Lưu tiến độ
+                  {t('dailyProgress.saveProgress')}
                 </>
               )}
             </Button>
@@ -708,15 +710,15 @@ export default function DailyKpiProgressPage() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa bản ghi</AlertDialogTitle>
+            <AlertDialogTitle>{t('dailyProgress.deleteConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa bản ghi tiến độ hàng ngày này? Hành động này không thể hoàn tác.
+              {t('dailyProgress.deleteConfirmDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteDailyRecord} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Xóa
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

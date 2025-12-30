@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslation } from '@/hooks/use-translation';
 import {
   Dialog,
   DialogContent,
@@ -52,8 +53,8 @@ interface KpiDetailDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const formatDateTime = (dateString: string | undefined | null): string => {
-  if (!dateString) return 'Chưa có';
+const formatDateTime = (dateString: string | undefined | null, t: (key: string) => string): string => {
+  if (!dateString) return t('reports.notAvailable');
   try {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('vi-VN', {
@@ -64,12 +65,12 @@ const formatDateTime = (dateString: string | undefined | null): string => {
       minute: '2-digit',
     }).format(date);
   } catch {
-    return 'Không hợp lệ';
+    return t('reports.invalidDate');
   }
 };
 
-const formatDate = (dateString: string | undefined | null): string => {
-  if (!dateString) return 'Chưa có';
+const formatDate = (dateString: string | undefined | null, t: (key: string) => string): string => {
+  if (!dateString) return t('reports.notAvailable');
   try {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('vi-VN', {
@@ -78,19 +79,19 @@ const formatDate = (dateString: string | undefined | null): string => {
       year: 'numeric',
     }).format(date);
   } catch {
-    return 'Không hợp lệ';
+    return t('reports.invalidDate');
   }
 };
 
-const getStatusBadge = (status: string) => {
+const getStatusBadge = (status: string, t: (key: string) => string) => {
   const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    completed: { label: 'Hoàn thành', variant: 'default' },
-    approved: { label: 'Đã duyệt', variant: 'default' },
-    pending_approval: { label: 'Chờ duyệt', variant: 'secondary' },
-    in_progress: { label: 'Đang thực hiện', variant: 'outline' },
-    not_started: { label: 'Chưa bắt đầu', variant: 'outline' },
-    rejected: { label: 'Từ chối', variant: 'destructive' },
-    overdue: { label: 'Quá hạn', variant: 'destructive' },
+    completed: { label: t('reports.status.completed'), variant: 'default' },
+    approved: { label: t('reports.status.approved'), variant: 'default' },
+    pending_approval: { label: t('reports.status.pendingApproval'), variant: 'secondary' },
+    in_progress: { label: t('reports.status.inProgress'), variant: 'outline' },
+    not_started: { label: t('reports.status.notStarted'), variant: 'outline' },
+    rejected: { label: t('reports.status.rejected'), variant: 'destructive' },
+    overdue: { label: t('reports.status.overdue'), variant: 'destructive' },
   };
 
   const statusInfo = statusMap[status] || { label: status, variant: 'outline' as const };
@@ -98,6 +99,8 @@ const getStatusBadge = (status: string) => {
 };
 
 export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, onOpenChange }) => {
+  const { t } = useTranslation();
+  
   if (!record) return null;
 
   const kpi = record.kpis || {};
@@ -111,10 +114,10 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />
-            {kpi.name || 'N/A'}
+            {kpi.name || t('reports.notAvailable')}
           </DialogTitle>
           <DialogDescription>
-            {kpi.description || 'Không có mô tả'}
+            {kpi.description || t('reports.noDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -123,19 +126,19 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Mục tiêu</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('reports.target')}</span>
                 <span className="text-sm font-semibold">
                   {parseFloat(kpi.target || 0).toLocaleString('vi-VN')} {kpi.unit || ''}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Thực tế</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('reports.actual')}</span>
                 <span className="text-sm font-semibold">
                   {parseFloat(record.actual || 0).toLocaleString('vi-VN')} {kpi.unit || ''}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Tiến độ</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('reports.progress')}</span>
                 <span className="text-sm font-semibold">{progress.toFixed(1)}%</span>
               </div>
               <div className="mt-2">
@@ -145,20 +148,20 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Kỳ</span>
-                <span className="text-sm font-semibold">{record.period || 'N/A'}</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('reports.period')}</span>
+                <span className="text-sm font-semibold">{record.period || t('reports.notAvailable')}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Ngày bắt đầu</span>
-                <span className="text-sm font-semibold">{formatDate(record.start_date)}</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('reports.startDate')}</span>
+                <span className="text-sm font-semibold">{formatDate(record.start_date, t)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Ngày kết thúc</span>
-                <span className="text-sm font-semibold">{formatDate(record.end_date)}</span>
+                <span className="text-sm font-medium text-muted-foreground">{t('reports.endDate')}</span>
+                <span className="text-sm font-semibold">{formatDate(record.end_date, t)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-muted-foreground">Trạng thái</span>
-                {getStatusBadge(record.status)}
+                <span className="text-sm font-medium text-muted-foreground">{t('reports.statusColumn')}</span>
+                {getStatusBadge(record.status, t)}
               </div>
             </div>
           </div>
@@ -172,7 +175,7 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
                   <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <TrendingUp className="h-5 w-5 text-green-600" />
-                      <span className="font-semibold text-green-900 dark:text-green-100">Tổng thưởng</span>
+                      <span className="font-semibold text-green-900 dark:text-green-100">{t('reports.totalBonus')}</span>
                     </div>
                     <p className="text-2xl font-bold text-green-600">
                       {formatCurrency(record.bonusAmount)} VNĐ
@@ -183,7 +186,7 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
                   <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <TrendingDown className="h-5 w-5 text-red-600" />
-                      <span className="font-semibold text-red-900 dark:text-red-100">Tổng phạt</span>
+                      <span className="font-semibold text-red-900 dark:text-red-100">{t('reports.totalPenalty')}</span>
                     </div>
                     <p className="text-2xl font-bold text-red-600">
                       {formatCurrency(record.penaltyAmount)} VNĐ
@@ -201,17 +204,17 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
               <div>
                 <h4 className="font-semibold mb-3 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  Chi tiết thưởng/phạt
+                  {t('reports.bonusPenaltyDetails')}
                 </h4>
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Loại</TableHead>
-                        <TableHead>Số tiền</TableHead>
-                        <TableHead>Lý do</TableHead>
-                        <TableHead>Người tạo</TableHead>
-                        <TableHead>Ngày tạo</TableHead>
+                        <TableHead>{t('reports.type')}</TableHead>
+                        <TableHead>{t('reports.amount')}</TableHead>
+                        <TableHead>{t('reports.reason')}</TableHead>
+                        <TableHead>{t('reports.createdBy')}</TableHead>
+                        <TableHead>{t('reports.createdAt')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -219,7 +222,7 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
                         <TableRow key={bpRecord.id}>
                           <TableCell>
                             <Badge variant={bpRecord.type === 'bonus' ? 'default' : 'destructive'}>
-                              {bpRecord.type === 'bonus' ? 'Thưởng' : 'Phạt'}
+                              {bpRecord.type === 'bonus' ? t('bonusCalculation.bonus') : t('bonusCalculation.penalty')}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-semibold">
@@ -228,7 +231,7 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
                             </span>
                           </TableCell>
                           <TableCell className="max-w-xs truncate" title={bpRecord.reason}>
-                            {bpRecord.reason || 'Không có lý do'}
+                            {bpRecord.reason || t('reports.noReason')}
                           </TableCell>
                           <TableCell>
                             {bpRecord.createdBy ? (
@@ -237,11 +240,11 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
                                 <div className="text-muted-foreground text-xs">{bpRecord.createdBy.code}</div>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground">N/A</span>
+                              <span className="text-muted-foreground">{t('reports.notAvailable')}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-sm">
-                            {formatDateTime(bpRecord.createdAt)}
+                            {formatDateTime(bpRecord.createdAt, t)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -259,47 +262,47 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
               <div>
                 <h4 className="font-semibold mb-3 flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  Lịch sử thay đổi
+                  {t('reports.changeHistory')}
                 </h4>
                 <div className="space-y-3 text-sm">
                   {metadata.createdAt && (
                     <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
                       <span className="text-muted-foreground flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
-                        Ngày tạo
+                        {t('reports.createdAt')}
                       </span>
-                      <span className="font-medium">{formatDateTime(metadata.createdAt)}</span>
+                      <span className="font-medium">{formatDateTime(metadata.createdAt, t)}</span>
                     </div>
                   )}
                   {metadata.updatedAt && (
                     <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
                       <span className="text-muted-foreground flex items-center gap-2">
                         <Clock className="h-4 w-4" />
-                        Cập nhật lần cuối
+                        {t('reports.lastUpdated')}
                       </span>
-                      <span className="font-medium">{formatDateTime(metadata.updatedAt)}</span>
+                      <span className="font-medium">{formatDateTime(metadata.updatedAt, t)}</span>
                     </div>
                   )}
                   {metadata.submissionDate && (
                     <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
                       <span className="text-muted-foreground flex items-center gap-2">
                         <FileText className="h-4 w-4" />
-                        Ngày nộp
+                        {t('reports.submissionDate')}
                       </span>
-                      <span className="font-medium">{formatDateTime(metadata.submissionDate)}</span>
+                      <span className="font-medium">{formatDateTime(metadata.submissionDate, t)}</span>
                     </div>
                   )}
                   {metadata.approvalDate && (
                     <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
                       <span className="text-muted-foreground flex items-center gap-2">
                         <User className="h-4 w-4" />
-                        Ngày duyệt
+                        {t('reports.approvalDate')}
                       </span>
                       <div className="text-right">
-                        <div className="font-medium">{formatDateTime(metadata.approvalDate)}</div>
+                        <div className="font-medium">{formatDateTime(metadata.approvalDate, t)}</div>
                         {metadata.approvedBy && (
                           <div className="text-xs text-muted-foreground">
-                            bởi {metadata.approvedBy.name} ({metadata.approvedBy.code})
+                            {t('reports.approvedBy', { name: metadata.approvedBy.name, code: metadata.approvedBy.code })}
                           </div>
                         )}
                       </div>
@@ -315,7 +318,7 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
             <>
               <Separator />
               <div>
-                <h4 className="font-semibold mb-2">Chi tiết nộp</h4>
+                <h4 className="font-semibold mb-2">{t('reports.submissionDetails')}</h4>
                 <div className="p-3 bg-muted/50 rounded text-sm whitespace-pre-wrap">
                   {record.submission_details}
                 </div>
@@ -327,6 +330,7 @@ export const KpiDetailDialog: React.FC<KpiDetailDialogProps> = ({ record, open, 
     </Dialog>
   );
 };
+
 
 
 
