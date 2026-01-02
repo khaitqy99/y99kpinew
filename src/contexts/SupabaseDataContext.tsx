@@ -907,6 +907,11 @@ export const SupabaseDataProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(`KPI record với ID ${recordId} không tồn tại`);
       }
       
+      // Kiểm tra trạng thái: không cho phép submit nếu đã completed hoặc approved
+      if (record.status === 'completed' || record.status === 'approved') {
+        throw new Error(`KPI này đã ${record.status === 'completed' ? 'hoàn thành' : 'được duyệt'} và không thể nộp lại báo cáo.`);
+      }
+      
       // Calculate progress, allow > 100% if actual exceeds target
       const calculatedProgress = (submission.actual / record.target) * 100;
       const progress = Math.max(0, Math.round(calculatedProgress * 100) / 100); // Round to 2 decimal places

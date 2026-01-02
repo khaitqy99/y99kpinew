@@ -4,7 +4,7 @@ import * as React from 'react';
 import { CalendarIcon, ChevronDown, Plus, Trash2, Calendar, X } from 'lucide-react';
 import { format } from 'date-fns';
 
-import { cn, formatDateToLocal } from '@/lib/utils';
+import { cn, formatDateToLocal, formatNumber } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -142,6 +142,7 @@ export default function AssignKpiPage() {
   const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = React.useState(false);
 
   // Calculate period from date range (format: yyyy-MM-dd to yyyy-MM-dd)
+  // Always use "to" as separator for consistency with validation (not translated)
   const calculatePeriodFromDate = React.useCallback((startDate: Date, endDate: Date): string => {
     const formatDate = (date: Date): string => {
       const year = date.getFullYear();
@@ -150,8 +151,9 @@ export default function AssignKpiPage() {
       return `${year}-${month}-${day}`;
     };
     
-    return `${formatDate(startDate)} ${t('assign.periodSeparator')} ${formatDate(endDate)}`;
-  }, [t]);
+    // Always use "to" for period format (technical format, not user-facing)
+    return `${formatDate(startDate)} to ${formatDate(endDate)}`;
+  }, []);
 
   const getAssignedKpis = (records: any[]): AssignedKpiDetails[] => {
     if (!records || records.length === 0) return [];
@@ -741,7 +743,7 @@ export default function AssignKpiPage() {
                     <div className="space-y-1">
                       <Progress value={Math.min(item.completionPercentage, 100)} className="h-2" />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{item.actual || 0} / {item.target || 0} {item.kpiUnit}</span>
+                        <span>{formatNumber(item.actual || 0)} / {formatNumber(item.target || 0)} {item.kpiUnit}</span>
                         <span className="font-medium">{item.completionPercentage}%</span>
                       </div>
                     </div>

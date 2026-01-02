@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
-import { getFrequencyLabel } from '@/lib/utils';
+import { getFrequencyLabel, formatNumber, parseNumber } from '@/lib/utils';
 import type { Kpi, KpiRecord } from '@/services/supabase-service';
 
 interface KpiProgressDialogProps {
@@ -51,13 +51,13 @@ const KpiProgressDialog: React.FC<KpiProgressDialogProps> = ({
   const [loading, setLoading] = useState(false);
 
   // Calculate progress percentage
-  const progress = kpi && actual ? Math.round((Number(actual) / kpi.target) * 100) : 0;
+  const progress = kpi && actual ? Math.round((parseNumber(actual) / kpi.target) * 100) : 0;
 
   // Reset form when dialog opens/closes
   React.useEffect(() => {
     if (open) {
       if (recordToEdit) {
-        setActual(String(recordToEdit.actual));
+        setActual(formatNumber(recordToEdit.actual));
         setPeriod(recordToEdit.period);
         setSubmissionDetails(recordToEdit.submission_details);
         setStatus(recordToEdit.status as any);
@@ -91,7 +91,7 @@ const KpiProgressDialog: React.FC<KpiProgressDialogProps> = ({
         department_id: kpi.department_id,
         period,
         target: kpi.target,
-        actual: Number(actual),
+        actual: parseNumber(actual),
         progress,
         status,
         start_date: `${period}-01`,
@@ -186,9 +186,21 @@ const KpiProgressDialog: React.FC<KpiProgressDialogProps> = ({
             <div className="flex items-center gap-2">
               <Input
                 id="actual"
-                type="number"
+                type="text"
                 value={actual}
-                onChange={(e) => setActual(e.target.value)}
+                onChange={(e) => {
+                  // Remove all non-digit characters except comma and dot
+                  let value = e.target.value.replace(/[^\d,.]/g, '');
+                  // Remove commas to parse, then format
+                  const numValue = parseNumber(value);
+                  if (value === '') {
+                    setActual('');
+                  } else {
+                    // Format with commas
+                    const formatted = formatNumber(numValue);
+                    setActual(formatted);
+                  }
+                }}
                 placeholder="Nhập kết quả thực tế"
                 className="flex-1"
               />
@@ -205,7 +217,7 @@ const KpiProgressDialog: React.FC<KpiProgressDialogProps> = ({
               </div>
               <Progress value={progress} className="h-2" />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Mục tiêu: {kpi.target} {kpi.unit}</span>
+                <span>Mục tiêu: {formatNumber(kpi.target)} {kpi.unit}</span>
                 <span>Thực tế: {actual} {kpi.unit}</span>
               </div>
             </div>

@@ -155,14 +155,16 @@ export function getDefaultPeriod(): string {
 
 /**
  * Get period label from value (date range format: yyyy-MM-dd to yyyy-MM-dd)
+ * Accepts both "to" (English) and "đến" (Vietnamese) for backward compatibility
  */
 export function getPeriodLabel(value: string, earliestDate?: Date): string {
-  // Parse date range format: "yyyy-MM-dd to yyyy-MM-dd"
-  const dateRangeMatch = value.match(/^(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})$/);
+  // Parse date range format: "yyyy-MM-dd to yyyy-MM-dd" or "yyyy-MM-dd đến yyyy-MM-dd"
+  const dateRangeMatch = value.match(/^(\d{4}-\d{2}-\d{2})\s+(to|đến)\s+(\d{4}-\d{2}-\d{2})$/);
   
   if (dateRangeMatch) {
+    // dateRangeMatch[1] is start date, dateRangeMatch[3] is end date (dateRangeMatch[2] is separator)
     const startDate = new Date(dateRangeMatch[1]);
-    const endDate = new Date(dateRangeMatch[2]);
+    const endDate = new Date(dateRangeMatch[3]);
     
     if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
       // Format dates in Vietnamese format: dd/MM/yyyy
@@ -244,14 +246,16 @@ export function periodLabelToDateRange(periodLabel: string): string {
 
 /**
  * Get start and end dates for a period (date range format: yyyy-MM-dd to yyyy-MM-dd)
+ * Accepts both "to" (English) and "đến" (Vietnamese) for backward compatibility
  */
 export function getPeriodDateRange(periodValue: string): { startDate: Date; endDate: Date } {
-  // Parse date range format: "yyyy-MM-dd to yyyy-MM-dd"
-  const dateRangeMatch = periodValue.match(/^(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})$/);
+  // Parse date range format: "yyyy-MM-dd to yyyy-MM-dd" or "yyyy-MM-dd đến yyyy-MM-dd"
+  const dateRangeMatch = periodValue.match(/^(\d{4}-\d{2}-\d{2})\s+(to|đến)\s+(\d{4}-\d{2}-\d{2})$/);
   
   if (dateRangeMatch) {
+    // dateRangeMatch[1] is start date, dateRangeMatch[3] is end date (dateRangeMatch[2] is separator)
     const startDate = new Date(dateRangeMatch[1]);
-    const endDate = new Date(dateRangeMatch[2]);
+    const endDate = new Date(dateRangeMatch[3]);
     
     if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
       return { startDate, endDate };

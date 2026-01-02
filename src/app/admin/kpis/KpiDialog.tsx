@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { Kpi } from '@/services/supabase-service';
 import { useTranslation } from '@/hooks/use-translation';
+import { formatNumber, parseNumber } from '@/lib/utils';
 
 const KpiDialog: React.FC<{
   open: boolean;
@@ -85,7 +86,7 @@ const KpiDialog: React.FC<{
       setName(kpiToEdit.name);
       setDescription(kpiToEdit.description);
       setDepartment(kpiToEdit.department);
-      setTarget(String(kpiToEdit.target));
+      setTarget(formatNumber(kpiToEdit.target));
       setUnit(kpiToEdit.unit);
       setFrequency(kpiToEdit.frequency);
       setRewardPenaltyConfig(kpiToEdit.rewardPenaltyConfig);
@@ -110,7 +111,7 @@ const KpiDialog: React.FC<{
       description,
       department,
       departmentId: department, // Add departmentId for database mapping
-      target: Number(target),
+      target: parseNumber(target),
       unit,
       frequency,
       rewardPenaltyConfig,
@@ -180,7 +181,25 @@ const KpiDialog: React.FC<{
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="target">{t('kpis.target')}</Label>
-              <Input id="target" type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="100"/>
+              <Input 
+                id="target" 
+                type="text" 
+                value={target} 
+                onChange={e => {
+                  // Remove all non-digit characters except comma and dot
+                  let value = e.target.value.replace(/[^\d,.]/g, '');
+                  // Remove commas to parse, then format
+                  const numValue = parseNumber(value);
+                  if (value === '') {
+                    setTarget('');
+                  } else {
+                    // Format with commas
+                    const formatted = formatNumber(numValue);
+                    setTarget(formatted);
+                  }
+                }} 
+                placeholder="100"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="unit">{t('kpis.unit')}</Label>

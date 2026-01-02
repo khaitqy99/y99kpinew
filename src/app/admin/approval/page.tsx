@@ -48,7 +48,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { getPeriodLabel } from '@/lib/period-utils';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, formatNumber } from '@/lib/utils';
 
 type MappedApproval = {
     id: string;
@@ -273,8 +273,8 @@ export default function ApprovalPage() {
             id: String(record.id), // Ensure id is string for consistency
             employeeName: employee?.name || t('approval.notAvailable'),
             kpiName: kpi?.name || t('approval.notAvailable'),
-            targetFormatted: `${record.target} ${kpi?.unit || ''}`,
-            actualFormatted: `${record.actual || 0} ${kpi?.unit || ''}`,
+            targetFormatted: `${formatNumber(record.target)} ${kpi?.unit || ''}`,
+            actualFormatted: `${formatNumber(record.actual || 0)} ${kpi?.unit || ''}`,
             completion: completion > 100 ? 100 : completion,
             submissionDetails: submissionDetails,
             attachment: finalAttachment,

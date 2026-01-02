@@ -41,6 +41,38 @@ export function parseCurrency(value: string): number {
 }
 
 /**
+ * Format a number with comma separator (supports decimals)
+ * Example: 1000000.5 => "1,000,000.5"
+ */
+export function formatNumber(value: number | string): string {
+  if (value === '' || value === null || value === undefined) return '';
+  const numValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
+  if (isNaN(numValue)) return '';
+  
+  // Split into integer and decimal parts
+  const parts = numValue.toString().split('.');
+  const integerPart = parts[0];
+  const decimalPart = parts[1];
+  
+  // Format integer part with commas
+  const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  
+  // Combine with decimal part if exists
+  return decimalPart !== undefined ? `${formattedInteger}.${decimalPart}` : formattedInteger;
+}
+
+/**
+ * Parse a formatted number string to number (supports decimals)
+ * Example: "1,000,000.5" => 1000000.5
+ */
+export function parseNumber(value: string): number {
+  if (!value) return 0;
+  const cleaned = value.replace(/,/g, '').trim();
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
  * Translate frequency value to Vietnamese display text
  */
 export function getFrequencyLabel(frequency: string): string {

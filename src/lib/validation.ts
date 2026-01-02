@@ -107,14 +107,16 @@ export interface ValidationResult {
 
 /**
  * Validate period format (date range: yyyy-MM-dd to yyyy-MM-dd)
+ * Accepts both "to" (English) and "đến" (Vietnamese) for backward compatibility
  */
 export function validatePeriod(period: string): ValidationResult {
   if (!period || typeof period !== 'string') {
     return { valid: false, error: 'Period phải là chuỗi không rỗng' };
   }
 
-  // Validate date range format: "yyyy-MM-dd to yyyy-MM-dd"
-  const dateRangeRegex = /^(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})$/;
+  // Validate date range format: "yyyy-MM-dd to yyyy-MM-dd" or "yyyy-MM-dd đến yyyy-MM-dd"
+  // Accept both English "to" and Vietnamese "đến" for backward compatibility
+  const dateRangeRegex = /^(\d{4}-\d{2}-\d{2})\s+(to|đến)\s+(\d{4}-\d{2}-\d{2})$/;
   const match = period.match(dateRangeRegex);
   
   if (!match) {
@@ -125,8 +127,9 @@ export function validatePeriod(period: string): ValidationResult {
   }
 
   // Validate that dates are valid
+  // match[1] is start date, match[3] is end date (match[2] is separator)
   const startDate = new Date(match[1]);
-  const endDate = new Date(match[2]);
+  const endDate = new Date(match[3]);
 
   if (isNaN(startDate.getTime())) {
     return { valid: false, error: 'Ngày bắt đầu không hợp lệ' };

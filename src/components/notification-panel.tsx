@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useContext, useEffect } from 'react';
+import React, { useState, useMemo, useContext, useEffect, useCallback } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -42,7 +42,7 @@ const categoryColors: { [key: string]: string } = {
 
 export function NotificationPanel() {
   const { user } = useContext(SessionContext);
-  const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useContext(SupabaseDataContext);
+  const { notifications, markNotificationAsRead, markAllNotificationsAsRead, kpis, kpiRecords } = useContext(SupabaseDataContext);
   
   const [isClient, setIsClient] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -50,6 +50,71 @@ export function NotificationPanel() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Function để sửa message có chứa "undefined" hoặc "KPI" (fallback)
+  const fixNotificationMessage = useCallback((notification: any) => {
+    if (!notification.message) {
+      return notification.message;
+    }
+    
+    // Kiểm tra xem có cần sửa không (có "undefined" hoặc pattern "KPI "KPI"")
+    const needsFix = notification.message.includes('undefined') || 
+                     notification.message.match(/KPI\s*"KPI"/);
+    
+    if (!needsFix) {
+      return notification.message;
+    }
+    
+    let kpiName: string | null = null;
+    
+    // Thử lấy từ kpiRecords nếu có recordId (có thể có nested kpis)
+    if (notification.metadata?.recordId && kpiRecords) {
+      const record = kpiRecords.find((r: any) => {
+        const recordId = typeof r.id === 'string' ? parseInt(r.id, 10) : r.id;
+        const metadataRecordId = typeof notification.metadata.recordId === 'string' 
+          ? parseInt(notification.metadata.recordId, 10) 
+          : notification.metadata.recordId;
+        return recordId === metadataRecordId;
+      });
+      
+      if (record) {
+        // Thử lấy từ nested kpis object
+        if (record.kpis?.name) {
+          kpiName = record.kpis.name;
+        } else if (record.kpi_name) {
+          kpiName = record.kpi_name;
+        }
+      }
+    }
+    
+    // Nếu chưa tìm thấy và có metadata.kpiId, lấy từ kpis list
+    if (!kpiName && notification.metadata?.kpiId && kpis) {
+      const kpiId = typeof notification.metadata.kpiId === 'string' 
+        ? parseInt(notification.metadata.kpiId, 10) 
+        : notification.metadata.kpiId;
+      
+      const kpi = kpis.find((k: any) => {
+        const kId = typeof k.id === 'string' ? parseInt(k.id, 10) : k.id;
+        return kId === kpiId;
+      });
+      
+      if (kpi?.name) {
+        kpiName = kpi.name;
+      }
+    }
+    
+    // Chỉ sửa nếu tìm được tên KPI thực sự
+    if (kpiName) {
+      // Thay "undefined" hoặc "KPI" trong quotes bằng tên KPI thực
+      let fixedMessage = notification.message.replace(/undefined/g, kpiName);
+      // Sửa pattern "KPI "KPI"" thành "KPI "{kpiName}""
+      fixedMessage = fixedMessage.replace(/KPI\s*"KPI"/g, `KPI "${kpiName}"`);
+      return fixedMessage;
+    }
+    
+    // Nếu không tìm được tên KPI, giữ nguyên message
+    return notification.message;
+  }, [kpis, kpiRecords]);
 
   const userNotifications = useMemo(() => {
     if (!user || !notifications) return [];
@@ -181,7 +246,7 @@ export function NotificationPanel() {
                     <p className="font-semibold text-foreground truncate">{notification.title}</p>
                   </div>
                   <p className={cn("mt-1", !notification.read ? "text-foreground/80" : "text-muted-foreground")}>
-                    {notification.message}
+                    {fixNotificationMessage(notification)}
                   </p>
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-xs text-muted-foreground">

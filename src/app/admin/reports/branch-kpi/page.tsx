@@ -27,7 +27,7 @@ import { Building2, Users, Target, CheckCircle2, DollarSign, TrendingUp, Trendin
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Loader2, CalendarIcon, Download, Eye, RefreshCw } from 'lucide-react';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, formatNumber, cn } from '@/lib/utils';
 import { getDefaultPeriod, getPeriodLabel } from '@/lib/period-utils';
 import { format } from 'date-fns';
 import {
@@ -1033,10 +1033,10 @@ export default function BranchKpiReportPage() {
                                           )}
                                         </TableCell>
                                         <TableCell>
-                                          {kpi.target || 0} {kpi.unit || ''}
+                                          {formatNumber(kpi.target || 0)} {kpi.unit || ''}
                                         </TableCell>
                                         <TableCell>
-                                          {record.actual || 0} {kpi.unit || ''}
+                                          {formatNumber(record.actual || 0)} {kpi.unit || ''}
                                         </TableCell>
                                         <TableCell>
                                           <div className="flex items-center gap-2">
@@ -1257,10 +1257,10 @@ export default function BranchKpiReportPage() {
                                           {kpi.name || t('reports.notAvailable')}
                                         </TableCell>
                                         <TableCell>
-                                          {kpi.target || 0} {kpi.unit || ''}
+                                          {formatNumber(kpi.target || 0)} {kpi.unit || ''}
                                         </TableCell>
                                         <TableCell>
-                                          {record.actual || 0} {kpi.unit || ''}
+                                          {formatNumber(record.actual || 0)} {kpi.unit || ''}
                                         </TableCell>
                                         <TableCell>
                                           <div className="flex items-center gap-2">

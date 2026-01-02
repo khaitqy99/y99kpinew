@@ -61,6 +61,7 @@ import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import { EmployeeBonusPenaltySummary } from '@/components/EmployeeBonusPenaltySummary';
 import { useToast } from '@/hooks/use-toast';
 import { uploadFile } from '@/ai/flows/upload-file';
+import { formatNumber, parseNumber } from '@/lib/utils';
 import Link from 'next/link';
 
 interface KpiRecord {
@@ -116,8 +117,8 @@ export default function EmployeeDashboardPage() {
       .map(record => ({
         ...record,
         completionPercentage: record.progress || 0,
-        targetFormatted: `${record.target || 0} ${record.kpis?.unit || ''}`,
-        actualFormatted: `${record.actual || 0} ${record.kpis?.unit || ''}`,
+        targetFormatted: `${formatNumber(record.target || 0)} ${record.kpis?.unit || ''}`,
+        actualFormatted: `${formatNumber(record.actual || 0)} ${record.kpis?.unit || ''}`,
       }));
     
     console.log('KPI Data updated:', filtered.map(k => ({ id: k.id, status: k.status, name: k.kpis?.name })));
@@ -196,7 +197,7 @@ export default function EmployeeDashboardPage() {
     setSelectedKpi(kpi);
     setSubmissionDetails('');
     setAttachments([]);
-    setActualValue(kpi.actual?.toString() || '');
+    setActualValue(kpi.actual ? formatNumber(kpi.actual) : '');
     setUpdatedActual(null);
     setUpdatedProgress(null);
     setSubmitModalOpen(true);
@@ -252,7 +253,7 @@ export default function EmployeeDashboardPage() {
     
     try {
       setIsUpdating(true);
-      const newActual = parseFloat(actualValue);
+      const newActual = parseNumber(actualValue);
       const target = selectedKpi.target || 0;
       const newProgress = target > 0 ? Math.min((newActual / target) * 100, 100) : 0;
       
@@ -350,7 +351,7 @@ export default function EmployeeDashboardPage() {
       
       // Submit to database with uploaded file URLs
       await submitKpiRecord(selectedKpi.id, {
-        actual: parseFloat(actualValue),
+        actual: parseNumber(actualValue),
         submissionDetails: submissionDetails,
         attachment: uploadedFileUrls.length > 0 ? uploadedFileUrls.join(', ') : null
       });
@@ -647,12 +648,23 @@ export default function EmployeeDashboardPage() {
                     <div className="flex items-center gap-2 flex-1">
                       <Input
                         id="actual-value"
-                        type="number"
+                        type="text"
                         placeholder="Nhập số liệu thực tế..."
                         value={actualValue}
-                        onChange={(e) => setActualValue(e.target.value)}
+                        onChange={(e) => {
+                          // Remove all non-digit characters except comma and dot
+                          let value = e.target.value.replace(/[^\d,.]/g, '');
+                          // Remove commas to parse, then format
+                          const numValue = parseNumber(value);
+                          if (value === '') {
+                            setActualValue('');
+                          } else {
+                            // Format with commas
+                            const formatted = formatNumber(numValue);
+                            setActualValue(formatted);
+                          }
+                        }}
                         className="flex-1"
-                        step="any"
                       />
                       <span className="text-sm text-muted-foreground font-medium min-w-[40px]">
                         {selectedKpi?.kpis?.unit ? ` ${selectedKpi.kpis.unit}` : ''}

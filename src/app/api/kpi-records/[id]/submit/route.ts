@@ -35,6 +35,17 @@ export async function PUT(
       );
     }
 
+    // Kiểm tra trạng thái: không cho phép submit nếu đã completed hoặc approved
+    if (record.status === 'completed' || record.status === 'approved') {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `KPI này đã ${record.status === 'completed' ? 'hoàn thành' : 'được duyệt'} và không thể nộp lại báo cáo.` 
+        },
+        { status: 400 }
+      );
+    }
+
     // Calculate progress, allow > 100% if actual exceeds target
     const calculatedProgress = (actual / record.target) * 100;
     const progress = Math.max(0, Math.round(calculatedProgress * 100) / 100);

@@ -47,6 +47,7 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { SessionContext } from '@/contexts/SessionContext';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
+import { formatNumber, parseNumber } from '@/lib/utils';
 import type { KpiRecord as KpiRecordType, Kpi as KpiType } from '@/services/supabase-service';
 import { useToast } from '@/hooks/use-toast';
 import { uploadFile } from '@/ai/flows/upload-file';
@@ -232,8 +233,8 @@ export default function EmployeeKpiBonusPenaltyPage() {
           ...record,
           name: kpi.name || 'N/A',
           description: kpi.description || 'Không có mô tả',
-          targetFormatted: `${kpi.target} ${kpi.unit}`,
-          actualFormatted: `${record.actual} ${kpi.unit}`,
+          targetFormatted: `${formatNumber(kpi.target)} ${kpi.unit}`,
+          actualFormatted: `${formatNumber(record.actual)} ${kpi.unit}`,
           unit: kpi.unit || '',
           completionPercentage: progress > 100 ? 100 : progress,
       }
@@ -286,7 +287,7 @@ export default function EmployeeKpiBonusPenaltyPage() {
   // --- DIALOG HANDLERS ---
   const handleUpdateClick = (kpi: MappedKpi) => {
     setSelectedKpi(kpi);
-    setActualValue(String(kpi.actual));
+    setActualValue(kpi.actual ? formatNumber(kpi.actual) : '');
     setUpdateModalOpen(true);
   };
   
@@ -297,7 +298,7 @@ export default function EmployeeKpiBonusPenaltyPage() {
   
   const handleSubmitClick = (kpi: MappedKpi) => {
     setSelectedKpi(kpi);
-    setActualValue(String(kpi.actual));
+    setActualValue(kpi.actual ? formatNumber(kpi.actual) : '');
     setSubmissionDetails('');
     setAttachment(null);
     setSubmitModalOpen(true);
@@ -312,7 +313,7 @@ export default function EmployeeKpiBonusPenaltyPage() {
   const handleUpdateActual = () => {
     if (!selectedKpi) return;
     
-    const newActual = Number(actualValue);
+    const newActual = parseNumber(actualValue);
     // updateKpiRecordActual(selectedKpi.id, newActual);
     
     toast({
@@ -333,7 +334,7 @@ export default function EmployeeKpiBonusPenaltyPage() {
       return;
     }
 
-    const actualValueNum = Number(actualValue);
+    const actualValueNum = parseNumber(actualValue);
     if (isNaN(actualValueNum) || actualValueNum < 0) {
       toast({
         variant: 'destructive',
@@ -564,7 +565,24 @@ export default function EmployeeKpiBonusPenaltyPage() {
                 Thực tế đạt được
               </Label>
               <div className='col-span-3 flex items-center gap-2'>
-                  <Input id="actual-update" value={actualValue} onChange={(e) => setActualValue(e.target.value)} />
+                  <Input 
+                    id="actual-update" 
+                    type="text"
+                    value={actualValue} 
+                    onChange={(e) => {
+                      // Remove all non-digit characters except comma and dot
+                      let value = e.target.value.replace(/[^\d,.]/g, '');
+                      // Remove commas to parse, then format
+                      const numValue = parseNumber(value);
+                      if (value === '') {
+                        setActualValue('');
+                      } else {
+                        // Format with commas
+                        const formatted = formatNumber(numValue);
+                        setActualValue(formatted);
+                      }
+                    }} 
+                  />
                   <span>{selectedKpi?.unit}</span>
               </div>
             </div>
@@ -612,7 +630,25 @@ export default function EmployeeKpiBonusPenaltyPage() {
               <div className="grid w-full items-center gap-2">
                   <Label htmlFor="actual-submit">Số liệu cuối cùng</Label>
                   <div className="flex items-center gap-2">
-                      <Input id="actual-submit" type="number" value={actualValue} onChange={(e) => setActualValue(e.target.value)} className="max-w-xs" />
+                      <Input 
+                        id="actual-submit" 
+                        type="text" 
+                        value={actualValue} 
+                        onChange={(e) => {
+                          // Remove all non-digit characters except comma and dot
+                          let value = e.target.value.replace(/[^\d,.]/g, '');
+                          // Remove commas to parse, then format
+                          const numValue = parseNumber(value);
+                          if (value === '') {
+                            setActualValue('');
+                          } else {
+                            // Format with commas
+                            const formatted = formatNumber(numValue);
+                            setActualValue(formatted);
+                          }
+                        }} 
+                        className="max-w-xs" 
+                      />
                       <span className="text-muted-foreground">{selectedKpi?.unit}</span>
                   </div>
               </div>

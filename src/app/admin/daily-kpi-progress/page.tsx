@@ -50,7 +50,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
-import { formatDateToLocal, cn } from '@/lib/utils';
+import { formatDateToLocal, cn, formatNumber, parseNumber } from '@/lib/utils';
 import type { Kpi, DailyKpiProgress } from '@/services/supabase-service';
 import { useTranslation } from '@/hooks/use-translation';
 import { format } from 'date-fns';
@@ -171,7 +171,7 @@ export default function DailyKpiProgressPage() {
     }
 
     // Validate actual result is a valid number
-    const actualResult = Number(dailyFormData.actualResult);
+    const actualResult = parseNumber(dailyFormData.actualResult);
     if (isNaN(actualResult) || actualResult < 0) {
       toast({
         variant: "destructive",
@@ -267,7 +267,7 @@ export default function DailyKpiProgressPage() {
       department: record.department_name,
       responsiblePerson: record.responsible_person,
       kpiName: record.kpi_name,
-      actualResult: String(record.actual_result),
+      actualResult: record.actual_result ? formatNumber(record.actual_result) : '',
       notes: record.notes || '',
     });
     setIsDailyFormOpen(true);
@@ -656,9 +656,21 @@ export default function DailyKpiProgressPage() {
                 <Label htmlFor="actualResult" className="text-sm font-medium">{t('dailyProgress.form.actualResult')} *</Label>
                 <Input
                   id="actualResult"
-                  type="number"
+                  type="text"
                   value={dailyFormData.actualResult}
-                  onChange={(e) => setDailyFormData(prev => ({ ...prev, actualResult: e.target.value }))}
+                  onChange={(e) => {
+                    // Remove all non-digit characters except comma and dot
+                    let value = e.target.value.replace(/[^\d,.]/g, '');
+                    // Remove commas to parse, then format
+                    const numValue = parseNumber(value);
+                    if (value === '') {
+                      setDailyFormData(prev => ({ ...prev, actualResult: '' }));
+                    } else {
+                      // Format with commas
+                      const formatted = formatNumber(numValue);
+                      setDailyFormData(prev => ({ ...prev, actualResult: formatted }));
+                    }
+                  }}
                   placeholder={t('dailyProgress.form.actualResultPlaceholder')}
                   className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />

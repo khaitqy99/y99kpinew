@@ -95,13 +95,16 @@ export class NotificationScheduler {
   // Gửi thông báo deadline đã hết hạn
   private async sendOverdueNotification(record: any) {
     try {
+      // Lấy tên KPI từ nested object hoặc trực tiếp
+      const kpiName = (record.kpis?.name || record.kpi_name || 'KPI');
+      
       const notificationData = {
         user_id: record.employee_id,
         type: 'deadline' as const,
         priority: 'urgent' as const,
         category: 'reminder' as const,
         title: 'KPI đã hết hạn',
-        message: `KPI "${record.kpi_name || 'KPI'}" đã hết hạn vào ${new Date(record.end_date).toLocaleDateString('vi-VN')}. Vui lòng liên hệ quản lý để được hỗ trợ.`,
+        message: `KPI "${kpiName}" đã hết hạn vào ${new Date(record.end_date).toLocaleDateString('vi-VN')}. Vui lòng liên hệ quản lý để được hỗ trợ.`,
         read: false,
         actor: {
           id: 'system',

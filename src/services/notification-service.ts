@@ -181,13 +181,17 @@ export class NotificationManager {
 
   // Thông báo khi giao KPI
   async notifyKpiAssigned(kpiRecord: any, assigneeInfo: { id: string; name: string; type: 'employee' | 'department' }) {
+    // Lấy tên KPI từ nested object hoặc trực tiếp
+    const kpiName = (kpiRecord.kpis?.name || kpiRecord.kpi_name || 'KPI');
+    const unit = (kpiRecord.kpis?.unit || kpiRecord.unit || '');
+    
     const notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
       user_id: assigneeInfo.id,
       type: 'assigned',
       priority: 'medium',
       category: 'kpi',
       title: 'KPI mới được giao',
-      message: `Bạn đã được giao KPI "${kpiRecord.kpi_name || 'KPI'}" với mục tiêu ${kpiRecord.target || 0} ${kpiRecord.unit || ''} trong kỳ ${kpiRecord.period || 'hiện tại'}`,
+      message: `Bạn đã được giao KPI "${kpiName}" với mục tiêu ${kpiRecord.target || 0} ${unit} trong kỳ ${kpiRecord.period || 'hiện tại'}`,
       read: false,
       actor: {
         id: this.currentUser?.id || 'system',
@@ -210,6 +214,10 @@ export class NotificationManager {
 
   // Thông báo khi submit KPI
   async notifyKpiSubmitted(kpiRecord: any, submitterInfo: { id: string; name: string }) {
+    // Lấy tên KPI và unit từ nested object hoặc trực tiếp
+    const kpiName = (kpiRecord.kpis?.name || kpiRecord.kpi_name || 'KPI');
+    const unit = (kpiRecord.kpis?.unit || kpiRecord.unit || '');
+    
     // Thông báo cho admin/manager
     const adminNotificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
       user_id: 'admin', // Thông báo cho tất cả admin
@@ -217,7 +225,7 @@ export class NotificationManager {
       priority: 'medium',
       category: 'kpi',
       title: 'KPI đã được submit',
-      message: `${submitterInfo.name} đã submit KPI "${kpiRecord.kpi_name}" với kết quả ${kpiRecord.actual} ${kpiRecord.unit || ''}`,
+      message: `${submitterInfo.name} đã submit KPI "${kpiName}" với kết quả ${kpiRecord.actual} ${unit}`,
       read: false,
       actor: {
         id: submitterInfo.id,
@@ -241,7 +249,7 @@ export class NotificationManager {
       priority: 'low',
       category: 'kpi',
       title: 'KPI đã được submit thành công',
-      message: `Bạn đã submit KPI "${kpiRecord.kpi_name}" thành công. Đang chờ phê duyệt từ quản lý.`,
+      message: `Bạn đã submit KPI "${kpiName}" thành công. Đang chờ phê duyệt từ quản lý.`,
       read: false,
       actor: {
         id: submitterInfo.id,
@@ -265,6 +273,9 @@ export class NotificationManager {
 
   // Thông báo khi approve/reject KPI
   async notifyKpiApproved(kpiRecord: any, approverInfo: { id: string; name: string }, status: 'approved' | 'rejected') {
+    // Lấy tên KPI từ nested object hoặc trực tiếp
+    const kpiName = (kpiRecord.kpis?.name || kpiRecord.kpi_name || 'KPI');
+    
     const notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
       user_id: kpiRecord.employee_id,
       type: status === 'approved' ? 'approved' : 'rejected',
@@ -272,8 +283,8 @@ export class NotificationManager {
       category: 'kpi',
       title: status === 'approved' ? 'KPI đã được phê duyệt' : 'KPI đã bị từ chối',
       message: status === 'approved' 
-        ? `KPI "${kpiRecord.kpi_name}" của bạn đã được ${approverInfo.name} phê duyệt với điểm số ${kpiRecord.score || 'N/A'}`
-        : `KPI "${kpiRecord.kpi_name}" của bạn đã bị ${approverInfo.name} từ chối. Vui lòng xem phản hồi và chỉnh sửa.`,
+        ? `KPI "${kpiName}" của bạn đã được ${approverInfo.name} phê duyệt với điểm số ${kpiRecord.score || 'N/A'}`
+        : `KPI "${kpiName}" của bạn đã bị ${approverInfo.name} từ chối. Vui lòng xem phản hồi và chỉnh sửa.`,
       read: false,
       actor: {
         id: approverInfo.id,
@@ -295,13 +306,16 @@ export class NotificationManager {
 
   // Thông báo nhắc nhở deadline
   async notifyDeadlineReminder(kpiRecord: any, daysUntilDeadline: number) {
+    // Lấy tên KPI từ nested object hoặc trực tiếp
+    const kpiName = (kpiRecord.kpis?.name || kpiRecord.kpi_name || 'KPI');
+    
     const notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
       user_id: kpiRecord.employee_id,
       type: 'reminder',
       priority: daysUntilDeadline <= 1 ? 'urgent' : daysUntilDeadline <= 3 ? 'high' : 'medium',
       category: 'reminder',
       title: 'Nhắc nhở deadline KPI',
-      message: `KPI "${kpiRecord.kpi_name}" sẽ hết hạn trong ${daysUntilDeadline} ngày (${new Date(kpiRecord.end_date).toLocaleDateString('vi-VN')})`,
+      message: `KPI "${kpiName}" sẽ hết hạn trong ${daysUntilDeadline} ngày (${new Date(kpiRecord.end_date).toLocaleDateString('vi-VN')})`,
       read: false,
       actor: {
         id: 'system',
@@ -324,6 +338,10 @@ export class NotificationManager {
 
   // Thông báo khi nhân viên cập nhật tiến độ KPI
   async notifyKpiProgressUpdated(kpiRecord: any, employeeInfo: { id: string; name: string }, actual: number, progress: number) {
+    // Lấy tên KPI và unit từ nested object hoặc trực tiếp
+    const kpiName = (kpiRecord.kpis?.name || kpiRecord.kpi_name || 'KPI');
+    const unit = (kpiRecord.kpis?.unit || kpiRecord.unit || '');
+    
     // Thông báo cho admin/manager
     const adminNotificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
       user_id: 'admin', // Thông báo cho tất cả admin
@@ -331,7 +349,7 @@ export class NotificationManager {
       priority: 'low',
       category: 'kpi',
       title: 'KPI đã được cập nhật tiến độ',
-      message: `${employeeInfo.name} đã cập nhật tiến độ KPI "${kpiRecord.kpi_name || 'KPI'}" - Kết quả: ${actual} ${kpiRecord.unit || ''} (${progress.toFixed(1)}%)`,
+      message: `${employeeInfo.name} đã cập nhật tiến độ KPI "${kpiName}" - Kết quả: ${actual} ${unit} (${progress.toFixed(1)}%)`,
       read: false,
       actor: {
         id: employeeInfo.id,
@@ -353,7 +371,10 @@ export class NotificationManager {
 
   // Thông báo bonus/penalty
   async notifyBonusPenalty(kpiRecord: any, bonusAmount?: number, penaltyAmount?: number) {
+    // Lấy tên KPI từ nested object hoặc trực tiếp
+    const kpiName = (kpiRecord.kpis?.name || kpiRecord.kpi_name || 'KPI');
     const isBonus = bonusAmount && bonusAmount > 0;
+    
     const notificationData: Omit<NotificationData, 'id' | 'created_at' | 'updated_at' | 'is_active'> = {
       user_id: kpiRecord.employee_id,
       type: isBonus ? 'reward' : 'penalty',
@@ -361,8 +382,8 @@ export class NotificationManager {
       category: 'bonus',
       title: isBonus ? 'Thưởng KPI' : 'Phạt KPI',
       message: isBonus 
-        ? `Chúc mừng! Bạn đã nhận được thưởng ${bonusAmount?.toLocaleString('vi-VN')} VNĐ cho KPI "${kpiRecord.kpi_name}"`
-        : `Bạn đã bị phạt ${penaltyAmount?.toLocaleString('vi-VN')} VNĐ cho KPI "${kpiRecord.kpi_name}"`,
+        ? `Chúc mừng! Bạn đã nhận được thưởng ${bonusAmount?.toLocaleString('vi-VN')} VNĐ cho KPI "${kpiName}"`
+        : `Bạn đã bị phạt ${penaltyAmount?.toLocaleString('vi-VN')} VNĐ cho KPI "${kpiName}"`,
       read: false,
       actor: {
         id: 'system',

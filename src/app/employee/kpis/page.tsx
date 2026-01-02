@@ -55,7 +55,7 @@ import { useToast } from '@/hooks/use-toast';
 import { SessionContext } from '@/contexts/SessionContext';
 import { SupabaseDataContext } from '@/contexts/SupabaseDataContext';
 import type { Kpi, KpiRecord } from '@/services/supabase-service';
-import { getFrequencyLabel } from '@/lib/utils';
+import { getFrequencyLabel, formatNumber } from '@/lib/utils';
 import { uploadFile } from '@/ai/flows/upload-file';
 
 // Interface for combined KPI data
@@ -392,6 +392,8 @@ const KpiDetailDialog: React.FC<{
   const { kpi, record, progress, targetFormatted, actualFormatted } = kpiData;
   
   // Kiểm tra nếu KPI đã được duyệt
+  // Kiểm tra cả completed và approved - không cho phép submit
+  const isCompletedOrApproved = record.status === 'completed' || record.status === 'approved';
   const isApproved = record.status === 'approved';
 
   return (
@@ -495,10 +497,10 @@ const KpiDetailDialog: React.FC<{
             <div className="border-t pt-4 space-y-4">
               <h5 className="font-semibold text-sm">Cập nhật tiến độ</h5>
               
-              {isApproved && (
+              {isCompletedOrApproved && (
                 <div className="p-3 bg-muted rounded-md border border-primary/20">
                   <p className="text-sm text-muted-foreground">
-                    KPI này đã được duyệt. Bạn không thể cập nhật hoặc nộp lại báo cáo.
+                    KPI này đã {record.status === 'completed' ? 'hoàn thành' : 'được duyệt'}. Bạn không thể cập nhật hoặc nộp lại báo cáo.
                   </p>
                 </div>
               )}
@@ -514,7 +516,7 @@ const KpiDetailDialog: React.FC<{
                     placeholder="Nhập kết quả thực tế"
                     className="w-32"
                     min="0"
-                    disabled={isApproved}
+                    disabled={isCompletedOrApproved}
                   />
                   <span className="text-sm text-muted-foreground whitespace-nowrap">{kpi.unit}</span>
                 </div>
@@ -522,7 +524,7 @@ const KpiDetailDialog: React.FC<{
 
               <Button
                 onClick={handleUpdateProgress}
-                disabled={isApproved || isUpdating || isSubmitting || !actualValue.trim()}
+                disabled={isCompletedOrApproved || isUpdating || isSubmitting || !actualValue.trim()}
                 variant="outline"
                 className="w-full"
               >
@@ -552,7 +554,7 @@ const KpiDetailDialog: React.FC<{
                 onChange={(e) => setSubmissionDetails(e.target.value)}
                 placeholder="Mô tả chi tiết về tiến độ thực hiện, các khó khăn gặp phải, kế hoạch tiếp theo..."
                 rows={6}
-                disabled={isApproved}
+                disabled={isCompletedOrApproved}
               />
             </div>
 
@@ -560,14 +562,14 @@ const KpiDetailDialog: React.FC<{
             <div className="space-y-2">
               <Label>Tệp đính kèm</Label>
               <div
-                onDragOver={isApproved ? undefined : handleDragOver}
-                onDragEnter={isApproved ? undefined : handleDragEnter}
-                onDragLeave={isApproved ? undefined : handleDragLeave}
-                onDrop={isApproved ? undefined : handleDrop}
+                onDragOver={isCompletedOrApproved ? undefined : handleDragOver}
+                onDragEnter={isCompletedOrApproved ? undefined : handleDragEnter}
+                onDragLeave={isCompletedOrApproved ? undefined : handleDragLeave}
+                onDrop={isCompletedOrApproved ? undefined : handleDrop}
                 className={`
                   border-2 border-dashed rounded-lg p-6 text-center transition-colors min-h-[200px] flex flex-col items-center justify-center
-                  ${isApproved ? 'border-muted-foreground/10 bg-muted/30 cursor-not-allowed opacity-50' : isDragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-                  ${isApproved ? '' : 'hover:border-primary/50 cursor-pointer'}
+                  ${isCompletedOrApproved ? 'border-muted-foreground/10 bg-muted/30 cursor-not-allowed opacity-50' : isDragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
+                  ${isCompletedOrApproved ? '' : 'hover:border-primary/50 cursor-pointer'}
                 `}
               >
                 <input
@@ -581,10 +583,10 @@ const KpiDetailDialog: React.FC<{
                 <label htmlFor="file-upload" className={`w-full ${isApproved ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                   <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                   <p className="text-sm font-medium text-muted-foreground mb-1">
-                    {isApproved ? 'KPI đã được duyệt - không thể upload file' : 'Kéo thả file vào đây hoặc click để chọn'}
+                    {isCompletedOrApproved ? `KPI đã ${record.status === 'completed' ? 'hoàn thành' : 'được duyệt'} - không thể upload file` : 'Kéo thả file vào đây hoặc click để chọn'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {isApproved ? '' : 'Hỗ trợ nhiều file, kích thước tối đa 100MB'}
+                    {isCompletedOrApproved ? '' : 'Hỗ trợ nhiều file, kích thước tối đa 100MB'}
                   </p>
                 </label>
               </div>
@@ -628,7 +630,7 @@ const KpiDetailDialog: React.FC<{
             <div className="pt-4 border-t">
               <Button
                 onClick={handleSubmitReport}
-                disabled={isApproved || isUpdating || isSubmitting || !actualValue.trim()}
+                disabled={isCompletedOrApproved || isUpdating || isSubmitting || !actualValue.trim()}
                 className="w-full"
                 size="lg"
               >
@@ -640,13 +642,13 @@ const KpiDetailDialog: React.FC<{
                 ) : (
                   <>
                     <Send className="h-4 w-4 mr-2" />
-                    {isApproved ? 'KPI đã được duyệt' : 'Nộp báo cáo'}
+                    {isCompletedOrApproved ? `KPI đã ${record.status === 'completed' ? 'hoàn thành' : 'được duyệt'}` : 'Nộp báo cáo'}
                   </>
                 )}
               </Button>
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                {isApproved 
-                  ? 'KPI này đã được duyệt và không thể nộp lại báo cáo'
+                {isCompletedOrApproved 
+                  ? `KPI này đã ${record.status === 'completed' ? 'hoàn thành' : 'được duyệt'} và không thể nộp lại báo cáo`
                   : 'Khi nộp báo cáo, file đính kèm sẽ được tự động upload và báo cáo sẽ chờ duyệt'
                 }
               </p>
@@ -707,8 +709,8 @@ export default function EmployeeKpiListPage() {
           kpi,
           record,
           progress: Math.min(progress, 100),
-          targetFormatted: `${record.target || 0} ${kpi.unit}`,
-          actualFormatted: `${record.actual || 0} ${kpi.unit}`,
+          targetFormatted: `${formatNumber(record.target || 0)} ${kpi.unit}`,
+          actualFormatted: `${formatNumber(record.actual || 0)} ${kpi.unit}`,
         } as AssignedKpiData;
       })
       .filter((item): item is AssignedKpiData => item !== null);
@@ -781,20 +783,23 @@ export default function EmployeeKpiListPage() {
       return;
     }
 
-    // Kiểm tra xem có KPI nào đã được duyệt không
-    const approvedKpis: string[] = [];
+    // Kiểm tra xem có KPI nào đã completed hoặc approved không
+    const blockedKpis: Array<{ name: string; status: string }> = [];
     for (const kpiId of selectedKpiIds) {
       const kpiData = assignedKpiData.find(k => k.record.id === kpiId);
-      if (kpiData && kpiData.record.status === 'approved') {
-        approvedKpis.push(kpiData.kpi.name);
+      if (kpiData && (kpiData.record.status === 'approved' || kpiData.record.status === 'completed')) {
+        blockedKpis.push({ 
+          name: kpiData.kpi.name, 
+          status: kpiData.record.status === 'completed' ? 'hoàn thành' : 'được duyệt'
+        });
       }
     }
     
-    if (approvedKpis.length > 0) {
+    if (blockedKpis.length > 0) {
       toast({
         variant: "destructive",
         title: "Không thể nộp báo cáo",
-        description: `Các KPI sau đã được duyệt và không thể nộp lại: ${approvedKpis.join(', ')}`
+        description: `Các KPI sau đã ${blockedKpis[0].status} và không thể nộp lại: ${blockedKpis.map(k => k.name).join(', ')}`
       });
       return;
     }
@@ -1025,12 +1030,12 @@ export default function EmployeeKpiListPage() {
                   <div className="space-y-3">
                     {assignedKpiData.map((kpiData) => {
                       const isSelected = selectedKpiIds.has(kpiData.record.id);
-                      const isApproved = kpiData.record.status === 'approved';
+                      const isBlocked = kpiData.record.status === 'approved' || kpiData.record.status === 'completed';
                       return (
                         <div
                           key={kpiData.record.id}
                           className={`flex items-start gap-3 p-3 rounded-lg border ${
-                            isApproved 
+                            isBlocked 
                               ? 'border-muted-foreground/20 bg-muted/30 opacity-60' 
                               : isSelected 
                                 ? 'border-primary bg-primary/5' 
@@ -1039,19 +1044,21 @@ export default function EmployeeKpiListPage() {
                         >
                           <Checkbox
                             checked={isSelected}
-                            onCheckedChange={() => !isApproved && handleToggleKpi(kpiData.record.id)}
-                            disabled={isApproved}
+                            onCheckedChange={() => !isBlocked && handleToggleKpi(kpiData.record.id)}
+                            disabled={isBlocked}
                             className="mt-1"
                           />
                           <div className="flex-1">
                             <div className="flex items-center justify-between mb-1">
                               <Label 
-                                className={`font-medium ${isApproved ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`} 
-                                onClick={() => !isApproved && handleToggleKpi(kpiData.record.id)}
+                                className={`font-medium ${isBlocked ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer'}`} 
+                                onClick={() => !isBlocked && handleToggleKpi(kpiData.record.id)}
                               >
                                 {kpiData.kpi.name}
-                                {isApproved && (
-                                  <span className="ml-2 text-xs text-muted-foreground">(Đã duyệt - không thể nộp lại)</span>
+                                {isBlocked && (
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    ({kpiData.record.status === 'completed' ? 'Đã hoàn thành' : 'Đã duyệt'} - không thể nộp lại)
+                                  </span>
                                 )}
                               </Label>
                               <Badge variant={getStatusBadgeVariant(kpiData.record.status)}>
@@ -1065,10 +1072,10 @@ export default function EmployeeKpiListPage() {
                             </div>
                             {isSelected && (
                               <div className="mt-3 space-y-2 pt-3 border-t">
-                                {isApproved && (
+                                {isBlocked && (
                                   <div className="p-2 bg-muted rounded-md border border-primary/20 mb-2">
                                     <p className="text-xs text-muted-foreground">
-                                      KPI này đã được duyệt. Bạn không thể nộp lại báo cáo.
+                                      KPI này đã {kpiData.record.status === 'completed' ? 'hoàn thành' : 'được duyệt'}. Bạn không thể nộp lại báo cáo.
                                     </p>
                                   </div>
                                 )}
@@ -1087,7 +1094,7 @@ export default function EmployeeKpiListPage() {
                                       placeholder="Nhập kết quả thực tế"
                                       min="0"
                                       className="flex-1"
-                                      disabled={isApproved}
+                                      disabled={isBlocked}
                                     />
                                     <span className="text-sm text-muted-foreground">{kpiData.kpi.unit || ''}</span>
                                   </div>
@@ -1104,7 +1111,7 @@ export default function EmployeeKpiListPage() {
                                     }}
                                     placeholder="Ghi chú về KPI này..."
                                     rows={2}
-                                    disabled={isApproved}
+                                    disabled={isBlocked}
                                   />
                                 </div>
                                 {kpiActuals[kpiData.record.id] && parseFloat(kpiActuals[kpiData.record.id]) >= 0 && (
