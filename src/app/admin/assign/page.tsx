@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { CalendarIcon, ChevronDown, Plus, Trash2, Calendar, X } from 'lucide-react';
+import { CalendarIcon, ChevronDown, Plus, Trash2, Calendar, X, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { cn, formatDateToLocal, formatNumber } from '@/lib/utils';
@@ -130,6 +130,7 @@ export default function AssignKpiPage() {
   const [filterStatus, setFilterStatus] = React.useState<string>('all');
   const [isCancelDialogOpen, setIsCancelDialogOpen] = React.useState(false);
   const [recordToCancel, setRecordToCancel] = React.useState<AssignedKpiDetails | null>(null);
+  const [isCanceling, setIsCanceling] = React.useState(false);
 
   // Date range filter states (similar to assign dialog)
   const [filterStartDate, setFilterStartDate] = React.useState<Date | undefined>(undefined);
@@ -527,17 +528,29 @@ export default function AssignKpiPage() {
     setDetailModalOpen(false); // Close detail modal when opening cancel dialog
   }
 
+  const handleCancelDialogChange = (open: boolean) => {
+    setIsCancelDialogOpen(open);
+    if (!open) {
+      // Clean up state when dialog closes
+      setRecordToCancel(null);
+      setIsCanceling(false);
+    }
+  }
+
   const confirmCancel = async () => {
-    if (!recordToCancel) return;
+    if (!recordToCancel || isCanceling) return;
     
+    setIsCanceling(true);
     try {
       await deleteKpiRecord(recordToCancel.id.toString());
       toast({
         title: t('common.success'),
         description: t('assign.cancelSuccess', { kpiName: recordToCancel.kpiName })
       });
+      // Close dialog and clean up state
       setIsCancelDialogOpen(false);
       setRecordToCancel(null);
+      setIsCanceling(false);
     } catch (error: any) {
       console.error('Error canceling KPI assignment:', error);
       toast({
@@ -545,6 +558,9 @@ export default function AssignKpiPage() {
         title: t('common.error'),
         description: error?.message || error?.details || t('assign.cancelError')
       });
+      // Still allow dialog to close on error, but reset loading state
+      setIsCanceling(false);
+      // Don't close dialog automatically on error - let user decide
     }
   }
 
@@ -1251,7 +1267,7 @@ export default function AssignKpiPage() {
       </Dialog>
 
       {/* Cancel KPI Assignment Confirmation Dialog */}
-      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={handleCancelDialogChange}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('assign.confirmCancelTitle')}</AlertDialogTitle>
@@ -1263,12 +1279,20 @@ export default function AssignKpiPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isCanceling}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={confirmCancel} 
+              onClick={confirmCancel}
+              disabled={isCanceling}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {t('assign.confirmCancel')}
+              {isCanceling ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t('common.loading')}
+                </>
+              ) : (
+                t('assign.confirmCancel')
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
