@@ -528,14 +528,61 @@ export default function AssignKpiPage() {
     setDetailModalOpen(false); // Close detail modal when opening cancel dialog
   }
 
-  const handleCancelDialogChange = (open: boolean) => {
+  // Helper function to force unlock body scroll
+  const unlockBodyScroll = React.useCallback(() => {
+    if (typeof document === 'undefined') return;
+    
+    const body = document.body;
+    const html = document.documentElement;
+    
+    // Remove overflow styles
+    body.style.overflow = '';
+    body.style.paddingRight = '';
+    html.style.overflow = '';
+    
+    // Remove any data attributes
+    body.removeAttribute('data-scroll-locked');
+    html.removeAttribute('data-scroll-locked');
+    
+    // Remove any inline styles that might be set by Radix UI
+    body.style.removeProperty('overflow');
+    body.style.removeProperty('padding-right');
+    html.style.removeProperty('overflow');
+  }, []);
+
+  const handleCancelDialogChange = React.useCallback((open: boolean) => {
     setIsCancelDialogOpen(open);
     if (!open) {
       // Clean up state when dialog closes
       setRecordToCancel(null);
       setIsCanceling(false);
+      // Force unlock body scroll immediately
+      unlockBodyScroll();
     }
-  }
+  }, [unlockBodyScroll]);
+
+  // Force unlock body scroll when dialog closes
+  React.useEffect(() => {
+    if (!isCancelDialogOpen) {
+      // Try multiple times to ensure scroll is unlocked
+      const timers = [
+        setTimeout(() => unlockBodyScroll(), 0),
+        setTimeout(() => unlockBodyScroll(), 100),
+        setTimeout(() => unlockBodyScroll(), 300),
+      ];
+      
+      return () => {
+        timers.forEach(timer => clearTimeout(timer));
+      };
+    }
+  }, [isCancelDialogOpen, unlockBodyScroll]);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      unlockBodyScroll();
+    };
+  }, [unlockBodyScroll]);
 
   const confirmCancel = async () => {
     if (!recordToCancel || isCanceling) return;
@@ -551,6 +598,8 @@ export default function AssignKpiPage() {
       setIsCancelDialogOpen(false);
       setRecordToCancel(null);
       setIsCanceling(false);
+      // Force unlock scroll after successful deletion
+      unlockBodyScroll();
     } catch (error: any) {
       console.error('Error canceling KPI assignment:', error);
       toast({
@@ -560,6 +609,8 @@ export default function AssignKpiPage() {
       });
       // Still allow dialog to close on error, but reset loading state
       setIsCanceling(false);
+      // Force unlock scroll even on error
+      unlockBodyScroll();
       // Don't close dialog automatically on error - let user decide
     }
   }
